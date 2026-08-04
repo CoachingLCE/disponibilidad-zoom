@@ -190,6 +190,13 @@
     display:flex;align-items:center;padding:0 6px;overflow:hidden;white-space:nowrap;
   }
   .timeline-block.pasada{opacity:.4;text-decoration:line-through;}
+  .linea-ahora{
+    position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--busy);z-index:5;
+  }
+  .linea-ahora::before{
+    content:'';position:absolute;top:-3px;left:-3px;width:8px;height:8px;
+    border-radius:100%;background:var(--busy);
+  }
   .axis{display:grid;grid-template-columns:110px 1fr;margin-top:4px;margin-bottom:14px;}
   .axis .ticks{position:relative;height:16px;}
   .axis .tick{position:absolute;font-family:var(--mono);font-size:10px;color:var(--text-dim);transform:translateX(-50%);}
@@ -288,6 +295,49 @@
   .estado-tag.fin{background:rgba(217,88,79,.15);color:#f2a29c;}
   .estado-tag.proc{background:rgba(63,174,106,.15);color:#7fd4a0;}
   .estado-tag.pend{background:rgba(147,163,179,.15);color:var(--text-dim);}
+
+  .conflicto-item{
+    padding:10px 14px;border-radius:9px;margin-bottom:8px;font-size:13px;font-weight:600;
+  }
+  .conflicto-item.warn{background:rgba(217,88,79,.12);color:#f2a29c;border:1px solid rgba(217,88,79,.3);}
+  .conflicto-item.info{background:rgba(224,164,88,.1);color:var(--accent-2);border:1px solid rgba(224,164,88,.3);}
+
+  @media (max-width: 640px){
+    body{padding:16px 12px 60px;}
+    h1{font-size:20px;}
+    header p{font-size:13px;}
+    .panel{padding:16px 14px 18px;}
+    .dash-metrics{grid-template-columns:repeat(2,1fr);}
+    .dash-metric{padding:10px 8px;}
+    .dash-metric .dm-n{font-size:20px;}
+    .dash-highlight{flex-direction:column;}
+    .dash-card{min-width:0;}
+
+    .hojas-nav{
+      flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      padding-bottom:10px;margin-bottom:14px;
+    }
+    .hojas-nav::-webkit-scrollbar{height:4px;}
+    button.hoja-tab{flex:0 0 auto;font-size:13px;padding:8px 14px;white-space:nowrap;}
+
+    .row{gap:8px;}
+    button{font-size:13px;padding:9px 14px;}
+    button.primary, #btnParse, #btnCheck{font-size:14px;padding:11px 18px;width:100%;}
+
+    textarea{font-size:11.5px;min-height:110px;}
+    .grid[style]{grid-template-columns:1fr !important;}
+
+    table.grilla{min-width:640px;}
+    .confirm-grid{grid-template-columns:1fr 1fr;}
+    .accion-modal{padding:16px 18px;}
+    .filtros-curso{gap:5px;}
+    .filtro-chip{font-size:11px;padding:4px 10px;}
+  }
+
+  @media (max-width: 400px){
+    .dash-metrics{grid-template-columns:repeat(2,1fr);}
+    .confirm-grid{grid-template-columns:1fr;}
+  }
 </style>
 </head>
 <body>
@@ -309,6 +359,7 @@
     <button class="hoja-tab" data-hoja="formaciones">Formaciones</button>
     <button class="hoja-tab" data-hoja="feriados">Feriados</button>
     <button class="hoja-tab" data-hoja="postergadas">Postergadas</button>
+    <button class="hoja-tab" data-hoja="estadisticas">Estadísticas</button>
   </div>
 
   <div id="hojaInicio">
@@ -476,10 +527,19 @@ OR 19</textarea>
     <h2><span class="num">5</span> Días sin clase (feriados)</h2>
     <button class="info-toggle" data-toggle="info5">ⓘ ¿Cómo funciona?</button>
     <div class="info-panel" id="info5">
-      <p class="purpose">Para qué sirve: evita que se agende una clase en un feriado internacional o en cualquier fecha marcada "no habrá clase", y si una clase de una serie cae justo ahí, la corre una semana sola.</p>
-      <p class="sub">Pegá tu tabla de feriados tal cual la copiás de tu Sheet, con tabulaciones (columnas: Fecha, Conmemoración, Tipo de feriado, año, Observaciones).</p>
+      <p class="purpose">Para qué sirve: evita que se agende una clase en un feriado internacional o marcado "no habrá clase", y si una clase de una serie cae justo ahí, la corre una semana sola. Los "Informativos" no bloquean nada, son solo referencia.</p>
     </div>
-    <textarea id="inputFeriados" style="min-height:140px;">5 de junio de 2026	Día mundial del medio ambiente	Efeméride
+
+    <div class="row" style="margin-top:0;margin-bottom:14px;">
+      <button id="btnNuevoFeriado">➕ Nuevo</button>
+    </div>
+    <div id="feriadosTabla"></div>
+
+    <div style="margin-top:22px;">
+      <button class="info-toggle" data-toggle="infoBulkFeriados">ⓘ Importar en bloque desde tu Sheet</button>
+      <div class="info-panel" id="infoBulkFeriados">
+        <p class="sub">Pegá tu tabla tal cual la copiás de Google Sheets, con tabulaciones (columnas: Fecha, Conmemoración, Tipo de feriado, año, Observaciones). Se suma a lo que ya tengas en la tabla de arriba, sin duplicar fechas repetidas.</p>
+        <textarea id="inputFeriados" style="min-height:140px;">5 de junio de 2026	Día mundial del medio ambiente	Efeméride
 9 de julio de 2026	Día de la Independencia	Nacional
 30 de julio de 2026	Día mundial contra la trata	Efeméride
 5 de octubre de 2026	Día mundial de los docentes	Efeméride
@@ -507,11 +567,12 @@ OR 19</textarea>
 9 de julio de 2027	Día de la Independencia	Nacional		No habrá clase - A revisar por 2028
 16 de agosto de 2027	Paso a la Inmortalidad del Gral. José de San Martín	Nacional		No habrá clase - A revisar por 2028
 11 de octubre de 2027	Día del Respeto a la Diversidad Cultural	Nacional		No habrá clase - A revisar por 2028</textarea>
-    <div class="row">
-      <button id="btnParseFeriados" class="secondary">Cargar feriados</button>
+        <div class="row">
+          <button id="btnParseFeriados" class="secondary">Importar tabla pegada</button>
+        </div>
+        <div class="msg" id="feriadosMsg"></div>
+      </div>
     </div>
-    <div class="msg" id="feriadosMsg"></div>
-    <div id="feriadosWrap" style="margin-top:14px;"></div>
   </div>
   </div>
 
@@ -534,6 +595,35 @@ OR 19</textarea>
     </div>
     <div id="statsPostergadas" style="margin:14px 0;"></div>
     <div id="postergadasWrap"><p class="empty-note">Todavía no se postergó ninguna clase.</p></div>
+  </div>
+  </div>
+
+  <div id="hojaEstadisticas" style="display:none;">
+  <div class="panel">
+    <h2><span class="num">7</span> Estadísticas</h2>
+    <button class="info-toggle" data-toggle="info7">ⓘ ¿Cómo funciona?</button>
+    <div class="info-panel" id="info7">
+      <p class="purpose">Para qué sirve: un pantallazo de cómo se está usando el sistema — qué sala se usa más, cuántas horas de Zoom por semana, y qué curso tiene más actividad.</p>
+    </div>
+    <div id="statsGenerales" class="stat-cards"></div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">8</span> Panel de conflictos</h2>
+    <button class="info-toggle" data-toggle="info8">ⓘ ¿Cómo funciona?</button>
+    <div class="info-panel" id="info8">
+      <p class="purpose">Para qué sirve: detecta automáticamente choques de sala, clases cargadas justo en un feriado, y ediciones que están por terminar — antes de que se conviertan en un problema.</p>
+    </div>
+    <div id="panelConflictos"></div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">9</span> Historial reciente</h2>
+    <button class="info-toggle" data-toggle="info9">ⓘ ¿Cómo funciona?</button>
+    <div class="info-panel" id="info9">
+      <p class="purpose">Para qué sirve: registra los últimos cambios hechos en la app (reservas, cambios de sala, cancelaciones) — para saber qué pasó y cuándo.</p>
+    </div>
+    <div id="historialWrap"><p class="empty-note">Todavía no hay movimientos registrados.</p></div>
   </div>
   </div>
 
@@ -565,6 +655,7 @@ function colorDe(c){
   return colorModo==='sala' ? SALA_COLORS[c.sala] : `var(--c-${c.codigo},#888)`;
 }
 const NOMBRES = {CO:"Coaching Ontológico",CE:"Coaching Educativo",CEQUI:"Coaching de Equipos",OR:"Oratoria",O:"Oratoria",CV:"Coaching Vocacional",CDEP:"Coaching Deportivo",IE:"Inteligencia Emocional",ESI:"Taller ESI"};
+const ICONOS = {CO:"🎓",CE:"🎓",CEQUI:"🤝",OR:"🎤",O:"🎤",CV:"🧭",CDEP:"🏃",IE:"❤️",ESI:"🛡️"};
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TOTALES = {CO:48, CE:16, CEQUI:16, OR:16, O:16, CV:16};
 const BUFFER_MIN = 45;
@@ -722,7 +813,8 @@ function agruparParaVista(){
   return resultado;
 }
 
-let feriados = []; // {fecha:ISO, motivo, tipo}
+let feriados = []; // {id, fecha:ISO, motivo, tipo, bloquea}
+let feriadoIdSeq = 1;
 
 function quitarAcentos(s){
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -774,48 +866,136 @@ function parsearFeriadoLinea(linea){
     || /no (habr[aá]|hay) clase/i.test(colAnio)
     || /no (habr[aá]|hay) clase/i.test(obs);
 
-  if(!bloquea) return {skip:true};
-  return {fechasISO, motivo:conmemoracion||tipo||'Feriado', tipo};
+  return {fechasISO, motivo:conmemoracion||tipo||'Feriado', tipo, bloquea};
 }
 
 function cargarFeriados(texto){
   const lineas = texto.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
   const nuevos = [];
   const errores = [];
-  let bloqueadas = 0;
+  const fechasExistentes = new Set(feriados.map(f=>f.fecha));
+  let agregados = 0, bloqueantes = 0;
   lineas.forEach(l=>{
     const r = parsearFeriadoLinea(l);
     if(!r) return;
     if(r.error){ errores.push(r.error); return; }
-    if(r.skip) return;
-    r.fechasISO.forEach(f=> nuevos.push({fecha:f, motivo:r.motivo, tipo:r.tipo}));
-    bloqueadas++;
+    r.fechasISO.forEach(f=>{
+      if(fechasExistentes.has(f)) return; // no duplicar fechas ya cargadas
+      nuevos.push({id:feriadoIdSeq++, fecha:f, motivo:r.motivo, tipo:r.tipo, bloquea:r.bloquea});
+      fechasExistentes.add(f);
+      agregados++;
+      if(r.bloquea) bloqueantes++;
+    });
   });
-  feriados = nuevos;
+  feriados = feriados.concat(nuevos);
   renderFeriados();
   const msg = document.getElementById('feriadosMsg');
   if(errores.length){
     msg.className='msg err show';
-    msg.innerHTML = `Se cargaron ${bloqueadas} fila(s) que bloquean clases (${nuevos.length} fecha(s) en total). ${errores.length} línea(s) no interpretadas:<br>` + errores.map(e=>'· '+e).join('<br>');
+    msg.innerHTML = `Se agregaron ${agregados} fecha(s) nueva(s) (${bloqueantes} bloquean clase). ${errores.length} línea(s) no interpretadas:<br>` + errores.map(e=>'· '+e).join('<br>');
   } else {
     msg.className='msg ok show';
-    msg.textContent = `Se cargaron ${bloqueadas} fila(s) que bloquean clases (${nuevos.length} fecha(s) en total). El resto (efemérides sin restricción) no bloquean nada.`;
+    msg.textContent = `Se agregaron ${agregados} fecha(s) nueva(s) a la tabla (${bloqueantes} bloquean clase, el resto quedan como informativas).`;
   }
 }
 
 function feriadoEnFecha(fechaISO){
-  return feriados.find(f=>f.fecha===fechaISO) || null;
+  return feriados.find(f=>f.fecha===fechaISO && f.bloquea) || null;
 }
 
 function renderFeriados(){
-  const wrap = document.getElementById('feriadosWrap');
+  const wrap = document.getElementById('feriadosTabla');
   if(feriados.length===0){
     wrap.innerHTML = '<p class="empty-note">No hay feriados cargados — por ahora no se bloquea ninguna fecha.</p>';
     return;
   }
   const ordenados = [...feriados].sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  const filas = ordenados.map(f=>`<tr><td>${formatFechaCorta(f.fecha)}</td><td>${f.motivo}</td></tr>`).join('');
-  wrap.innerHTML = `<table><thead><tr><th>Fecha</th><th>Motivo</th></tr></thead><tbody>${filas}</tbody></table>`;
+  const filas = ordenados.map(f=>`
+    <tr>
+      <td>${formatFechaCorta(f.fecha)}</td>
+      <td>${f.motivo}</td>
+      <td>${f.bloquea ? '🔒 Bloquea' : '👁️ Informativo'}</td>
+      <td style="white-space:nowrap;">
+        <button data-editar-feriado="${f.id}" style="padding:5px 9px;font-size:12px;">✏️</button>
+        <button data-eliminar-feriado="${f.id}" style="padding:5px 9px;font-size:12px;">🗑️</button>
+      </td>
+    </tr>`).join('');
+  wrap.innerHTML = `<table><thead><tr><th>Fecha</th><th>Motivo</th><th>Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`;
+
+  wrap.querySelectorAll('[data-editar-feriado]').forEach(btn=>{
+    btn.addEventListener('click', ()=>abrirFormularioFeriado(parseInt(btn.dataset.editarFeriado,10)));
+  });
+  wrap.querySelectorAll('[data-eliminar-feriado]').forEach(btn=>{
+    btn.addEventListener('click', ()=>eliminarFeriado(parseInt(btn.dataset.eliminarFeriado,10)));
+  });
+}
+
+function abrirFormularioFeriado(id){
+  const feriado = id ? feriados.find(f=>f.id===id) : null;
+  const body = document.getElementById('accionModalBody');
+  body.innerHTML = `
+    <h3>${feriado ? 'Editar feriado' : 'Nuevo feriado'}</h3>
+    <label>Fecha</label>
+    <input type="date" id="fFecha" value="${feriado?feriado.fecha:''}">
+    <label>Motivo</label>
+    <input type="text" id="fMotivo" placeholder="ej: Día del Docente" value="${feriado?feriado.motivo.replace(/"/g,'&quot;'):''}">
+    <label>Estado</label>
+    <select id="fBloquea">
+      <option value="si" ${feriado&&feriado.bloquea?'selected':''}>🔒 Bloquea — no se puede agendar clase</option>
+      <option value="no" ${feriado&&!feriado.bloquea?'selected':''}>👁️ Informativo — no bloquea nada</option>
+    </select>
+    <div class="msg err" id="feriadoFormMsg"></div>
+    <div class="accion-footer">
+      <button class="secondary" id="cancelarFeriado">Cancelar</button>
+      <button id="guardarFeriado" class="primary">Guardar</button>
+    </div>
+  `;
+  document.getElementById('cancelarFeriado').addEventListener('click', cerrarModal);
+  document.getElementById('guardarFeriado').addEventListener('click', ()=>{
+    const fecha = document.getElementById('fFecha').value;
+    const motivo = document.getElementById('fMotivo').value.trim();
+    const bloquea = document.getElementById('fBloquea').value==='si';
+    if(!fecha || !motivo){
+      const m = document.getElementById('feriadoFormMsg');
+      m.className='msg err show';
+      m.textContent = 'Completá la fecha y el motivo.';
+      return;
+    }
+    if(feriado){
+      feriado.fecha = fecha; feriado.motivo = motivo; feriado.bloquea = bloquea;
+      registrarHistorial('Editó feriado', `${motivo} — ${formatFechaCorta(fecha)}`);
+    } else {
+      feriados.push({id:feriadoIdSeq++, fecha, motivo, tipo:'Manual', bloquea});
+      registrarHistorial('Agregó feriado', `${motivo} — ${formatFechaCorta(fecha)}`);
+    }
+    renderFeriados();
+    guardarEstado();
+    cerrarModal();
+  });
+  document.getElementById('accionOverlay').style.display='flex';
+}
+
+function eliminarFeriado(id){
+  const feriado = feriados.find(f=>f.id===id);
+  if(!feriado) return;
+  const body = document.getElementById('accionModalBody');
+  body.innerHTML = `
+    <h3>Eliminar feriado</h3>
+    <p class="sub">¿Seguro que querés eliminar "${feriado.motivo}" (${formatFechaCorta(feriado.fecha)})?</p>
+    <div class="accion-footer">
+      <button class="secondary" id="cancelarElimFeriado">Cancelar</button>
+      <button id="confirmarElimFeriado" style="background:var(--busy);">Sí, eliminar</button>
+    </div>
+  `;
+  document.getElementById('cancelarElimFeriado').addEventListener('click', cerrarModal);
+  document.getElementById('confirmarElimFeriado').addEventListener('click', ()=>{
+    feriados = feriados.filter(f=>f.id!==id);
+    registrarHistorial('Eliminó feriado', `${feriado.motivo} — ${formatFechaCorta(feriado.fecha)}`);
+    renderFeriados();
+    guardarEstado();
+    cerrarModal();
+  });
+  document.getElementById('accionOverlay').style.display='flex';
 }
 
 function renderLeyenda(){
@@ -829,7 +1009,7 @@ function renderLeyenda(){
   }
   const codigos = [...new Set(clases.map(c=>c.codigo))];
   wrap.innerHTML = codigos.map(c=>
-    `<span style="background:var(--c-${c},#888)">${c} · ${NOMBRES[c]||''}</span>`
+    `<span style="background:var(--c-${c},#888)">${ICONOS[c]||''} ${c} · ${NOMBRES[c]||''}</span>`
   ).join('');
 }
 
@@ -865,7 +1045,7 @@ function renderGrilla(){
           ? `<span class="sala">Clase ${c.serieTotal>1?c.serieIndex:c.numero}${total?' de '+total:''}</span>`
           : '';
         const fechaInfo = c.fecha ? `<span class="serie-tag">${formatFechaCorta(c.fecha)}</span>` : '';
-        return `<div class="clase-chip ${c.pasada?'chip-pasada':''}" data-id="${c.id}" style="background:${colorDe(c)}">${c.label}<span class="sala">${c.sala}</span>${claseInfo}${fechaInfo}</div>`;
+        return `<div class="clase-chip ${c.pasada?'chip-pasada':''}" data-id="${c.id}" style="background:${colorDe(c)}">${ICONOS[c.codigo]||''} ${c.label}<span class="sala">${c.sala}</span>${claseInfo}${fechaInfo}</div>`;
       }).join('');
       return `<td class="${claseCol}">${chips}</td>`;
     }).join('');
@@ -885,6 +1065,14 @@ function renderSelDia(){
   if(diasUsados.includes(prev)) sel.value = prev;
 }
 
+function renderLineaAhora(span){
+  const ahora = new Date();
+  const horaActual = ahora.getHours()*60 + ahora.getMinutes();
+  if(horaActual < DIA_MIN || horaActual > DIA_MAX) return '';
+  const left = (horaActual-DIA_MIN)/span*100;
+  return `<div class="linea-ahora" style="left:${left}%" title="Ahora, ${minutosAHora(horaActual)}"></div>`;
+}
+
 function renderSalas(){
   const dia = document.getElementById('selDia').value;
   const wrap = document.getElementById('salaTimelines');
@@ -902,9 +1090,10 @@ function renderSalas(){
       const nota = c.serieTotal>1 ? ` (${c.serieIndex}/${c.serieTotal})` : '';
       return `<div class="timeline-block ${c.pasada?'pasada':''}" style="left:${left}%;width:${width}%;background:var(--c-${c.codigo},#888)" title="${c.label}${nota} — abre ${minutosAHora(inicio)}${c.fecha?' · '+formatFechaCorta(c.fecha):''}">${c.label}${c.pasada?' ✓':''}</div>`;
     }).join('');
+    const nota_actual = (dia===DIAS_JS[new Date().getDay()]) ? renderLineaAhora(span) : '';
     html += `<div class="timeline-row">
       <div class="label">${sala}</div>
-      <div class="timeline-track">${blocks}</div>
+      <div class="timeline-track">${blocks}${nota_actual}</div>
     </div>`;
   });
   // eje de horas
@@ -1107,6 +1296,12 @@ function renderFormaciones(){
 }
 
 let postergaciones = [];
+let historial = [];
+
+function registrarHistorial(accion, detalle){
+  historial.unshift({accion, detalle, fecha: new Date().toISOString(), usuario:'Diego'});
+  if(historial.length>200) historial = historial.slice(0,200);
+}
 
 function abrirAcciones(id){
   const clase = clases.find(c=>c.id===id);
@@ -1165,6 +1360,7 @@ function mostrarFormularioCambiarSala(clase){
       m.textContent = `${nueva} está ocupada ese horario por ${choque.label}.`;
       return;
     }
+    registrarHistorial('Cambió sala', `${clase.label} — ${clase.sala} → ${nueva}`);
     clase.sala = nueva;
     renderTodo();
     cerrarModal();
@@ -1183,6 +1379,7 @@ function confirmarCancelar(clase){
   `;
   document.getElementById('volverMenu2').addEventListener('click', ()=>mostrarMenuAcciones(clase));
   document.getElementById('confirmarCancelarBtn').addEventListener('click', ()=>{
+    registrarHistorial('Canceló clase', `${clase.label} — ${clase.sala}, ${clase.dia.toLowerCase()} ${minutosAHora(clase.horaMin)}${clase.fecha?' ('+formatFechaCorta(clase.fecha)+')':''}`);
     clases = clases.filter(c=>c.id!==clase.id);
     renderTodo();
     cerrarModal();
@@ -1243,6 +1440,8 @@ function ejecutarPostergar(clase, motivoId, observaciones){
       c.fecha = toISO(f);
     }
   });
+
+  registrarHistorial('Postergó clase', `${clase.label} — ${formatFechaCorta(fechaOriginal)} → ${formatFechaCorta(fechaNueva)} (${motivoLabel})`);
 
   renderTodo();
 }
@@ -1323,7 +1522,7 @@ const STORAGE_KEY = 'ilce_disponibilidad_zoom_v1';
 function guardarEstado(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      clases, postergaciones, feriados, formacionesManuales, claseIdSeq
+      clases, postergaciones, feriados, formacionesManuales, claseIdSeq, historial, feriadoIdSeq
     }));
   }catch(e){ /* localStorage no disponible: seguimos sin persistir */ }
 }
@@ -1339,6 +1538,8 @@ function cargarEstado(){
     feriados = data.feriados || [];
     formacionesManuales = data.formacionesManuales || [];
     claseIdSeq = data.claseIdSeq || (clases.length + 1);
+    historial = data.historial || [];
+    feriadoIdSeq = data.feriadoIdSeq || (feriados.length + 1);
     return true;
   }catch(e){ return false; }
 }
@@ -1347,7 +1548,7 @@ function renderFiltrosCurso(){
   const wrap = document.getElementById('filtrosCurso');
   const codigosUsados = [...new Set(clases.map(c=>c.codigo))].sort();
   const botones = [`<button class="filtro-chip ${filtroCursoActivo===''?'active':''}" data-curso="">Todos</button>`]
-    .concat(codigosUsados.map(c=>`<button class="filtro-chip ${filtroCursoActivo===c?'active':''}" data-curso="${c}">${c}</button>`));
+    .concat(codigosUsados.map(c=>`<button class="filtro-chip ${filtroCursoActivo===c?'active':''}" data-curso="${c}">${ICONOS[c]||''} ${c}</button>`));
   wrap.innerHTML = botones.join('');
   wrap.querySelectorAll('.filtro-chip').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -1421,6 +1622,108 @@ function renderDashboard(){
   document.getElementById('dashHighlight').innerHTML = proximaHtml + liberaHtml;
 }
 
+function renderEstadisticasGenerales(){
+  const wrap = document.getElementById('statsGenerales');
+  const vista = agruparParaVista();
+  if(vista.length===0){
+    wrap.innerHTML = '<p class="empty-note">Todavía no hay clases cargadas.</p>';
+    return;
+  }
+  // Uso por sala (sobre clases activas, ponderado por semana)
+  const usoSala = {};
+  SALAS.forEach(s=>usoSala[s]=0);
+  let horasTotales = 0;
+  vista.forEach(c=>{
+    usoSala[c.sala] = (usoSala[c.sala]||0) + 1;
+    horasTotales += c.duracion/60;
+  });
+  const salaTop = Object.entries(usoSala).sort((a,b)=>b[1]-a[1])[0];
+  const totalClasesSemana = vista.filter(c=>DIAS.includes(c.dia)).length;
+
+  const porCurso = {};
+  vista.forEach(c=>{ porCurso[c.codigo] = (porCurso[c.codigo]||0)+1; });
+  const cursoTop = Object.entries(porCurso).sort((a,b)=>b[1]-a[1])[0];
+
+  wrap.innerHTML = `
+    <div class="stat-card"><div class="n">${salaTop?salaTop[0]:'—'}</div><div class="l">Sala más usada (${salaTop?salaTop[1]:0} clases/sem)</div></div>
+    <div class="stat-card"><div class="n">${totalClasesSemana}</div><div class="l">Promedio semanal de clases</div></div>
+    <div class="stat-card"><div class="n">${horasTotales.toFixed(1)} hs</div><div class="l">Horas de Zoom por semana</div></div>
+    <div class="stat-card"><div class="n">${cursoTop?(ICONOS[cursoTop[0]]||'')+' '+cursoTop[0]:'—'}</div><div class="l">Curso con más actividad (${cursoTop?cursoTop[1]:0} clases/sem)</div></div>
+  `;
+}
+
+function renderConflictos(){
+  const wrap = document.getElementById('panelConflictos');
+  const alertas = [];
+
+  // Sala doblemente reservada (misma sala/día con horarios que se pisan)
+  const porSalaDia = {};
+  clases.forEach(c=>{
+    const key = c.sala+'|'+c.dia;
+    (porSalaDia[key] = porSalaDia[key] || []).push(c);
+  });
+  let choques = 0;
+  Object.values(porSalaDia).forEach(grupo=>{
+    for(let i=0;i<grupo.length;i++){
+      for(let j=i+1;j<grupo.length;j++){
+        const a=grupo[i], b=grupo[j];
+        // Si tienen fecha distinta y una de las dos no es una serie compartiendo el mismo slot, no cuenta
+        if(a.fecha && b.fecha && a.fecha!==b.fecha) continue;
+        const ai=a.horaMin-BUFFER_MIN, af=a.horaMin+a.duracion;
+        const bi=b.horaMin-BUFFER_MIN, bf=b.horaMin+b.duracion;
+        if(ai<bf && bi<af){ choques++; }
+      }
+    }
+  });
+  if(choques>0) alertas.push({tipo:'warn', texto:`${choques} clase(s) superpuestas en la misma sala.`});
+
+  // Clases cargadas justo en un feriado
+  const enFeriado = clases.filter(c=>c.fecha && feriadoEnFecha(c.fecha)).length;
+  if(enFeriado>0) alertas.push({tipo:'warn', texto:`${enFeriado} clase(s) cargada(s) justo en un feriado.`});
+
+  // Ediciones a punto de terminar (última clase entre hoy y los próximos 14 días)
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const en14 = new Date(hoy); en14.setDate(en14.getDate()+14);
+  const grupos = {};
+  clases.filter(c=>c.fecha && c.numero).forEach(c=>{
+    const key = c.codigo+'|'+(c.edicion||'1');
+    (grupos[key] = grupos[key] || []).push(c);
+  });
+  let porTerminar = 0;
+  Object.entries(grupos).forEach(([key, grupo])=>{
+    const [codigo] = key.split('|');
+    const total = TOTALES[codigo];
+    if(!total) return;
+    const cargadas = new Set(grupo.map(c=>c.numero)).size;
+    const ultimaFecha = grupo.map(c=>c.fecha).sort().slice(-1)[0];
+    const f = new Date(ultimaFecha+'T00:00:00');
+    if(cargadas>=total-2 && f>=hoy && f<=en14) porTerminar++;
+  });
+  if(porTerminar>0) alertas.push({tipo:'info', texto:`${porTerminar} edición(es) por terminar en los próximos 14 días.`});
+
+  if(alertas.length===0){
+    wrap.innerHTML = '<p class="empty-note">✔ Sin conflictos detectados por ahora.</p>';
+    return;
+  }
+  wrap.innerHTML = alertas.map(a=>
+    `<div class="conflicto-item ${a.tipo}">⚠ ${a.texto}</div>`
+  ).join('');
+}
+
+function renderHistorial(){
+  const wrap = document.getElementById('historialWrap');
+  if(historial.length===0){
+    wrap.innerHTML = '<p class="empty-note">Todavía no hay movimientos registrados.</p>';
+    return;
+  }
+  const filas = historial.slice(0,40).map(h=>{
+    const f = new Date(h.fecha);
+    const fechaTxt = `${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')} ${String(f.getHours()).padStart(2,'0')}:${String(f.getMinutes()).padStart(2,'0')}`;
+    return `<tr><td style="white-space:nowrap;">${fechaTxt}</td><td>${h.usuario}</td><td>${h.accion}</td><td>${h.detalle}</td></tr>`;
+  }).join('');
+  wrap.innerHTML = `<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
 function renderTodo(){
   renderSemana();
   renderLeyenda();
@@ -1432,7 +1735,11 @@ function renderTodo(){
   renderEstado();
   renderFormaciones();
   renderPostergadas();
+  renderFeriados();
   renderDashboard();
+  renderEstadisticasGenerales();
+  renderConflictos();
+  renderHistorial();
   guardarEstado();
 }
 
@@ -1476,7 +1783,7 @@ document.getElementById('selDia').addEventListener('change', renderSalas);
 
 // Poblar select de tipo de clase
 document.getElementById('qTipo').innerHTML = Object.keys(NOMBRES).filter(c=>c!=='O').map(c=>
-  `<option value="${c}">${c} — ${NOMBRES[c]} (${DURACIONES[c]===120?'2h':'1h30'})</option>`
+  `<option value="${c}">${ICONOS[c]||''} ${c} — ${NOMBRES[c]} (${DURACIONES[c]===120?'2h':'1h30'})</option>`
 ).join('');
 
 // Poblar select de horarios (cada 30' entre 08:00 y 22:30)
@@ -1636,6 +1943,9 @@ function agendar(sala){
     agregadas++;
   }
 
+  const primerLabelHist = codigo + (numeroInicial!==null?' '+numeroInicial:'');
+  registrarHistorial('Reservó', `${primerLabelHist}${cantidad>1?' (serie de '+agregadas+')':''} — ${sala}, ${dia.toLowerCase()} ${minutosAHora(horaMin)}`);
+
   renderTodo();
   const msg = document.getElementById('checkMsg');
   const primerLabel = codigo + (numeroInicial!==null?' '+numeroInicial:'');
@@ -1692,6 +2002,7 @@ document.querySelectorAll('button.hoja-tab').forEach(btn=>{
     document.getElementById('hojaFormaciones').style.display = hoja==='formaciones' ? 'block':'none';
     document.getElementById('hojaFeriados').style.display = hoja==='feriados' ? 'block':'none';
     document.getElementById('hojaPostergadas').style.display = hoja==='postergadas' ? 'block':'none';
+    document.getElementById('hojaEstadisticas').style.display = hoja==='estadisticas' ? 'block':'none';
   });
 });
 
@@ -1700,6 +2011,8 @@ document.getElementById('accionOverlay').addEventListener('click', (e)=>{
 });
 document.getElementById('filtroFormacion').addEventListener('change', renderPostergadas);
 document.getElementById('filtroMotivo').addEventListener('change', renderPostergadas);
+
+document.getElementById('btnNuevoFeriado').addEventListener('click', ()=>abrirFormularioFeriado(null));
 
 document.getElementById('btnParseFeriados').addEventListener('click', ()=>{
   cargarFeriados(document.getElementById('inputFeriados').value);
@@ -1737,7 +2050,7 @@ document.getElementById('btnColorSala').addEventListener('click', ()=>{
   renderLeyenda();
 });
 
-setInterval(()=>{ renderEstado(); renderSemana(); renderDashboard(); }, 60000);
+setInterval(()=>{ renderEstado(); renderSemana(); renderDashboard(); renderSalas(); }, 60000);
 
 document.getElementById('busquedaGlobal').addEventListener('input', (e)=>{
   filtroBusqueda = e.target.value.trim();
