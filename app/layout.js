@@ -1,6 +1,7 @@
 import './globals.css';
 import { SessionProvider } from '../lib/useSession';
 import VersionBadge from '../components/VersionBadge';
+import Nav from '../components/Nav';
 
 export const metadata = {
   title: 'Cronograma ILCE',
@@ -12,6 +13,7 @@ export default function RootLayout({ children }) {
     <html lang="es" data-theme="dark">
       <body className="min-h-screen bg-bg text-text">
         <SessionProvider>
+          <Nav />
           {children}
           <VersionBadge />
         </SessionProvider>
