@@ -1,3 +1,4 @@
+import './globals.css';
 import { SessionProvider } from '../lib/useSession';
 import VersionBadge from '../components/VersionBadge';
 
@@ -8,8 +9,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="es">
-      <body style={{ margin: 0, background: '#12181f', color: '#e8edf2', fontFamily: '-apple-system, sans-serif' }}>
+    <html lang="es" data-theme="dark">
+      <body className="min-h-screen bg-bg text-text">
         <SessionProvider>
           {children}
           <VersionBadge />

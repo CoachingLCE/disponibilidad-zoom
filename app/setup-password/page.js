@@ -32,38 +32,36 @@ export default function SetupPasswordPage() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 96, padding: '0 24px' }}>
-      <div style={{ width: 360, background: '#1a222c', border: '1px solid #2c3947', borderRadius: 16, padding: 28 }}>
-        <h2 style={{ textAlign: 'center', fontSize: 17, fontWeight: 650, marginBottom: 4, color: '#e8edf2' }}>
-          Asignar primera contraseña
-        </h2>
-        <p style={{ textAlign: 'center', color: '#93a3b3', fontSize: 12.5, marginBottom: 20 }}>
+    <div className="flex justify-center pt-24 px-6 min-h-screen">
+      <div className="w-90 bg-surface2 border border-border rounded-2xl p-7 h-fit">
+        <h2 className="text-center text-[17px] font-semibold mb-1">Asignar primera contraseña</h2>
+        <p className="text-center text-textSec text-xs mb-5">
           Solo funciona para un usuario que todavía no tiene contraseña asignada en el Sheet.
         </p>
         <form onSubmit={handleSubmit}>
-          <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 4 }}>Tu email (tal cual está en la pestaña Usuarios)</label>
+          <label className="text-xs text-textSec block mb-1">Tu email (tal cual está en la pestaña Usuarios)</label>
           <input
             type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-            style={{ width: '100%', background: '#202b38', border: '1px solid #2c3947', borderRadius: 8, padding: '9px 10px', fontSize: 13.5, color: '#e8edf2', marginBottom: 12 }}
+            className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm mb-3"
           />
-          <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 4 }}>Nueva contraseña (mínimo 8 caracteres)</label>
+          <label className="text-xs text-textSec block mb-1">Nueva contraseña (mínimo 8 caracteres)</label>
           <input
             type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', background: '#202b38', border: '1px solid #2c3947', borderRadius: 8, padding: '9px 10px', fontSize: 13.5, color: '#e8edf2', marginBottom: 12 }}
+            className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm mb-3"
           />
-          <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 4 }}>Llave de arranque (SETUP_BOOTSTRAP_KEY de Vercel)</label>
+          <label className="text-xs text-textSec block mb-1">Llave de arranque (SETUP_BOOTSTRAP_KEY de Vercel)</label>
           <input
             type="password" required value={bootstrapKey} onChange={(e) => setBootstrapKey(e.target.value)}
-            style={{ width: '100%', background: '#202b38', border: '1px solid #2c3947', borderRadius: 8, padding: '9px 10px', fontSize: 13.5, color: '#e8edf2', marginBottom: 16 }}
+            className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm mb-4"
           />
           {mensaje && (
-            <p style={{ fontSize: 12.5, marginBottom: 12, color: mensaje.tipo === 'error' ? '#f2a29c' : '#7fd4a0' }}>
+            <p className={`text-xs mb-3 ${mensaje.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>
               {mensaje.texto}
             </p>
           )}
           <button
             type="submit" disabled={cargando}
-            style={{ width: '100%', background: '#4fb3a9', color: '#0b1116', border: 'none', borderRadius: 10, padding: '11px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: cargando ? 0.6 : 1 }}
+            className="w-full bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg py-2.5 font-semibold text-sm disabled:opacity-60"
           >
             {cargando ? 'Guardando…' : 'Asignar contraseña'}
           </button>

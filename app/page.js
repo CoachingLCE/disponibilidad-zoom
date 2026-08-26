@@ -17,28 +17,34 @@ export default function HomePage() {
   const puedeVerAccesos = (usuario.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
 
   return (
-    <div style={{ maxWidth: 720, margin: '60px auto', padding: '0 24px' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 4 }}>Cronograma ILCE</h1>
-      <p style={{ color: '#93a3b3', fontSize: 14, marginBottom: 24 }}>
+    <div className="max-w-2xl mx-auto px-6 py-16">
+      <h1 className="text-2xl font-semibold mb-1">Cronograma ILCE</h1>
+      <p className="text-textSec text-sm mb-6">
         Hola {usuario.nombre} — rol{usuario.roles.length > 1 ? 'es' : ''}: {usuario.roles.join(', ')}
       </p>
-      <p style={{ color: '#93a3b3', fontSize: 13.5, lineHeight: 1.6 }}>
-        Login funcionando ✔. Este es el esqueleto base — los módulos (Inicio, Cronograma, Formaciones,
-        Salas Zoom, Incidencias, Análisis) del prototipo se migran acá arriba, módulo por módulo,
-        reemplazando localStorage por llamadas autenticadas a <code>/api/...</code>.
+      <p className="text-textSec text-[13.5px] leading-relaxed">
+        Login funcionando ✔. Los módulos (Inicio, Cronograma, Formaciones, Salas Zoom, Incidencias,
+        Análisis) del prototipo se migran acá, módulo por módulo, reemplazando localStorage por
+        llamadas autenticadas a <code>/api/...</code>.
       </p>
-      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+      <div className="flex gap-2.5 mt-5">
+        <a
+          href="/salas-zoom"
+          className="bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2.5 font-semibold text-sm"
+        >
+          🎥 Salas Zoom
+        </a>
         {puedeVerAccesos && (
           <a
             href="/accesos"
-            style={{ background: '#4fb3a9', color: '#0b1116', borderRadius: 9, padding: '9px 16px', fontWeight: 700, fontSize: 13.5, textDecoration: 'none' }}
+            className="bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2.5 font-semibold text-sm"
           >
             🔐 Accesos
           </a>
         )}
         <button
           onClick={logout}
-          style={{ background: 'transparent', border: '1px solid #2c3947', color: '#93a3b3', borderRadius: 9, padding: '9px 16px', cursor: 'pointer' }}
+          className="bg-transparent border border-border text-textSec rounded-lg px-4 py-2.5 text-sm"
         >
           Cerrar sesión
         </button>

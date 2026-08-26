@@ -6,18 +6,9 @@ import { useSession } from '../../lib/useSession';
 const ROLES_DISPONIBLES = ['Colaborador', 'Admin', 'SuperAdmin'];
 const ROLES_RESERVADOS = ['Admin', 'SuperAdmin'];
 
-const inputStyle = {
-  width: '100%', background: '#202b38', border: '1px solid #2c3947', borderRadius: 8,
-  padding: '8px 10px', fontSize: 13.5, color: '#e8edf2'
-};
-const btnStyle = {
-  background: '#4fb3a9', color: '#0b1116', border: 'none', borderRadius: 9,
-  padding: '9px 16px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer'
-};
-const btnSecundario = {
-  background: 'transparent', color: '#93a3b3', border: '1px solid #2c3947', borderRadius: 9,
-  padding: '7px 12px', fontSize: 12.5, cursor: 'pointer'
-};
+const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
+const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold';
+const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
 
 export default function AccesosPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
@@ -104,56 +95,52 @@ export default function AccesosPage() {
   if (cargando || !usuario) return null;
 
   return (
-    <div style={{ maxWidth: 780, margin: '40px auto', padding: '0 24px 60px' }}>
-      <h1 style={{ fontSize: 20, marginBottom: 4 }}>🔐 Accesos</h1>
-      <p style={{ color: '#93a3b3', fontSize: 13, marginBottom: 20 }}>
+    <div className="max-w-3xl mx-auto px-6 pb-16 pt-10">
+      <h1 className="text-xl mb-1">🔐 Accesos</h1>
+      <p className="text-textSec text-sm mb-5">
         Gestioná quién entra a Cronograma ILCE y con qué rol.
         {!esSuperAdmin && ' Como no sos Super Admin, no podés crear ni editar usuarios Admin/SuperAdmin.'}
       </p>
 
-      {error && <p style={{ color: '#f2a29c', fontSize: 13, marginBottom: 12 }}>{error}</p>}
-      {mensaje && <p style={{ color: '#7fd4a0', fontSize: 13, marginBottom: 12 }}>{mensaje}</p>}
+      {error && <p className="text-dangerText text-sm mb-3">{error}</p>}
+      {mensaje && <p className="text-successText text-sm mb-3">{mensaje}</p>}
 
-      <div style={{ background: '#1a222c', border: '1px solid #2c3947', borderRadius: 14, padding: 20, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, marginBottom: 12 }}>➕ Nuevo usuario</h2>
-        <form onSubmit={crear} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="bg-surface2 border border-border rounded-2xl p-5 mb-6">
+        <h2 className="text-sm font-semibold mb-3">➕ Nuevo usuario</h2>
+        <form onSubmit={crear} className="grid grid-cols-2 gap-2.5">
           <div>
-            <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 4 }}>Email</label>
-            <input type="email" required value={nuevoEmail} onChange={(e) => setNuevoEmail(e.target.value)} style={inputStyle} />
+            <label className="text-xs text-textSec block mb-1">Email</label>
+            <input type="email" required value={nuevoEmail} onChange={(e) => setNuevoEmail(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 4 }}>Nombre</label>
-            <input type="text" required value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} style={inputStyle} />
+            <label className="text-xs text-textSec block mb-1">Nombre</label>
+            <input type="text" required value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} className={inputCls} />
           </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 6 }}>Roles</label>
-            <div style={{ display: 'flex', gap: 14 }}>
+          <div className="col-span-2">
+            <label className="text-xs text-textSec block mb-1.5">Roles</label>
+            <div className="flex gap-4">
               {ROLES_DISPONIBLES.map((rol) => {
                 const bloqueado = ROLES_RESERVADOS.includes(rol) && !puedeGestionarAdmins;
                 return (
-                  <label key={rol} style={{ fontSize: 13, color: bloqueado ? '#5b6b7a' : '#e8edf2', display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <input
-                      type="checkbox" disabled={bloqueado}
-                      checked={nuevoRoles.includes(rol)}
-                      onChange={() => toggleRolNuevo(rol)}
-                    />
+                  <label key={rol} className={`text-sm flex gap-1.5 items-center ${bloqueado ? 'text-textMuted' : 'text-text'}`}>
+                    <input type="checkbox" disabled={bloqueado} checked={nuevoRoles.includes(rol)} onChange={() => toggleRolNuevo(rol)} />
                     {rol}
                   </label>
                 );
               })}
             </div>
           </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <button type="submit" style={btnStyle}>Crear usuario</button>
+          <div className="col-span-2">
+            <button type="submit" className={btnCls}>Crear usuario</button>
           </div>
         </form>
       </div>
 
-      <h2 style={{ fontSize: 14, marginBottom: 12 }}>Usuarios ({usuarios.length})</h2>
+      <h2 className="text-sm font-semibold mb-3">Usuarios ({usuarios.length})</h2>
       {cargandoLista ? (
-        <p style={{ color: '#93a3b3', fontSize: 13 }}>Cargando…</p>
+        <p className="text-textSec text-sm">Cargando…</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {usuarios.map((u) => (
             <FilaUsuario
               key={u.email}
@@ -177,38 +164,38 @@ function FilaUsuario({ u, puedeEditar, onActualizar }) {
   }
 
   return (
-    <div style={{ background: '#1a222c', border: '1px solid #2c3947', borderRadius: 12, padding: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+    <div className="bg-surface2 border border-border rounded-xl p-3.5">
+      <div className="flex justify-between items-baseline mb-2">
         <div>
-          <span style={{ fontWeight: 650, fontSize: 14 }}>{u.nombre}</span>
-          <span style={{ color: '#93a3b3', fontSize: 12.5, marginLeft: 8 }}>{u.email}</span>
+          <span className="font-semibold text-sm">{u.nombre}</span>
+          <span className="text-textSec text-xs ml-2">{u.email}</span>
         </div>
-        <span style={{ fontSize: 11.5, color: u.activo ? '#7fd4a0' : '#f2a29c' }}>
+        <span className={`text-[11.5px] ${u.activo ? 'text-successText' : 'text-dangerText'}`}>
           {u.activo ? '● Activo' : '● Desactivado'} {!u.tieneContrasena && '· sin contraseña asignada'}
         </span>
       </div>
 
       {!puedeEditar ? (
-        <p style={{ fontSize: 12, color: '#5b6b7a' }}>Solo un Super Admin puede editar este usuario.</p>
+        <p className="text-xs text-textMuted">Solo un Super Admin puede editar este usuario.</p>
       ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>
+        <div className="flex flex-wrap gap-3.5 items-center">
           {ROLES_DISPONIBLES.map((rol) => (
-            <label key={rol} style={{ fontSize: 12.5, display: 'flex', gap: 5, alignItems: 'center' }}>
+            <label key={rol} className="text-xs flex gap-1 items-center">
               <input type="checkbox" checked={roles.includes(rol)} onChange={() => toggleRol(rol)} />
               {rol}
             </label>
           ))}
-          <button style={btnSecundario} onClick={() => onActualizar(u.email, { roles })}>Guardar roles</button>
-          <button style={btnSecundario} onClick={() => onActualizar(u.email, { activo: !u.activo })}>
+          <button className={btnSecCls} onClick={() => onActualizar(u.email, { roles })}>Guardar roles</button>
+          <button className={btnSecCls} onClick={() => onActualizar(u.email, { activo: !u.activo })}>
             {u.activo ? 'Desactivar' : 'Reactivar'}
           </button>
           <input
             type="password" placeholder="Nueva contraseña (min 8)" value={nuevaPassword}
             onChange={(e) => setNuevaPassword(e.target.value)}
-            style={{ ...inputStyle, width: 170, padding: '6px 8px' }}
+            className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs w-44"
           />
           <button
-            style={btnSecundario}
+            className={btnSecCls}
             onClick={() => { onActualizar(u.email, { nuevaPassword }); setNuevaPassword(''); }}
             disabled={nuevaPassword.length > 0 && nuevaPassword.length < 8}
           >

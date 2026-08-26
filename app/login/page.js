@@ -38,57 +38,53 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '96px', padding: '0 24px' }}>
-      <div style={{ width: 340, background: '#1a222c', border: '1px solid #2c3947', borderRadius: 16, padding: 28 }}>
-        <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 650, marginBottom: 4, color: '#e8edf2' }}>
-          Cronograma ILCE
-        </h2>
-        <p style={{ textAlign: 'center', color: '#93a3b3', fontSize: 13, marginBottom: 20 }}>
-          Ingresá con tu usuario y contraseña
-        </p>
+    <div className="flex justify-center pt-24 px-6 min-h-screen">
+      <div className="w-80 bg-surface2 border border-border rounded-2xl p-7 h-fit">
+        <h2 className="text-center text-lg font-semibold mb-1">Cronograma ILCE</h2>
+        <p className="text-center text-textSec text-sm mb-5">Ingresá con tu usuario y contraseña</p>
         <form onSubmit={handleSubmit}>
-          <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 4 }}>Email</label>
+          <label className="text-xs text-textSec block mb-1">Email</label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="nombre@institutoilce.com"
-            style={{ width: '100%', background: '#202b38', border: '1px solid #2c3947', borderRadius: 8, padding: '9px 10px', fontSize: 13.5, color: '#e8edf2', marginBottom: 12 }}
+            className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm mb-3"
           />
-          <label style={{ fontSize: 12, color: '#93a3b3', display: 'block', marginBottom: 4 }}>Contraseña</label>
-          <div style={{ position: 'relative', marginBottom: 12 }}>
+          <label className="text-xs text-textSec block mb-1">Contraseña</label>
+          <div className="relative mb-3">
             <input
               type={verPassword ? 'text' : 'password'}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              style={{ width: '100%', background: '#202b38', border: '1px solid #2c3947', borderRadius: 8, padding: '9px 34px 9px 10px', fontSize: 13.5, color: '#e8edf2' }}
+              className="w-full bg-bg border border-border rounded-lg px-3 py-2 pr-9 text-sm"
             />
             <button
               type="button"
               onClick={() => setVerPassword(!verPassword)}
-              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-textMuted hover:text-text text-sm"
               title={verPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             >
               {verPassword ? '🙈' : '👁️'}
             </button>
           </div>
-          {error && <p style={{ color: '#f2a29c', fontSize: 12, marginBottom: 12 }}>{error}</p>}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#93a3b3', marginBottom: 16, cursor: 'pointer' }}>
+          {error && <p className="text-warningText text-xs mb-3">{error}</p>}
+          <label className="flex items-center gap-2 text-xs text-textSec mb-4 cursor-pointer">
             <input type="checkbox" checked={mantenerSesion} onChange={(e) => setMantenerSesion(e.target.checked)} />
             Mantener sesión abierta
           </label>
           <button
             type="submit"
             disabled={cargando}
-            style={{ width: '100%', background: '#4fb3a9', color: '#0b1116', border: 'none', borderRadius: 10, padding: '11px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: cargando ? 0.6 : 1 }}
+            className="w-full bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg py-2.5 font-semibold text-sm disabled:opacity-60"
           >
             {cargando ? 'Ingresando…' : 'Ingresar'}
           </button>
         </form>
-        <p style={{ color: '#5b6b7a', fontSize: 11.5, textAlign: 'center', marginTop: 12 }}>
+        <p className="text-textMuted text-xs text-center mt-3">
           ¿No tenés contraseña todavía? Pedile a un Admin que te la asigne desde "Accesos".
         </p>
       </div>
