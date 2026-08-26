@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { formatFechaCorta, calcularAlertas } from '../../lib/salasLogic';
+import { FERIADOS_DEFAULT } from '../../lib/feriadosDefault';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -24,6 +25,8 @@ export default function IncidenciasPage() {
   const [fMotivo, setFMotivo] = useState('');
   const [fBloquea, setFBloquea] = useState(true);
   const [msgFeriado, setMsgFeriado] = useState(null);
+  const [msgImportFeriados, setMsgImportFeriados] = useState(null);
+  const [importandoFeriados, setImportandoFeriados] = useState(false);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -62,6 +65,25 @@ export default function IncidenciasPage() {
     if (res.ok) cargarDatos();
   }
 
+  async function importarFeriadosDefault() {
+    setImportandoFeriados(true);
+    setMsgImportFeriados(null);
+    try {
+      const res = await fetchAutenticado('/api/feriados/importar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: FERIADOS_DEFAULT })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsgImportFeriados({ tipo: 'error', texto: data.error }); return; }
+      setMsgImportFeriados({ tipo: 'ok', texto: `Se importaron ${data.agregados} feriado(s).${data.omitidos ? ' ' + data.omitidos + ' ya existían.' : ''}` });
+      cargarDatos();
+    } catch {
+      setMsgImportFeriados({ tipo: 'error', texto: 'Error de conexión.' });
+    } finally {
+      setImportandoFeriados(false);
+    }
+  }
+
   if (cargando || !usuario) return null;
 
   return (
@@ -71,6 +93,15 @@ export default function IncidenciasPage() {
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">📅 Feriados</h2>
+        {puedeEditar && (
+          <div className="mb-4 pb-4 border-b border-border">
+            <p className="text-xs text-textSec mb-2">Importar de una los feriados 2026-2027 que ya estaban cargados en el prototipo (no duplica si ya existen).</p>
+            <button className={btnCls} disabled={importandoFeriados} onClick={importarFeriadosDefault}>
+              {importandoFeriados ? 'Importando…' : 'Importar feriados 2026-2027'}
+            </button>
+            {msgImportFeriados && <p className={`text-xs mt-2 ${msgImportFeriados.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msgImportFeriados.texto}</p>}
+          </div>
+        )}
         {puedeEditar && (
           <div className="mb-4">
             <div className="grid gap-2.5 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>

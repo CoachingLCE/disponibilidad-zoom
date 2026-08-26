@@ -1,43 +1,51 @@
 import { NextResponse } from 'next/server';
-import { requireUsuario } from '../../../lib/requireUsuario';
-import { tienePermisoAccesos, tienePermisoGestionarAdmins } from '../../../lib/permisos';
-import { listarUsuarios, crearUsuario, puedeAsignarRoles, rolesValidos, buscarUsuarioPorEmail } from '../../../lib/gestionUsuarios';
-import { registrarAccion } from '../../../lib/auditoria';
+import { requireUsuario } from '../../../../lib/requireUsuario';
+import { tienePermisoAccesos, tienePermisoGestionarAdmins } from '../../../../lib/permisos';
+import { actualizarUsuario, puedeAsignarRoles, rolesValidos, buscarUsuarioPorEmail } from '../../../../lib/gestionUsuarios';
+import { registrarAccion } from '../../../../lib/auditoria';
 
-export async function GET(request) {
+export async function PATCH(request, { params }) {
   const actor = await requireUsuario(request);
   if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
-  const usuarios = await listarUsuarios();
-  return NextResponse.json({ usuarios });
-}
+  const email = decodeURIComponent(params.email);
+  const objetivo = await buscarUsuarioPorEmail(email);
+  if (!objetivo) return NextResponse.json({ error: 'No existe ese usuario.' }, { status: 404 });
 
-export async function POST(request) {
-  const actor = await requireUsuario(request);
-  if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
-
+  const rolesActuales = (objetivo.Roles || '').split(/[,+]/).map((r) => r.trim()).filter(Boolean);
   const body = await request.json();
-  const { email, nombre, roles } = body;
+  const { roles, activo, nuevaPassword } = body;
 
-  if (!email || !nombre || !rolesValidos(roles)) {
-    return NextResponse.json({ error: 'Faltan datos o los roles no son válidos.' }, { status: 400 });
-  }
-  if (!puedeAsignarRoles(actor, roles, tienePermisoGestionarAdmins)) {
+  // Si se tocan los roles actuales O los nuevos, y alguno de los dos incluye Admin/SuperAdmin,
+  // hace falta permiso de gestionar Admins (protege contra escalar o degradar un Admin sin ser Super Admin).
+  const rolesAEvaluar = roles && rolesValidos(roles) ? roles : rolesActuales;
+  if (!puedeAsignarRoles(actor, [...rolesActuales, ...rolesAEvaluar], tienePermisoGestionarAdmins)) {
     return NextResponse.json(
-      { error: 'Solo un Super Admin puede crear usuarios con rol Admin o SuperAdmin.' },
+      { error: 'Solo un Super Admin puede modificar a un usuario Admin/SuperAdmin.' },
       { status: 403 }
     );
   }
-
-  const existente = await buscarUsuarioPorEmail(email);
-  if (existente) {
-    return NextResponse.json({ error: 'Ese email ya existe en Usuarios.' }, { status: 409 });
+  if (roles && !rolesValidos(roles)) {
+    return NextResponse.json({ error: 'Roles no válidos.' }, { status: 400 });
+  }
+  if (nuevaPassword && nuevaPassword.length < 8) {
+    return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' }, { status: 400 });
   }
 
-  await crearUsuario({ email, nombre, roles });
-  await registrarAccion(actor.email, actor.nombre, 'Creó usuario', `${email} (${roles.join(', ')})`);
+  const cambios = {};
+  if (roles) cambios.roles = roles;
+  if (typeof activo === 'boolean') cambios.activo = activo;
+  if (nuevaPassword) cambios.nuevaPassword = nuevaPassword;
+
+  await actualizarUsuario(objetivo._rowIndex, cambios);
+
+  const detalle = [
+    roles ? `roles → ${roles.join(', ')}` : null,
+    typeof activo === 'boolean' ? (activo ? 'reactivado' : 'desactivado') : null,
+    nuevaPassword ? 'contraseña reseteada' : null
+  ].filter(Boolean).join(' · ');
+  await registrarAccion(actor.email, actor.nombre, 'Editó usuario', `${email}: ${detalle}`);
 
   return NextResponse.json({ ok: true });
 }

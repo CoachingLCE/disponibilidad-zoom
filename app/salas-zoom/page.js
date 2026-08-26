@@ -6,6 +6,7 @@ import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, TOTALES, NOMBRES, ICONOS,
   minutosAHora, formatFechaCorta, agruparParaVista
 } from '../../lib/salasLogic';
+import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -31,7 +32,7 @@ export default function SalasZoomPage() {
   const [vista, setVista] = useState('grilla');
   const [diaSala, setDiaSala] = useState('LUNES');
 
-  const [textoImportar, setTextoImportar] = useState('');
+  const [textoImportar, setTextoImportar] = useState(HORARIO_EJEMPLO);
   const [msgImportar, setMsgImportar] = useState(null);
   const [accion, setAccion] = useState(null);
 
@@ -87,14 +88,17 @@ export default function SalasZoomPage() {
       {puedeEditar && (
         <div className={boxCls}>
           <h2 className="text-sm font-semibold mb-2">1. Cargar horario</h2>
-          <p className="text-xs text-textSec mb-2.5">Formato: <b>DÍA HH:MM CÓDIGO NÚMERO Sala N</b> — una clase por línea.</p>
+          <p className="text-xs text-textSec mb-2.5">
+            Formato: <b>DÍA HH:MM CÓDIGO NÚMERO Sala N</b> — una clase por línea. Ya viene con el horario de ejemplo cargado; editalo o vaciálo y pegá el real.
+          </p>
           <textarea
             value={textoImportar} onChange={(e) => setTextoImportar(e.target.value)}
             placeholder={'LUNES 18:00 CDEP 15 Sala 3\nMARTES 10:00 CEQUI 14 Sala 2'}
             className={`${inputCls} min-h-[110px] font-mono text-xs resize-y`}
           />
-          <div className="mt-2.5">
+          <div className="mt-2.5 flex gap-2">
             <button className={btnCls} onClick={importar}>Importar</button>
+            <button className="bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs" onClick={() => setTextoImportar('')}>Vaciar</button>
           </div>
           {msgImportar && (
             <p className={`text-xs mt-2 ${msgImportar.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msgImportar.texto}</p>
