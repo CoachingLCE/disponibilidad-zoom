@@ -14,6 +14,8 @@ export default function HomePage() {
   if (cargando) return null;
   if (!usuario) return null;
 
+  const puedeVerAccesos = (usuario.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
+
   return (
     <div style={{ maxWidth: 720, margin: '60px auto', padding: '0 24px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Cronograma ILCE</h1>
@@ -25,12 +27,22 @@ export default function HomePage() {
         Salas Zoom, Incidencias, Análisis) del prototipo se migran acá arriba, módulo por módulo,
         reemplazando localStorage por llamadas autenticadas a <code>/api/...</code>.
       </p>
-      <button
-        onClick={logout}
-        style={{ marginTop: 20, background: 'transparent', border: '1px solid #2c3947', color: '#93a3b3', borderRadius: 9, padding: '9px 16px', cursor: 'pointer' }}
-      >
-        Cerrar sesión
-      </button>
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        {puedeVerAccesos && (
+          <a
+            href="/accesos"
+            style={{ background: '#4fb3a9', color: '#0b1116', borderRadius: 9, padding: '9px 16px', fontWeight: 700, fontSize: 13.5, textDecoration: 'none' }}
+          >
+            🔐 Accesos
+          </a>
+        )}
+        <button
+          onClick={logout}
+          style={{ background: 'transparent', border: '1px solid #2c3947', color: '#93a3b3', borderRadius: 9, padding: '9px 16px', cursor: 'pointer' }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
     </div>
   );
 }

@@ -68,4 +68,4 @@ SuperAdmin), token de sesión firmado que cada acción futura va a verificar con
 en su navegador).
 
 Todavía **no están migrados** los módulos de datos (Cronograma, Formaciones, Salas Zoom, Incidencias,
-Análisis) — eso es el siguiente paso, migrando uno por uno desde el prototipo HTML actual. 
+Análisis) — eso es el siguiente paso, migrando uno por uno desde el prototipo HTML actual.
