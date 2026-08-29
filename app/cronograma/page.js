@@ -59,17 +59,18 @@ export default function CronogramaPage() {
     } finally { setCargandoDatos(false); }
   }
 
-  const todas = useMemo(() => {
+  const { todas, totalSinFiltro } = useMemo(() => {
     const deClases = clases.filter((c) => c.fecha).map((c) => ({
       fecha: c.fecha, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.numero, horaMin: c.horaMin, sala: c.sala, docente: c.docente, tematica: c.tematica,
       observaciones: c.observaciones, pasada: esPasada(c.fecha)
     }));
     const deOtras = actividades.map((a) => ({ ...a, sala: '', pasada: esPasada(a.fecha) }));
-    let out = deClases.concat(deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
+    const completo = deClases.concat(deOtras).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.horaMin || 0) - (a.horaMin || 0));
+    let out = completo;
     if (filtroTipo) out = out.filter((a) => a.tipo === filtroTipo);
     if (filtroCurso) out = out.filter((a) => a.curso === filtroCurso);
-    return out;
+    return { todas: out, totalSinFiltro: completo.length };
   }, [clases, actividades, filtroTipo, filtroCurso]);
 
   const tiposUsados = [...new Set(['Formación', ...actividades.map((a) => a.tipo)])];
@@ -202,7 +203,10 @@ export default function CronogramaPage() {
       )}
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">Todo el cronograma</h2>
+        <h2 className="text-sm font-semibold mb-1">Todo el cronograma</h2>
+        <p className="text-xs text-textSec mb-3">
+          {totalSinFiltro} actividad(es) cargadas en total{(filtroTipo || filtroCurso) ? ` · mostrando ${todas.length} con el filtro actual` : ''}.
+        </p>
         <div className="flex flex-wrap gap-1.5 mb-2">
           <button className={chipCls(filtroTipo === '')} onClick={() => setFiltroTipo('')}>Todos los tipos</button>
           {tiposUsados.map((t) => <button key={t} className={chipCls(filtroTipo === t)} onClick={() => setFiltroTipo(t)}>{t}</button>)}
@@ -228,7 +232,17 @@ export default function CronogramaPage() {
                 {todas.map((a, i) => (
                   <tr key={i} className={`border-b border-border ${a.pasada ? 'opacity-45 line-through' : ''}`}>
                     <td className="p-1.5">{formatFechaCorta(a.fecha)}</td>
-                    <td className="p-1.5">{a.tipo}</td>
+                    <td className="p-1.5">
+                      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        a.tipo === 'Formación'
+                          ? 'bg-successBg text-successText'
+                          : a.curso
+                            ? 'bg-infoBg text-infoText'
+                            : 'bg-surface2 text-textMuted'
+                      }`}>
+                        {a.tipo}
+                      </span>
+                    </td>
                     <td className="p-1.5">{a.nombreCurso || '—'}{a.edicion ? ' · ' + a.edicion : ''}</td>
                     <td className="p-1.5">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
                     <td className="p-1.5">{a.sala || '—'}</td>
