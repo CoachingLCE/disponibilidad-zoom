@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../lib/apiHandler';
 import { requireUsuario } from '../../../lib/requireUsuario';
 import { tienePermisoAccesos, tienePermisoGestionarAdmins } from '../../../lib/permisos';
 import { listarUsuarios, crearUsuario, puedeAsignarRoles, rolesValidos, buscarUsuarioPorEmail } from '../../../lib/gestionUsuarios';
 import { registrarAccion } from '../../../lib/auditoria';
 
-export async function GET(request) {
+export const GET = conManejo(async (request) => {
   const actor = await requireUsuario(request);
   if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const usuarios = await listarUsuarios();
   return NextResponse.json({ usuarios });
-}
+})
 
-export async function POST(request) {
+export const POST = conManejo(async (request) => {
   const actor = await requireUsuario(request);
   if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -40,4 +41,4 @@ export async function POST(request) {
   await registrarAccion(actor.email, actor.nombre, 'Creó usuario', `${email} (${roles.join(', ')})`);
 
   return NextResponse.json({ ok: true });
-}
+})

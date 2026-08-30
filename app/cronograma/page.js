@@ -43,8 +43,6 @@ export default function CronogramaPage() {
   const [obs, setObs] = useState('');
   const [msg, setMsg] = useState(null);
   const [resultado, setResultado] = useState(null);
-  const [msgHistorico, setMsgHistorico] = useState(null);
-  const [importandoHistorico, setImportandoHistorico] = useState(false);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -55,7 +53,25 @@ export default function CronogramaPage() {
       const [rc, ra] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/actividades')]);
       const [dc, da] = await Promise.all([rc.json(), ra.json()]);
       if (rc.ok) setClases(dc.clases);
-      if (ra.ok) setActividades(da.actividades);
+      if (ra.ok) {
+        setActividades(da.actividades);
+        // Auto-carga del histórico por código, en silencio: si todavía no hay ninguna
+        // actividad cargada y el usuario puede editar, importa el histórico una sola vez
+        // (el id por contenido evita duplicar si se llega a disparar más de una vez).
+        if (ra.ok && da.actividades.length === 0 && puedeEditar) {
+          try {
+            await fetchAutenticado('/api/actividades/importar-historico', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ items: CRONOGRAMA_HISTORICO })
+            });
+            const ra2 = await fetchAutenticado('/api/actividades');
+            const da2 = await ra2.json();
+            if (ra2.ok) setActividades(da2.actividades);
+          } catch {
+            // silencioso: si falla, el usuario simplemente ve el cronograma vacío por ahora
+          }
+        }
+      }
     } finally { setCargandoDatos(false); }
   }
 
@@ -80,57 +96,46 @@ export default function CronogramaPage() {
     setMsg(null); setResultado(null);
     if (!fecha || !horaTxt) { setMsg({ tipo: 'error', texto: 'Elegí fecha y hora.' }); return; }
 
-    if (tipo !== 'Formación') {
-      const res = await fetchAutenticado('/api/actividades', {
+    try {
+      if (tipo !== 'Formación') {
+        const res = await fetchAutenticado('/api/actividades', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fecha, tipo, curso, edicion, horaTxt, docente, tematica, observaciones: obs })
+        });
+        const data = await res.json();
+        if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+        setMsg({ tipo: 'ok', texto: `"${tipo}" agregado al cronograma.` });
+        setTematica(''); setObs('');
+        cargarDatos();
+        return;
+      }
+
+      // Formación: consulta disponibilidad primero
+      const res = await fetchAutenticado('/api/clases/reservar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, tipo, curso, edicion, horaTxt, docente, tematica, observaciones: obs })
+        body: JSON.stringify({ fecha, horaTxt, codigo: curso, edicion, numero: edicion, cantidad: 1 })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: `"${tipo}" agregado al cronograma.` });
-      setTematica(''); setObs('');
-      cargarDatos();
-      return;
+      setResultado(data);
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
     }
-
-    // Formación: consulta disponibilidad primero
-    const res = await fetchAutenticado('/api/clases/reservar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha, horaTxt, codigo: curso, edicion, numero: edicion, cantidad: 1 })
-    });
-    const data = await res.json();
-    if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-    setResultado(data);
   }
 
   async function reservarEn(sala) {
-    const res = await fetchAutenticado('/api/clases/reservar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha, horaTxt, codigo: curso, edicion, numero: edicion, cantidad: 1, sala, docente, tematica, observaciones: obs })
-    });
-    const data = await res.json();
-    if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-    setMsg({ tipo: 'ok', texto: `Reservado en ${sala}.` });
-    setResultado(null); setTematica(''); setObs('');
-    cargarDatos();
-  }
-
-  async function importarHistorico() {
-    setImportandoHistorico(true);
-    setMsgHistorico(null);
     try {
-      const res = await fetchAutenticado('/api/actividades/importar-historico', {
+      const res = await fetchAutenticado('/api/clases/reservar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: CRONOGRAMA_HISTORICO })
+        body: JSON.stringify({ fecha, horaTxt, codigo: curso, edicion, numero: edicion, cantidad: 1, sala, docente, tematica, observaciones: obs })
       });
       const data = await res.json();
-      if (!res.ok) { setMsgHistorico({ tipo: 'error', texto: data.error }); return; }
-      setMsgHistorico({ tipo: 'ok', texto: `Se importaron ${data.agregadas} actividad(es) históricas (2023-2027).${data.omitidas ? ' ' + data.omitidas + ' ya existían, no se duplicaron.' : ''}` });
+      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+      setMsg({ tipo: 'ok', texto: `Reservado en ${sala}.` });
+      setResultado(null); setTematica(''); setObs('');
       cargarDatos();
-    } catch {
-      setMsgHistorico({ tipo: 'error', texto: 'Error de conexión.' });
-    } finally {
-      setImportandoHistorico(false);
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
     }
   }
 
@@ -140,19 +145,6 @@ export default function CronogramaPage() {
     <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">📅 Cronograma</h1>
       <p className="text-textSec text-sm mb-5">Todo lo que sucede en ILCE: Formaciones, BLOG, Masterclass, Reuniones, Capacitaciones, Jornadas y más.</p>
-
-      {puedeEditar && (
-        <div className={boxCls}>
-          <h2 className="text-sm font-semibold mb-2">📦 Importar histórico (2023-2027)</h2>
-          <p className="text-xs text-textSec mb-2.5">
-            Trae de una las 375 actividades históricas (Formaciones, BLOG, Masterclass, Reuniones, etc.) que ya estaban cargadas en el prototipo — quedan como referencia, sin tocar el sistema de salas. Se puede correr más de una vez sin duplicar.
-          </p>
-          <button className={btnCls} disabled={importandoHistorico} onClick={importarHistorico}>
-            {importandoHistorico ? 'Importando…' : 'Importar histórico'}
-          </button>
-          {msgHistorico && <p className={`text-xs mt-2 ${msgHistorico.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msgHistorico.texto}</p>}
-        </div>
-      )}
 
       {puedeEditar && (
         <div className={boxCls}>

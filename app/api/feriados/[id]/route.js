@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
 import { leerFeriados, actualizarFeriado, eliminarFeriado } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 import { formatFechaCorta } from '../../../../lib/salasLogic';
 
-export async function PATCH(request, { params }) {
+export const PATCH = conManejo(async (request, { params }) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -20,9 +21,9 @@ export async function PATCH(request, { params }) {
   await registrarAccion(usuario.email, usuario.nombre, 'Editó feriado', `${cambios.motivo || feriado.motivo} — ${formatFechaCorta(cambios.fecha || feriado.fecha)}`);
 
   return NextResponse.json({ ok: true });
-}
+})
 
-export async function DELETE(request, { params }) {
+export const DELETE = conManejo(async (request, { params }) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -36,4 +37,4 @@ export async function DELETE(request, { params }) {
   await registrarAccion(usuario.email, usuario.nombre, 'Eliminó feriado', `${feriado.motivo} — ${formatFechaCorta(feriado.fecha)}`);
 
   return NextResponse.json({ ok: true });
-}
+})

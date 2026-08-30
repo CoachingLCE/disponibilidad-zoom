@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { findUsuario } from '../../../../lib/auth';
 import { verifyPassword } from '../../../../lib/passwords';
 import { registrarAccion } from '../../../../lib/auditoria';
 import { crearToken } from '../../../../lib/sessionToken';
 
 // POST /api/auth/login -> { email, password }
-export async function POST(request) {
+export const POST = conManejo(async (request) => {
   const body = await request.json();
   const usuario = await findUsuario(body.email);
 
@@ -35,4 +36,4 @@ export async function POST(request) {
     usuario: { email: usuario.email, nombre: usuario.nombre, roles: usuario.roles },
     token: crearToken(usuario.email)
   });
-}
+})

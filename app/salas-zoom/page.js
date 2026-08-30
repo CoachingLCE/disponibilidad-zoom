@@ -29,6 +29,7 @@ export default function SalasZoomPage() {
   const [clases, setClases] = useState([]);
   const [feriados, setFeriados] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(null);
   const [vista, setVista] = useState('grilla');
   const [diaSala, setDiaSala] = useState('LUNES');
 
@@ -46,6 +47,7 @@ export default function SalasZoomPage() {
 
   async function cargarDatos() {
     setCargandoDatos(true);
+    setErrorCarga(null);
     try {
       const [rc, rf] = await Promise.all([
         fetchAutenticado('/api/clases'),
@@ -53,8 +55,29 @@ export default function SalasZoomPage() {
       ]);
       const dc = await rc.json();
       const df = await rf.json();
-      if (rc.ok) setClases(dc.clases);
-      if (rf.ok) setFeriados(df.feriados);
+      if (rf.ok) setFeriados(df.feriados); else setErrorCarga(df.error);
+      if (rc.ok) {
+        setClases(dc.clases);
+        // Auto-carga por código, en silencio: si todavía no hay ninguna clase cargada
+        // y el usuario puede editar, importa el horario de ejemplo una sola vez.
+        // El textarea de abajo sigue disponible para cargar el horario real cuando haga falta.
+        if (dc.clases.length === 0 && puedeEditar) {
+          try {
+            await fetchAutenticado('/api/clases/importar', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: HORARIO_EJEMPLO })
+            });
+            const rc2 = await fetchAutenticado('/api/clases');
+            const dc2 = await rc2.json();
+            if (rc2.ok) setClases(dc2.clases);
+          } catch {
+            // silencioso: si falla, el usuario ve la grilla vacía y puede cargar el horario a mano
+          }
+        }
+      } else {
+        setErrorCarga(dc.error);
+      }
+    } catch (err) {
+      setErrorCarga('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
     } finally {
       setCargandoDatos(false);
     }
@@ -65,14 +88,18 @@ export default function SalasZoomPage() {
 
   async function importar() {
     setMsgImportar(null);
-    const res = await fetchAutenticado('/api/clases/importar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: textoImportar })
-    });
-    const data = await res.json();
-    if (!res.ok) { setMsgImportar({ tipo: 'error', texto: data.error }); return; }
-    setMsgImportar({ tipo: 'ok', texto: `Se agregaron ${data.agregadas} clase(s).${data.errores.length ? ' ' + data.errores.length + ' línea(s) con error.' : ''}` });
-    setTextoImportar('');
-    cargarDatos();
+    try {
+      const res = await fetchAutenticado('/api/clases/importar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: textoImportar })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsgImportar({ tipo: 'error', texto: data.error }); return; }
+      setMsgImportar({ tipo: 'ok', texto: `Se agregaron ${data.agregadas} clase(s).${data.errores.length ? ' ' + data.errores.length + ' línea(s) con error.' : ''}` });
+      setTextoImportar('');
+      cargarDatos();
+    } catch (err) {
+      setMsgImportar({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
   }
 
   if (cargando || !usuario) return null;
@@ -84,6 +111,9 @@ export default function SalasZoomPage() {
         Horario semanal de las 8 salas — cargar, ver disponibilidad, y reservar.
         {!puedeEditar && ' Tu rol (Colaborador) solo puede ver, no puede cargar ni reservar.'}
       </p>
+      {errorCarga && (
+        <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{errorCarga}</div>
+      )}
 
       {puedeEditar && (
         <div className={boxCls}>
@@ -271,25 +301,33 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
   async function consultar() {
     setMsg(null); setResultado(null);
     if (!fecha) { setMsg({ tipo: 'error', texto: 'Elegí la fecha.' }); return; }
-    const res = await fetchAutenticado('/api/clases/reservar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad })
-    });
-    const data = await res.json();
-    if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-    setResultado(data);
+    try {
+      const res = await fetchAutenticado('/api/clases/reservar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+      setResultado(data);
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
   }
 
   async function reservarEn(sala) {
-    const res = await fetchAutenticado('/api/clases/reservar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala })
-    });
-    const data = await res.json();
-    if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-    setMsg({ tipo: 'ok', texto: `Reservado en ${sala} (${data.agregadas} clase(s)).${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
-    setResultado(null);
-    onReservado();
+    try {
+      const res = await fetchAutenticado('/api/clases/reservar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+      setMsg({ tipo: 'ok', texto: `Reservado en ${sala} (${data.agregadas} clase(s)).${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
+      setResultado(null);
+      onReservado();
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
   }
 
   return (
@@ -359,27 +397,41 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
 
   async function cambiarSala() {
     setErr('');
-    const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nuevaSala })
-    });
-    const data = await res.json();
-    if (!res.ok) { setErr(data.error); return; }
-    onCambio(); onCerrar();
+    try {
+      const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nuevaSala })
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error); return; }
+      onCambio(); onCerrar();
+    } catch (err) {
+      setErr('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
+    }
   }
   async function cancelar() {
-    const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) { setErr(data.error); return; }
-    onCambio(); onCerrar();
+    setErr('');
+    try {
+      const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error); return; }
+      onCambio(); onCerrar();
+    } catch (err) {
+      setErr('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
+    }
   }
   async function postergar() {
-    const res = await fetchAutenticado('/api/clases/postergar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: clase.id, motivoId, observaciones: obs })
-    });
-    const data = await res.json();
-    if (!res.ok) { setErr(data.error); return; }
-    onCambio(); onCerrar();
+    setErr('');
+    try {
+      const res = await fetchAutenticado('/api/clases/postergar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: clase.id, motivoId, observaciones: obs })
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error); return; }
+      onCambio(); onCerrar();
+    } catch (err) {
+      setErr('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
+    }
   }
 
   return (

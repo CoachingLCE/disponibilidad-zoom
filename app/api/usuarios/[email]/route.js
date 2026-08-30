@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoAccesos, tienePermisoGestionarAdmins } from '../../../../lib/permisos';
 import { actualizarUsuario, puedeAsignarRoles, rolesValidos, buscarUsuarioPorEmail } from '../../../../lib/gestionUsuarios';
 import { registrarAccion } from '../../../../lib/auditoria';
 
-export async function PATCH(request, { params }) {
+export const PATCH = conManejo(async (request, { params }) => {
   const actor = await requireUsuario(request);
   if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -48,4 +49,4 @@ export async function PATCH(request, { params }) {
   await registrarAccion(actor.email, actor.nombre, 'Editó usuario', `${email}: ${detalle}`);
 
   return NextResponse.json({ ok: true });
-}
+})

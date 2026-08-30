@@ -7,6 +7,7 @@ import ThemeSelector from './ThemeSelector';
 const LINKS = [
   { href: '/', label: '🏠 Inicio' },
   { href: '/cronograma', label: '📅 Cronograma' },
+  { href: '/cronograma-cm', label: '📣 Cronograma CM' },
   { href: '/formaciones', label: '🎓 Formaciones' },
   { href: '/salas-zoom', label: '🎥 Salas Zoom' },
   { href: '/incidencias', label: '⚠️ Incidencias' },

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
 import { leerClases, agregarClase, leerFeriados, feriadoEnFecha } from '../../../../lib/datosClases';
@@ -13,7 +14,7 @@ import {
 // Si `sala` viene vacía, solo CONSULTA disponibilidad (no reserva) y devuelve { libres, ocupadas }.
 // Si `sala` viene, RESERVA de verdad (una clase, o una serie completa si cantidad > 1),
 // corriendo por feriado cada ocurrencia que caiga en una fecha bloqueada.
-export async function POST(request) {
+export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -92,4 +93,4 @@ export async function POST(request) {
   );
 
   return NextResponse.json({ ok: true, agregadas, corridas, omitidas });
-}
+})

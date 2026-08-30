@@ -25,8 +25,6 @@ export default function IncidenciasPage() {
   const [fMotivo, setFMotivo] = useState('');
   const [fBloquea, setFBloquea] = useState(true);
   const [msgFeriado, setMsgFeriado] = useState(null);
-  const [msgImportFeriados, setMsgImportFeriados] = useState(null);
-  const [importandoFeriados, setImportandoFeriados] = useState(false);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -39,8 +37,25 @@ export default function IncidenciasPage() {
       ]);
       const [dc, df, dp] = await Promise.all([rc.json(), rf.json(), rp.json()]);
       if (rc.ok) setClases(dc.clases);
-      if (rf.ok) setFeriados(df.feriados);
       if (rp.ok) setPostergaciones(dp.postergaciones);
+      if (rf.ok) {
+        setFeriados(df.feriados);
+        // Auto-carga por código, en silencio: si no hay ningún feriado todavía y el
+        // usuario puede editar, importa la lista por defecto una sola vez (no duplica por fecha).
+        if (df.feriados.length === 0 && puedeEditar) {
+          try {
+            await fetchAutenticado('/api/feriados/importar', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ items: FERIADOS_DEFAULT })
+            });
+            const rf2 = await fetchAutenticado('/api/feriados');
+            const df2 = await rf2.json();
+            if (rf2.ok) setFeriados(df2.feriados);
+          } catch {
+            // silencioso: si falla, el usuario simplemente ve la lista de feriados vacía por ahora
+          }
+        }
+      }
     } finally { setCargandoDatos(false); }
   }
 
@@ -49,38 +64,28 @@ export default function IncidenciasPage() {
   async function crearFeriado() {
     setMsgFeriado(null);
     if (!fFecha || !fMotivo) { setMsgFeriado({ tipo: 'error', texto: 'Completá fecha y motivo.' }); return; }
-    const res = await fetchAutenticado('/api/feriados', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha: fFecha, motivo: fMotivo, bloquea: fBloquea })
-    });
-    const data = await res.json();
-    if (!res.ok) { setMsgFeriado({ tipo: 'error', texto: data.error }); return; }
-    setMsgFeriado({ tipo: 'ok', texto: 'Feriado agregado.' });
-    setFFecha(''); setFMotivo('');
-    cargarDatos();
+    try {
+      const res = await fetchAutenticado('/api/feriados', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha: fFecha, motivo: fMotivo, bloquea: fBloquea })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsgFeriado({ tipo: 'error', texto: data.error }); return; }
+      setMsgFeriado({ tipo: 'ok', texto: 'Feriado agregado.' });
+      setFFecha(''); setFMotivo('');
+      cargarDatos();
+    } catch (err) {
+      setMsgFeriado({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
   }
 
   async function eliminarFeriado(id) {
-    const res = await fetchAutenticado(`/api/feriados/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (res.ok) cargarDatos();
-  }
-
-  async function importarFeriadosDefault() {
-    setImportandoFeriados(true);
-    setMsgImportFeriados(null);
     try {
-      const res = await fetchAutenticado('/api/feriados/importar', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: FERIADOS_DEFAULT })
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsgImportFeriados({ tipo: 'error', texto: data.error }); return; }
-      setMsgImportFeriados({ tipo: 'ok', texto: `Se importaron ${data.agregados} feriado(s).${data.omitidos ? ' ' + data.omitidos + ' ya existían.' : ''}` });
-      cargarDatos();
+      const res = await fetchAutenticado(`/api/feriados/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) cargarDatos();
     } catch {
-      setMsgImportFeriados({ tipo: 'error', texto: 'Error de conexión.' });
-    } finally {
-      setImportandoFeriados(false);
+      // silencioso a propósito acá: es un ícono chico de tacho, sin lugar para mostrar el error;
+      // si falla, simplemente el feriado sigue en la lista y el usuario puede reintentar.
     }
   }
 
@@ -93,15 +98,6 @@ export default function IncidenciasPage() {
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">📅 Feriados</h2>
-        {puedeEditar && (
-          <div className="mb-4 pb-4 border-b border-border">
-            <p className="text-xs text-textSec mb-2">Importar de una los feriados 2026-2027 que ya estaban cargados en el prototipo (no duplica si ya existen).</p>
-            <button className={btnCls} disabled={importandoFeriados} onClick={importarFeriadosDefault}>
-              {importandoFeriados ? 'Importando…' : 'Importar feriados 2026-2027'}
-            </button>
-            {msgImportFeriados && <p className={`text-xs mt-2 ${msgImportFeriados.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msgImportFeriados.texto}</p>}
-          </div>
-        )}
         {puedeEditar && (
           <div className="mb-4">
             <div className="grid gap-2.5 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>

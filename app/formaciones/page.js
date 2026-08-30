@@ -9,16 +9,23 @@ export default function FormacionesPage() {
   const router = useRouter();
   const [clases, setClases] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargar(); }, [usuario]);
 
   async function cargar() {
     setCargandoDatos(true);
-    const res = await fetchAutenticado('/api/clases');
-    const data = await res.json();
-    if (res.ok) setClases(data.clases);
-    setCargandoDatos(false);
+    setError(null);
+    try {
+      const res = await fetchAutenticado('/api/clases');
+      const data = await res.json();
+      if (res.ok) setClases(data.clases); else setError(data.error);
+    } catch (err) {
+      setError('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
+    } finally {
+      setCargandoDatos(false);
+    }
   }
 
   const formaciones = useMemo(() => calcularFormaciones(clases), [clases]);
@@ -29,6 +36,7 @@ export default function FormacionesPage() {
     <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">🎓 Formaciones</h1>
       <p className="text-textSec text-sm mb-5">Estado, fechas y progreso de cada edición.</p>
+      {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
 
       <div className="bg-surface2 border border-border rounded-2xl p-5">
         {cargandoDatos ? (

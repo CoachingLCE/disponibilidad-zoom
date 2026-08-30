@@ -1,21 +1,22 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../lib/apiHandler';
 import { requireUsuario } from '../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../lib/permisos';
 import { leerActividades, agregarActividad } from '../../../lib/datosClases';
 import { registrarAccion } from '../../../lib/auditoria';
 import { nombreCurso, fechaToDia } from '../../../lib/salasLogic';
 
-export async function GET(request) {
+export const GET = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const actividades = await leerActividades();
   return NextResponse.json({ actividades });
-}
+})
 
 // POST /api/actividades -> { fecha, tipo, curso, edicion, horaTxt, docente, tematica, observaciones }
 // Solo para tipos que NO son "Formación" (esas se reservan vía /api/clases/reservar, porque necesitan sala).
-export async function POST(request) {
+export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -35,4 +36,4 @@ export async function POST(request) {
   await registrarAccion(usuario.email, usuario.nombre, 'Agregó al cronograma', `${tipo}${curso ? ' — ' + nombreCurso(curso) : ''}`);
 
   return NextResponse.json({ ok: true });
-}
+})

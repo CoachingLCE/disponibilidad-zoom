@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
 import { leerClases, agregarClase } from '../../../../lib/datosClases';
@@ -7,7 +8,7 @@ import { registrarAccion } from '../../../../lib/auditoria';
 
 // POST /api/clases/importar -> { texto }
 // Pegado masivo del horario semanal: "DIA HH:MM CODIGO NUMERO Sala N", una clase por línea.
-export async function POST(request) {
+export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -32,4 +33,4 @@ export async function POST(request) {
 
   await registrarAccion(usuario.email, usuario.nombre, 'Importó horario', `${agregadas} clase(s) nuevas`);
   return NextResponse.json({ agregadas, errores });
-}
+})

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
 import { leerClases, actualizarClase, eliminarClasePorId } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 import { BUFFER_MIN } from '../../../../lib/salasLogic';
 
-export async function PATCH(request, { params }) {
+export const PATCH = conManejo(async (request, { params }) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -31,9 +32,9 @@ export async function PATCH(request, { params }) {
   await registrarAccion(usuario.email, usuario.nombre, 'Cambió sala', `${clase.label} — ${clase.sala} → ${nuevaSala}`);
 
   return NextResponse.json({ ok: true });
-}
+})
 
-export async function DELETE(request, { params }) {
+export const DELETE = conManejo(async (request, { params }) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -47,4 +48,4 @@ export async function DELETE(request, { params }) {
   await registrarAccion(usuario.email, usuario.nombre, 'Canceló clase', `${clase.label} — ${clase.sala}, ${clase.dia.toLowerCase()}`);
 
   return NextResponse.json({ ok: true });
-}
+})

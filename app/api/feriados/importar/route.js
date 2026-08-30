@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
 import { leerFeriados, agregarFeriado } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 
 // POST /api/feriados/importar -> { items: [{fecha, motivo, bloquea}, ...] }
-export async function POST(request) {
+export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
@@ -28,4 +29,4 @@ export async function POST(request) {
 
   await registrarAccion(usuario.email, usuario.nombre, 'Importó feriados', `${agregados} feriado(s) nuevos`);
   return NextResponse.json({ ok: true, agregados, omitidos: items.length - agregados });
-}
+})

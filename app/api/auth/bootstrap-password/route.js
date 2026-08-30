@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { conManejo } from '../../../../lib/apiHandler';
 import { readSheet, patchRow } from '../../../../lib/sheets';
 import { hashPassword } from '../../../../lib/passwords';
 import { registrarAccion } from '../../../../lib/auditoria';
@@ -9,7 +10,7 @@ import { registrarAccion } from '../../../../lib/auditoria';
 // (PasswordHash vacío en el Sheet). Una vez que un usuario ya tiene contraseña,
 // este endpoint no lo vuelve a tocar — el reseteo de ahí en más se hace desde el
 // panel de Accesos (siendo Admin/SuperAdmin), no con esta llave.
-export async function POST(request) {
+export const POST = conManejo(async (request) => {
   const body = await request.json();
   const { email, password, bootstrapKey } = body;
 
@@ -51,4 +52,4 @@ export async function POST(request) {
   await registrarAccion(email, match.Nombre, 'Asignó su primera contraseña', '');
 
   return NextResponse.json({ ok: true });
-}
+})

@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas
+  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones
 } from '../lib/salasLogic';
 
-const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
+const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
+const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
+const rowCls = 'flex items-center justify-between gap-3 py-2.5 border-b border-border last:border-0';
 
 export default function InicioPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
@@ -48,6 +50,7 @@ export default function InicioPage() {
 
   const vista = useMemo(() => agruparParaVista(clases), [clases]);
   const alertas = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
+  const formaciones = useMemo(() => calcularFormaciones(clases), [clases]);
 
   const ahora = new Date();
   const diaHoy = DIAS_JS[ahora.getDay()];
@@ -55,133 +58,108 @@ export default function InicioPage() {
   const hoyISO = ahora.toISOString().slice(0, 10);
 
   let ocupadasAhora = 0;
-  let proximaLibera = null;
   SALAS.forEach((sala) => {
     const ocupHoy = vista.filter((c) => c.dia === diaHoy && c.sala === sala)
-      .map((c) => ({ ...c, inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }));
-    const actual = ocupHoy.find((o) => horaActual >= o.inicio && horaActual < o.fin);
-    if (actual) {
-      ocupadasAhora++;
-      if (!proximaLibera || actual.fin < proximaLibera.fin) proximaLibera = { sala, fin: actual.fin };
-    }
+      .map((c) => ({ inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }));
+    if (ocupHoy.some((o) => horaActual >= o.inicio && horaActual < o.fin)) ocupadasAhora++;
   });
   const libresAhora = SALAS.length - ocupadasAhora;
-  const clasesHoyVista = vista.filter((c) => c.dia === diaHoy);
-  const clasesSemana = vista.filter((c) => DIAS.includes(c.dia)).length;
 
   const actividadesTodas = useMemo(() => {
     const deClases = clases.filter((c) => c.fecha).map((c) => ({
-      fecha: c.fecha, tipo: 'Formación', label: c.label + (c.edicion ? ' (Ed. ' + c.edicion + ')' : ''),
+      fecha: c.fecha, dia: c.dia, label: c.label + (c.edicion ? ' · Ed. ' + c.edicion : ''),
       horaMin: c.horaMin, sala: c.sala
     }));
-    const deOtras = actividades.map((a) => ({
-      fecha: a.fecha, tipo: a.tipo, label: (a.nombreCurso || a.tipo) + (a.tematica ? ' — ' + a.tematica : ''),
-      horaMin: a.horaMin, sala: ''
+    const deOtras = actividades.filter((a) => a.fecha).map((a) => ({
+      fecha: a.fecha, dia: a.dia, label: (a.nombreCurso || a.tipo), horaMin: a.horaMin, sala: ''
     }));
-    return deClases.concat(deOtras).filter((a) => a.fecha).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
+    return deClases.concat(deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades]);
 
-  const deHoy = actividadesTodas.filter((a) => a.fecha === hoyISO);
+  const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
   const proximas = actividadesTodas.filter((a) => a.fecha > hoyISO).slice(0, 8);
-
-  let proxima = clasesHoyVista.filter((c) => c.horaMin > horaActual).sort((a, b) => a.horaMin - b.horaMin)[0];
-  let proximaEsHoy = true;
-  if (!proxima) {
-    const orden = DIAS_JS.slice(1).concat(DIAS_JS[0]);
-    const idxHoy = orden.indexOf(diaHoy);
-    for (let i = 1; i <= 7 && !proxima; i++) {
-      const d = orden[(idxHoy + i) % 7];
-      const cand = vista.filter((c) => c.dia === d).sort((a, b) => a.horaMin - b.horaMin);
-      if (cand.length) { proxima = cand[0]; proximaEsHoy = false; }
-    }
-  }
+  const proximaClase = agendaHoy.find((a) => a.horaMin > horaActual) || proximas[0] || null;
+  const formacionesEnCurso = formaciones.filter((f) => f.estado === 'En proceso').length;
 
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">🏠 Inicio</h1>
-      <p className="text-textSec text-sm mb-5">Resumen general de Cronograma ILCE.</p>
+    <div className="max-w-5xl mx-auto px-6 pt-6 pb-16">
+      <h1 className="text-lg font-semibold mb-4">Inicio</h1>
 
       {cargandoDatos ? (
         <p className="text-textSec text-sm">Cargando…</p>
       ) : (
         <>
-          <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(110px,1fr))' }}>
-            <Metrica n={SALAS.length} l="Salas" />
-            <Metrica n={libresAhora} l="Libres ahora" />
-            <Metrica n={ocupadasAhora} l="Ocupadas ahora" warn={ocupadasAhora > 0} />
-            <Metrica n={clasesHoyVista.length} l="Clases hoy" />
-            <Metrica n={clasesSemana} l="Clases esta semana" />
+          <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+            <Metrica valor={agendaHoy.length} label="Clases de hoy" />
+            <Metrica
+              valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
+              label={proximaClase ? `Próxima: ${proximaClase.label}` : 'Próxima clase'}
+              chico
+            />
+            <Metrica valor={ocupadasAhora} label="Salas ocupadas" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
+            <Metrica valor={libresAhora} label="Salas disponibles" acento="success" />
+            <Metrica valor={alertas.length} label="Incidencias activas" acento={alertas.length > 0 ? 'danger' : undefined} />
+            <Metrica valor={formacionesEnCurso} label="Formaciones en curso" />
           </div>
 
-          <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
-            <div className="bg-infoBg border border-infoText/25 rounded-xl px-4 py-3.5">
-              <div className="text-[11px] text-infoText font-bold uppercase tracking-wide mb-1.5">Próxima clase</div>
-              {proxima ? (
-                <>
-                  <div className="text-sm font-bold">{proxima.label} · {proxima.sala}</div>
-                  <div className="text-xs text-textSec mt-0.5">
-                    {proximaEsHoy ? 'Hoy' : proxima.dia} {minutosAHora(proxima.horaMin)}
-                    {proximaEsHoy && ` · en ${proxima.horaMin - horaActual} min`}
-                  </div>
-                </>
-              ) : <div className="text-sm font-bold">No hay clases próximas cargadas</div>}
-            </div>
-            <div className="bg-infoBg border border-infoText/25 rounded-xl px-4 py-3.5">
-              <div className="text-[11px] text-infoText font-bold uppercase tracking-wide mb-1.5">Próxima sala en liberarse</div>
-              {proximaLibera ? (
-                <>
-                  <div className="text-sm font-bold">{proximaLibera.sala}</div>
-                  <div className="text-xs text-textSec mt-0.5">a las {minutosAHora(proximaLibera.fin)}</div>
-                </>
-              ) : <div className="text-sm font-bold">Todas libres ahora</div>}
-            </div>
-          </div>
-
-          <div className={boxCls}>
-            <h2 className="text-sm font-semibold mb-2">📆 Actividades de hoy</h2>
-            {deHoy.length === 0 ? <p className="text-textSec text-sm">No hay actividades cargadas para hoy.</p> : (
-              <div className="flex flex-col gap-1.5">
-                {deHoy.map((a, i) => (
-                  <div key={i} className="bg-infoBg text-infoText rounded-lg px-3 py-2 text-xs">
-                    {minutosAHora(a.horaMin)} · {a.tipo} · {a.label}{a.sala ? ' · ' + a.sala : ''}
-                  </div>
-                ))}
+          <div className={sectionCls}>
+            <h2 className="text-sm font-semibold mb-1">Agenda de hoy</h2>
+            <p className="text-xs text-textMuted mb-2">{formatFechaCorta(hoyISO)}</p>
+            {agendaHoy.length === 0 ? (
+              <p className="text-textSec text-sm py-2">Sin actividades cargadas para hoy.</p>
+            ) : (
+              <div>
+                {agendaHoy.map((a, i) => {
+                  const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + 90;
+                  return (
+                    <div key={i} className={rowCls}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
+                        <span className="text-sm truncate">{a.label}</span>
+                        {enCurso && <span className="text-[10px] font-bold text-accentTeal border border-accentTeal/40 rounded-full px-2 py-0.5 shrink-0">En curso</span>}
+                      </div>
+                      {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          <div className={boxCls}>
-            <h2 className="text-sm font-semibold mb-2">⏭️ Próximas actividades</h2>
-            {proximas.length === 0 ? <p className="text-textSec text-sm">No hay próximas actividades cargadas.</p> : (
-              <div className="flex flex-col gap-1.5">
-                {proximas.map((a, i) => (
-                  <div key={i} className="bg-infoBg text-infoText rounded-lg px-3 py-2 text-xs">
-                    {formatFechaCorta(a.fecha)} {minutosAHora(a.horaMin)} · {a.tipo} · {a.label}{a.sala ? ' · ' + a.sala : ''}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={boxCls}>
-            <h2 className="text-sm font-semibold mb-2">⚠️ Alertas y conflictos</h2>
-            {alertas.length === 0 ? <p className="text-textSec text-sm">✔ Sin conflictos detectados por ahora.</p> : (
+          <div className={sectionCls}>
+            <h2 className="text-sm font-semibold mb-2">Alertas activas</h2>
+            {alertas.length === 0 ? (
+              <p className="text-textSec text-sm py-1">Sin conflictos detectados por ahora.</p>
+            ) : (
               <div className="flex flex-col gap-1.5">
                 {alertas.map((a, i) => (
-                  <div key={i} className={`rounded-lg px-3 py-2 text-xs font-semibold ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`}>
-                    ⚠ {a.texto}
+                  <div key={i} className={`rounded-lg px-3 py-2 text-xs font-medium ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`}>
+                    {a.texto}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className={boxCls}>
-            <h2 className="text-sm font-semibold mb-2">🟡 Clases postergadas</h2>
-            {postergaciones.length === 0 ? <p className="text-textSec text-sm">No hay clases postergadas.</p> : (
-              <Metrica n={postergaciones.length} l="Postergaciones en total" />
+          <div className={sectionCls}>
+            <h2 className="text-sm font-semibold mb-2">Próximas clases</h2>
+            {proximas.length === 0 ? (
+              <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
+            ) : (
+              <div>
+                {proximas.map((a, i) => (
+                  <div key={i} className={rowCls}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs text-textMuted w-20 shrink-0">{formatFechaCorta(a.fecha)}</span>
+                      <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
+                      <span className="text-sm truncate">{a.label}</span>
+                    </div>
+                    {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </>
@@ -190,11 +168,14 @@ export default function InicioPage() {
   );
 }
 
-function Metrica({ n, l, warn }) {
+function Metrica({ valor, label, acento, chico }) {
+  const color = {
+    success: 'text-successText', warning: 'text-warningText', danger: 'text-dangerText'
+  }[acento] || 'text-text';
   return (
-    <div className="bg-surface2 border border-border rounded-xl p-3.5 text-center">
-      <div className={`text-2xl font-extrabold ${warn ? 'text-warningText' : 'text-accentTeal'}`}>{n}</div>
-      <div className="text-[11px] text-textSec mt-1 font-semibold">{l}</div>
+    <div className={cardCls}>
+      <div className={`${chico ? 'text-lg' : 'text-2xl'} font-bold ${color}`}>{valor}</div>
+      <div className="text-[11px] text-textSec mt-0.5 truncate">{label}</div>
     </div>
   );
 }
