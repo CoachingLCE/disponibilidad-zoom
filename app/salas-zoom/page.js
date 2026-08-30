@@ -111,7 +111,7 @@ export default function SalasZoomPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">🎥 Salas Zoom</h1>
+      <h1 className="text-xl mb-1">Salas Zoom</h1>
       <p className="text-textSec text-sm mb-4">
         Horario semanal de las 8 salas — cargar, ver disponibilidad, y reservar.
         {!puedeEditar && ' Tu rol (Colaborador) solo puede ver, no puede cargar ni reservar.'}

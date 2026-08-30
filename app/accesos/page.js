@@ -21,6 +21,7 @@ export default function AccesosPage() {
   const [nuevoEmail, setNuevoEmail] = useState('');
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoRoles, setNuevoRoles] = useState(['Colaborador']);
+  const [detalleUsuario, setDetalleUsuario] = useState(null);
 
   const esSuperAdmin = (usuario?.roles || []).includes('SuperAdmin');
   const puedeGestionarAdmins = esSuperAdmin;
@@ -96,7 +97,7 @@ export default function AccesosPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 pb-16 pt-10">
-      <h1 className="text-xl mb-1">🔐 Accesos</h1>
+      <h1 className="text-xl mb-1">Accesos</h1>
       <p className="text-textSec text-sm mb-5">
         Gestioná quién entra a Cronograma ILCE y con qué rol.
         {!esSuperAdmin && ' Como no sos Super Admin, no podés crear ni editar usuarios Admin/SuperAdmin.'}
@@ -147,15 +148,57 @@ export default function AccesosPage() {
               u={u}
               puedeEditar={!tocaReservado(u.roles) || puedeGestionarAdmins}
               onActualizar={actualizar}
+              esSuperAdmin={esSuperAdmin}
+              onVerDetalle={() => setDetalleUsuario(u)}
             />
           ))}
         </div>
       )}
+
+      {detalleUsuario && <ModalDetalleUsuario u={detalleUsuario} onCerrar={() => setDetalleUsuario(null)} />}
     </div>
   );
 }
 
-function FilaUsuario({ u, puedeEditar, onActualizar }) {
+function ModalDetalleUsuario({ u, onCerrar }) {
+  function formatFecha(iso) {
+    if (!iso) return 'Nunca / sin registro';
+    try {
+      return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return iso;
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
+      <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-semibold mb-1">{u.nombre}</h3>
+        <p className="text-textSec text-xs mb-4">{u.email}</p>
+        <div className="space-y-2 text-sm mb-4">
+          <FilaDetalle label="Roles" valor={u.roles.join(', ')} />
+          <FilaDetalle label="Estado" valor={u.activo ? 'Activo' : 'Desactivado'} />
+          <FilaDetalle label="Contraseña asignada" valor={u.tieneContrasena ? 'Sí' : 'No'} />
+          <FilaDetalle label="Fecha de creación" valor={u.fechaCreacion ? formatFecha(u.fechaCreacion) : 'No disponible (usuario creado antes de esta función)'} />
+          <FilaDetalle label="Último login" valor={formatFecha(u.ultimoLogin)} />
+          <FilaDetalle label="Total de logins registrados" valor={u.totalLogins ?? 0} />
+        </div>
+        <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
+      </div>
+    </div>
+  );
+}
+
+function FilaDetalle({ label, valor }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-textMuted">{label}</span>
+      <span className="text-right">{valor}</span>
+    </div>
+  );
+}
+
+function FilaUsuario({ u, puedeEditar, onActualizar, esSuperAdmin, onVerDetalle }) {
   const [roles, setRoles] = useState(u.roles);
   const [nuevaPassword, setNuevaPassword] = useState('');
 
@@ -170,9 +213,14 @@ function FilaUsuario({ u, puedeEditar, onActualizar }) {
           <span className="font-semibold text-sm">{u.nombre}</span>
           <span className="text-textSec text-xs ml-2">{u.email}</span>
         </div>
-        <span className={`text-[11.5px] ${u.activo ? 'text-successText' : 'text-dangerText'}`}>
-          {u.activo ? '● Activo' : '● Desactivado'} {!u.tieneContrasena && '· sin contraseña asignada'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[11.5px] ${u.activo ? 'text-successText' : 'text-dangerText'}`}>
+            {u.activo ? '● Activo' : '● Desactivado'} {!u.tieneContrasena && '· sin contraseña asignada'}
+          </span>
+          {esSuperAdmin && (
+            <button className={btnSecCls} onClick={onVerDetalle}>Ver detalle</button>
+          )}
+        </div>
       </div>
 
       {!puedeEditar ? (

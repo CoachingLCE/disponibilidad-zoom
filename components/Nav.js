@@ -1,17 +1,19 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useSession } from '../lib/useSession';
 import ThemeSelector from './ThemeSelector';
+import AccionesRapidas from './AccionesRapidas';
 
 const LINKS = [
-  { href: '/', label: '🏠 Inicio' },
-  { href: '/cronograma', label: '📅 Cronograma' },
-  { href: '/cronograma-cm', label: '📣 Cronograma CM' },
-  { href: '/formaciones', label: '🎓 Formaciones' },
-  { href: '/salas-zoom', label: '🎥 Salas Zoom' },
-  { href: '/incidencias', label: '⚠️ Incidencias' },
-  { href: '/analisis', label: '📊 Análisis' }
+  { href: '/', label: 'Inicio' },
+  { href: '/cronograma', label: 'Cronograma' },
+  { href: '/cronograma-cm', label: 'Cronograma CM' },
+  { href: '/formaciones', label: 'Formaciones' },
+  { href: '/salas-zoom', label: 'Salas Zoom' },
+  { href: '/incidencias', label: 'Incidencias' },
+  { href: '/analisis', label: 'Análisis' }
 ];
 
 function itemNav(href, label, pathname) {
@@ -19,7 +21,7 @@ function itemNav(href, label, pathname) {
     <Link
       key={href}
       href={href}
-      className={`h-9 flex items-center px-4 rounded-lg text-sm font-medium border whitespace-nowrap transition-colors ${
+      className={`h-8 flex items-center px-3.5 rounded-lg text-[13px] font-medium border whitespace-nowrap transition-colors ${
         pathname === href
           ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent'
           : 'bg-surface2 border-border text-textSec hover:text-text hover:border-accentTeal'
@@ -33,34 +35,45 @@ function itemNav(href, label, pathname) {
 export default function Nav() {
   const { usuario, logout } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
+  const [q, setQ] = useState('');
 
   if (!usuario || pathname === '/login' || pathname === '/setup-password') return null;
 
-  return (
-    <div className="max-w-5xl mx-auto px-6 pt-6 no-print">
-      <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <p className="text-accentTeal uppercase text-xs tracking-widest font-semibold mb-1">Instituto ILCE</p>
-          <h1 className="text-2xl font-bold">Cronograma ILCE</h1>
-        </div>
+  function buscar(e) {
+    e.preventDefault();
+    if (q.trim()) router.push(`/buscar?q=${encodeURIComponent(q.trim())}`);
+  }
 
-        <div className="flex items-center gap-2">
+  return (
+    <div className="max-w-5xl mx-auto px-6 pt-4 no-print">
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+        <Link href="/" className="text-sm font-bold shrink-0">Cronograma ILCE</Link>
+
+        <form onSubmit={buscar} className="flex-1 min-w-[140px] max-w-xs">
+          <input
+            type="text" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar…"
+            className="w-full bg-surface2 border border-border rounded-lg h-8 px-3 text-xs"
+          />
+        </form>
+
+        <div className="flex items-center gap-2 shrink-0">
           <ThemeSelector />
           {usuario && (
-            <div className="text-right text-sm ml-2">
+            <div className="text-right text-xs leading-tight">
               <p className="font-semibold">{usuario.nombre}</p>
-              <p className="text-textSec text-xs">{usuario.roles.join(', ')}</p>
-              <button onClick={logout} className="text-xs text-textMuted underline mt-1">
-                Salir
-              </button>
+              <button onClick={logout} className="text-textMuted underline">Salir</button>
             </div>
           )}
         </div>
       </div>
 
-      <nav className="mb-6 flex items-center gap-2 flex-wrap">
+      <nav className="mb-5 flex items-center gap-1.5 flex-wrap">
         {LINKS.map((l) => itemNav(l.href, l.label, pathname))}
       </nav>
+
+      <AccionesRapidas />
     </div>
   );
 }

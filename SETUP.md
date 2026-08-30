@@ -6,13 +6,14 @@ Creá una hoja nueva en Google Sheets llamada **"Cronograma ILCE — Base de dat
 (el nombre de cada pestaña tiene que ser exacto, es lo que usa el código para encontrarlas):
 
 ### Pestaña `Usuarios`
-| Email | Nombre | Roles | PasswordHash | Activo |
-|---|---|---|---|---|
-| diegolernerdl@gmail.com | Diego Lerner | SuperAdmin | (se completa solo) | TRUE |
+| Email | Nombre | Roles | PasswordHash | Activo | FechaCreacion |
+|---|---|---|---|---|---|
+| diegolernerdl@gmail.com | Diego Lerner | SuperAdmin | (se completa solo) | TRUE | (se completa solo) |
 
 - **Roles**: uno o más de `Colaborador`, `Admin`, `SuperAdmin`, separados por coma si tiene más de uno.
 - **PasswordHash**: se deja vacío al crear el usuario — el primer login pide asignar contraseña (lo armamos en el próximo paso, todavía no está hecho el endpoint para eso).
 - **Activo**: `TRUE` o `FALSE`.
+- **FechaCreacion**: se completa sola al crear el usuario desde el panel de Accesos (nueva columna — agregala en la fila 1 si no la tenías; los usuarios creados antes de esto van a quedar sin este dato, es normal).
 
 ### Pestaña `Historial`
 | Fecha | Email | Usuario | Accion | Detalle |

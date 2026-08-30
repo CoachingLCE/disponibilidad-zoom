@@ -34,7 +34,7 @@ export default function FormacionesPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">🎓 Formaciones</h1>
+      <h1 className="text-xl mb-1">Formaciones</h1>
       <p className="text-textSec text-sm mb-5">Estado, fechas y progreso de cada edición.</p>
       {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
 
