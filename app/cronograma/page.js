@@ -93,23 +93,30 @@ export default function CronogramaPage() {
   }
 
   const { todas, totalSinFiltro } = useMemo(() => {
-    const deClases = clases.filter((c) => c.fecha).map((c) => ({
+    const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => ({
       id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, tematica: c.tematica,
+      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, tematica: c.tematica,
       observaciones: c.observaciones, pasada: esPasada(c.fecha)
     }));
+    // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía): se
+    // incluyen igual, con fecha vacía — el calendario las proyecta sobre la semana que se
+    // esté mirando (más abajo), y en la vista Lista aparecen con fecha "—".
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => ({
+      id: c.id, fecha: '', dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
+      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, tematica: c.tematica,
+      observaciones: c.observaciones, pasada: false, recurrente: true
+    }));
     // Importante: las entradas históricas de tipo "Formación" quedan afuera acá — esas
-    // clases YA están representadas en `deClases` (la fuente real, con sala asignada).
-    // Si las mezclamos, la misma edición aparece dos veces: una completa y otra "fantasma"
-    // sin sala, que es justo la duplicación que reportó Diego.
+    // clases YA están representadas en `deClasesConFecha`/`deClasesRecurrentes` (la fuente
+    // real, con sala asignada). Si las mezclamos, la misma edición aparece dos veces.
     const deOtras = actividades.filter((a) => a.tipo !== 'Formación').map((a) => ({ ...a, duracion: 90, pasada: esPasada(a.fecha) }));
-    const completo = deClases.concat(deOtras).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.horaMin || 0) - (a.horaMin || 0));
+    const completo = deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.horaMin || 0) - (a.horaMin || 0));
     let out = completo;
     if (filtroTipo) out = out.filter((a) => a.tipo === filtroTipo);
     if (filtroCurso) out = out.filter((a) => a.curso === filtroCurso);
     if (filtroSala) out = out.filter((a) => a.sala === filtroSala);
     if (filtroDia) out = out.filter((a) => a.dia === filtroDia);
-    if (filtroRango) out = out.filter((a) => dentroDeRango(a.fecha, filtroRango));
+    if (filtroRango) out = out.filter((a) => a.recurrente || dentroDeRango(a.fecha, filtroRango));
     return { todas: out, totalSinFiltro: completo.length };
   }, [clases, actividades, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
 
@@ -122,7 +129,17 @@ export default function CronogramaPage() {
     const d = new Date(lunes); d.setDate(lunes.getDate() + i); return toISO(d);
   });
   const hoyISO = toISO(new Date());
-  const itemsSemana = todas.filter((a) => fechasSemana.includes(a.fecha));
+  const itemsSemana = useMemo(() => {
+    const datados = todas.filter((a) => fechasSemana.includes(a.fecha));
+    // Las recurrentes (sin fecha puntual) se proyectan sobre la fecha real que les toca
+    // en la semana que se está mirando — así se ven en el calendario, sea cual sea la semana.
+    const recurrentesProyectadas = todas.filter((a) => a.recurrente).map((a) => {
+      const idx = DIAS_SEMANA.indexOf(a.dia);
+      if (idx === -1) return null;
+      return { ...a, fecha: fechasSemana[idx] };
+    }).filter(Boolean);
+    return datados.concat(recurrentesProyectadas);
+  }, [todas, fechasSemana]);
   const horasSemana = [...new Set(itemsSemana.map((a) => a.horaMin).filter((h) => h != null))].sort((a, b) => a - b);
   const ahora = new Date();
   const horaActualMin = ahora.getHours() * 60 + ahora.getMinutes();

@@ -70,11 +70,10 @@ export default function FormacionesPage() {
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />
-                    <span className={`font-semibold text-sm truncate ${color.text}`}>{ICONOS[f.codigo] || ''} {NOMBRES[f.codigo] || f.codigo}</span>
+                    <span className={`font-semibold text-sm truncate ${color.text}`}>{ICONOS[f.codigo] || ''} {NOMBRES[f.codigo] || f.codigo} {f.numero}</span>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${estado.bg} ${estado.text}`}>{estado.label}</span>
                 </div>
-                <p className="text-xs text-textMuted mb-3">Edición {f.edicion}</p>
 
                 {f.pct != null ? (
                   <>

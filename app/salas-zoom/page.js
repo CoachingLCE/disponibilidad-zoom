@@ -74,6 +74,20 @@ export default function SalasZoomPage() {
             // silencioso: si falla, el usuario ve la grilla vacía y puede cargar el horario a mano
           }
         }
+        // Limpieza automática de clases duplicadas, en silencio — sin botón, corre sola cada vez.
+        if (dc.clases.length > 0 && puedeEditar) {
+          try {
+            const rl = await fetchAutenticado('/api/clases/limpiar-duplicados', { method: 'POST' });
+            const dl = await rl.json();
+            if (rl.ok && dl.borradas > 0) {
+              const rc3 = await fetchAutenticado('/api/clases');
+              const dc3 = await rc3.json();
+              if (rc3.ok) setClases(dc3.clases);
+            }
+          } catch {
+            // silencioso: si falla, simplemente no se limpia esta vez
+          }
+        }
       } else {
         setErrorCarga(dc.error);
       }

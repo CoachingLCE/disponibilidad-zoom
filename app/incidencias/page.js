@@ -29,6 +29,22 @@ export default function IncidenciasPage() {
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
 
+  async function limpiarDuplicados() {
+    setLimpiandoDuplicados(true);
+    setMsgDuplicados(null);
+    try {
+      const res = await fetchAutenticado('/api/clases/limpiar-duplicados', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) { setMsgDuplicados({ tipo: 'error', texto: data.error }); return; }
+      setMsgDuplicados({ tipo: 'ok', texto: data.borradas > 0 ? `Se borraron ${data.borradas} clase(s) duplicada(s).` : 'No se encontraron duplicados.' });
+      cargarDatos();
+    } catch (err) {
+      setMsgDuplicados({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    } finally {
+      setLimpiandoDuplicados(false);
+    }
+  }
+
   async function cargarDatos() {
     setCargandoDatos(true);
     try {
@@ -36,7 +52,24 @@ export default function IncidenciasPage() {
         fetchAutenticado('/api/clases'), fetchAutenticado('/api/feriados'), fetchAutenticado('/api/postergaciones')
       ]);
       const [dc, df, dp] = await Promise.all([rc.json(), rf.json(), rp.json()]);
-      if (rc.ok) setClases(dc.clases);
+      if (rc.ok) {
+        setClases(dc.clases);
+        // Limpieza automática de clases duplicadas, en silencio, cada vez que se entra acá
+        // (no hace falta ningún botón — es segura de correr aunque no haya nada para borrar).
+        if (dc.clases.length > 0 && puedeEditar) {
+          try {
+            const rl = await fetchAutenticado('/api/clases/limpiar-duplicados', { method: 'POST' });
+            const dl = await rl.json();
+            if (rl.ok && dl.borradas > 0) {
+              const rc2 = await fetchAutenticado('/api/clases');
+              const dc2 = await rc2.json();
+              if (rc2.ok) setClases(dc2.clases);
+            }
+          } catch {
+            // silencioso: si falla, simplemente no se limpia esta vez
+          }
+        }
+      }
       if (rp.ok) setPostergaciones(dp.postergaciones);
       if (rf.ok) {
         setFeriados(df.feriados);
@@ -147,8 +180,8 @@ export default function IncidenciasPage() {
               <div><label className={labelCls}>Motivo</label><input value={fMotivo} onChange={(e) => setFMotivo(e.target.value)} placeholder="ej: Día del Docente" className={inputCls} /></div>
               <div><label className={labelCls}>Estado</label>
                 <select value={fBloquea ? 'si' : 'no'} onChange={(e) => setFBloquea(e.target.value === 'si')} className={inputCls}>
-                  <option value="si">Bloquea</option>
-                  <option value="no">Informativo</option>
+                  <option value="si">🔒 Bloquea</option>
+                  <option value="no">👁️ Informativo</option>
                 </select>
               </div>
             </div>
@@ -163,10 +196,14 @@ export default function IncidenciasPage() {
             <thead><tr className="border-b border-border text-textSec text-left"><th className="p-1.5">Fecha</th><th className="p-1.5">Motivo</th><th className="p-1.5">Estado</th><th></th></tr></thead>
             <tbody>
               {[...feriados].sort((a, b) => a.fecha.localeCompare(b.fecha)).map((f) => (
-                <tr key={f.id} className="border-b border-border">
+                <tr key={f.id} className={`border-b border-border border-l-2 ${f.bloquea ? 'border-l-dangerText' : 'border-l-infoText'}`}>
                   <td className="p-1.5">{formatFechaCorta(f.fecha)}</td>
                   <td className="p-1.5">{f.motivo}</td>
-                  <td className="p-1.5">{f.bloquea ? 'Bloquea' : 'Informativo'}</td>
+                  <td className="p-1.5">
+                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${f.bloquea ? 'bg-dangerBg text-dangerText' : 'bg-infoBg text-infoText'}`}>
+                      {f.bloquea ? '🔒 Bloquea' : '👁️ Informativo'}
+                    </span>
+                  </td>
                   <td className="p-1.5">{puedeEditar && <button className={btnSecCls} onClick={() => eliminarFeriado(f.id)}>Eliminar</button>}</td>
                 </tr>
               ))}
