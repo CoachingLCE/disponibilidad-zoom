@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { Wrench } from 'lucide-react';
 import { useSession } from '../lib/useSession';
 import ThemeSelector from './ThemeSelector';
 import AccionesRapidas from './AccionesRapidas';
@@ -62,6 +63,14 @@ export default function Nav() {
 
         <div className="flex items-center gap-2 shrink-0">
           <ThemeSelector />
+          <Link href="/herramientas" title="Herramientas"
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+              pathname === '/herramientas'
+                ? 'bg-accentPurple text-white'
+                : 'bg-surface2 border border-border text-textSec hover:text-text hover:border-accentTeal'
+            }`}>
+            <Wrench size={15} />
+          </Link>
           {usuario && (
             <div className="text-right text-xs leading-tight">
               <p className="font-semibold">{usuario.nombre}</p>

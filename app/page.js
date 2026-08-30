@@ -65,15 +65,40 @@ export default function InicioPage() {
   const libresAhora = SALAS.length - ocupadasAhora;
 
   const actividadesTodas = useMemo(() => {
-    const deClases = clases.filter((c) => c.fecha).map((c) => ({
+    function toISO(d) {
+      const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    // Para una clase del horario recurrente (sin fecha puntual), calcula la próxima fecha
+    // real en la que cae según su día de la semana — hoy si coincide, si no el próximo.
+    function proximaFechaParaDia(diaClase) {
+      const idxObjetivo = DIAS_JS.indexOf(diaClase);
+      if (idxObjetivo === -1) return null;
+      const idxHoy = ahora.getDay();
+      let diff = idxObjetivo - idxHoy;
+      if (diff < 0) diff += 7;
+      const d = new Date(ahora);
+      d.setDate(ahora.getDate() + diff);
+      return toISO(d);
+    }
+
+    const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => ({
       fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
     }));
-    const deOtras = actividades.filter((a) => a.fecha).map((a) => ({
+    // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
+    // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => ({
+      fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
+      edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
+    })).filter((c) => c.fecha);
+    // Mismo criterio que en Cronograma: las Formación históricas se excluyen acá,
+    // porque ya están representadas (con sala real) en deClases.
+    const deOtras = actividades.filter((a) => a.fecha && a.tipo !== 'Formación').map((a) => ({
       fecha: a.fecha, dia: a.dia, curso: '', nombreCurso: a.nombreCurso || a.tipo,
       edicion: '', numero: '', horaMin: a.horaMin, sala: '', esFormacion: false
     }));
-    return deClases.concat(deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
+    return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));

@@ -17,9 +17,13 @@ function idEstable(item) {
 }
 
 // POST /api/actividades/importar-historico -> { items: [...] }
-// Carga masiva de actividades históricas (cualquier tipo, incluido "Formación") como
-// referencia pura en ActividadesCronograma — NO reserva sala ni toca el sistema de Clases,
-// tal como se decidió: son en su mayoría clases que ya pasaron, sin dato real de sala.
+// Carga masiva de actividades históricas como referencia pura en ActividadesCronograma —
+// NO reserva sala ni toca el sistema de Clases.
+//
+// Las entradas de tipo "Formación" se saltean a propósito: esas clases viven en el
+// sistema real de Salas Zoom (con sala asignada), que es la única fuente de verdad.
+// Guardarlas acá también generaba una "clase fantasma" duplicada sin sala en Cronograma
+// e Inicio, mostrando la misma edición dos veces con datos distintos.
 //
 // El id de cada fila se calcula a partir de su propio contenido (idEstable), así que
 // re-importar (incluso con un archivo actualizado que reordenó o agregó filas en el medio)
@@ -38,11 +42,13 @@ export const POST = conManejo(async (request) => {
     return NextResponse.json({ error: 'No se recibieron actividades para importar.' }, { status: 400 });
   }
 
+  const itemsRelevantes = items.filter((item) => item.tipo !== 'Formación');
+
   const existentes = await leerActividades();
   const idsExistentes = new Set(existentes.map((e) => e.id));
 
   const nuevas = [];
-  for (const item of items) {
+  for (const item of itemsRelevantes) {
     const id = idEstable(item);
     if (idsExistentes.has(id)) continue;
     idsExistentes.add(id); // por si el propio archivo trae duplicados internos
@@ -60,5 +66,9 @@ export const POST = conManejo(async (request) => {
   }
 
   await registrarAccion(usuario.email, usuario.nombre, 'Importó histórico de Cronograma', `${nuevas.length} actividad(es) nuevas`);
-  return NextResponse.json({ ok: true, agregadas: nuevas.length, omitidas: items.length - nuevas.length });
+  return NextResponse.json({
+    ok: true, agregadas: nuevas.length,
+    omitidas: itemsRelevantes.length - nuevas.length,
+    omitidasPorSerFormacion: items.length - itemsRelevantes.length
+  });
 })

@@ -117,7 +117,11 @@ export default function CronogramaPage() {
       edicion: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, tematica: c.tematica,
       observaciones: c.observaciones, pasada: esPasada(c.fecha)
     }));
-    const deOtras = actividades.map((a) => ({ ...a, duracion: 90, pasada: esPasada(a.fecha) }));
+    // Importante: las entradas históricas de tipo "Formación" quedan afuera acá — esas
+    // clases YA están representadas en `deClases` (la fuente real, con sala asignada).
+    // Si las mezclamos, la misma edición aparece dos veces: una completa y otra "fantasma"
+    // sin sala, que es justo la duplicación que reportó Diego.
+    const deOtras = actividades.filter((a) => a.tipo !== 'Formación').map((a) => ({ ...a, duracion: 90, pasada: esPasada(a.fecha) }));
     const completo = deClases.concat(deOtras).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.horaMin || 0) - (a.horaMin || 0));
     let out = completo;
     if (filtroTipo) out = out.filter((a) => a.tipo === filtroTipo);
