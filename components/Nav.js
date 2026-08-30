@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useSession } from '../lib/useSession';
 import ThemeSelector from './ThemeSelector';
 import AccionesRapidas from './AccionesRapidas';
+import CambiarPasswordModal from './CambiarPasswordModal';
 
 const LINKS = [
   { href: '/', label: 'Inicio' },
@@ -37,6 +38,7 @@ export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const [q, setQ] = useState('');
+  const [cambiandoPassword, setCambiandoPassword] = useState(false);
 
   if (!usuario || pathname === '/login' || pathname === '/setup-password') return null;
 
@@ -63,7 +65,10 @@ export default function Nav() {
           {usuario && (
             <div className="text-right text-xs leading-tight">
               <p className="font-semibold">{usuario.nombre}</p>
-              <button onClick={logout} className="text-textMuted underline">Salir</button>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setCambiandoPassword(true)} className="text-textMuted underline">Contraseña</button>
+                <button onClick={logout} className="text-textMuted underline">Salir</button>
+              </div>
             </div>
           )}
         </div>
@@ -74,6 +79,8 @@ export default function Nav() {
       </nav>
 
       <AccionesRapidas />
+
+      {cambiandoPassword && <CambiarPasswordModal onCerrar={() => setCambiandoPassword(false)} />}
     </div>
   );
 }

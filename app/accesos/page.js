@@ -21,6 +21,7 @@ export default function AccesosPage() {
   const [nuevoEmail, setNuevoEmail] = useState('');
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoRoles, setNuevoRoles] = useState(['Colaborador']);
+  const [nuevoPassword, setNuevoPassword] = useState('');
   const [detalleUsuario, setDetalleUsuario] = useState(null);
 
   const esSuperAdmin = (usuario?.roles || []).includes('SuperAdmin');
@@ -56,16 +57,20 @@ export default function AccesosPage() {
   async function crear(e) {
     e.preventDefault();
     setError(''); setMensaje('');
+    if (nuevoPassword && nuevoPassword.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres (o dejala vacía para que la persona la asigne después).');
+      return;
+    }
     try {
       const res = await fetchAutenticado('/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: nuevoEmail, nombre: nuevoNombre, roles: nuevoRoles })
+        body: JSON.stringify({ email: nuevoEmail, nombre: nuevoNombre, roles: nuevoRoles, password: nuevoPassword || undefined })
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
-      setMensaje(`Usuario ${nuevoEmail} creado.`);
-      setNuevoEmail(''); setNuevoNombre(''); setNuevoRoles(['Colaborador']);
+      setMensaje(`Usuario ${nuevoEmail} creado.${nuevoPassword ? ' Ya puede entrar con la contraseña que pusiste.' : ' Todavía sin contraseña — puede asignarla desde /setup-password.'}`);
+      setNuevoEmail(''); setNuevoNombre(''); setNuevoRoles(['Colaborador']); setNuevoPassword('');
       cargarUsuarios();
     } catch {
       setError('Error de conexión.');
@@ -116,6 +121,14 @@ export default function AccesosPage() {
           <div>
             <label className="text-xs text-textSec block mb-1">Nombre</label>
             <input type="text" required value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} className={inputCls} />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs text-textSec block mb-1">Contraseña (opcional)</label>
+            <input
+              type="text" value={nuevoPassword} onChange={(e) => setNuevoPassword(e.target.value)}
+              placeholder="Dejala vacía para que la persona la asigne ella misma desde /setup-password"
+              className={inputCls}
+            />
           </div>
           <div className="col-span-2">
             <label className="text-xs text-textSec block mb-1.5">Roles</label>

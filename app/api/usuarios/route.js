@@ -30,10 +30,13 @@ export const POST = conManejo(async (request) => {
   if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const body = await request.json();
-  const { email, nombre, roles } = body;
+  const { email, nombre, roles, password } = body;
 
   if (!email || !nombre || !rolesValidos(roles)) {
     return NextResponse.json({ error: 'Faltan datos o los roles no son válidos.' }, { status: 400 });
+  }
+  if (password && password.length < 8) {
+    return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres.' }, { status: 400 });
   }
   if (!puedeAsignarRoles(actor, roles, tienePermisoGestionarAdmins)) {
     return NextResponse.json(
@@ -47,8 +50,8 @@ export const POST = conManejo(async (request) => {
     return NextResponse.json({ error: 'Ese email ya existe en Usuarios.' }, { status: 409 });
   }
 
-  await crearUsuario({ email, nombre, roles });
-  await registrarAccion(actor.email, actor.nombre, 'Creó usuario', `${email} (${roles.join(', ')})`);
+  await crearUsuario({ email, nombre, roles, password });
+  await registrarAccion(actor.email, actor.nombre, 'Creó usuario', `${email} (${roles.join(', ')})${password ? ' — con contraseña asignada' : ''}`);
 
   return NextResponse.json({ ok: true });
 })
