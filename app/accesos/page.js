@@ -94,8 +94,8 @@ export default function AccesosPage() {
     }
   }
 
-  function toggleRolNuevo(rol) {
-    setNuevoRoles((prev) => prev.includes(rol) ? prev.filter((r) => r !== rol) : [...prev, rol]);
+  function elegirRolNuevo(rol) {
+    setNuevoRoles([rol]);
   }
 
   if (cargando || !usuario) return null;
@@ -131,13 +131,13 @@ export default function AccesosPage() {
             />
           </div>
           <div className="col-span-2">
-            <label className="text-xs text-textSec block mb-1.5">Roles</label>
+            <label className="text-xs text-textSec block mb-1.5">Rol</label>
             <div className="flex gap-4">
               {ROLES_DISPONIBLES.map((rol) => {
                 const bloqueado = ROLES_RESERVADOS.includes(rol) && !puedeGestionarAdmins;
                 return (
                   <label key={rol} className={`text-sm flex gap-1.5 items-center ${bloqueado ? 'text-textMuted' : 'text-text'}`}>
-                    <input type="checkbox" disabled={bloqueado} checked={nuevoRoles.includes(rol)} onChange={() => toggleRolNuevo(rol)} />
+                    <input type="radio" name="rolNuevo" disabled={bloqueado} checked={nuevoRoles.includes(rol)} onChange={() => elegirRolNuevo(rol)} />
                     {rol}
                   </label>
                 );
@@ -211,13 +211,15 @@ function FilaDetalle({ label, valor }) {
   );
 }
 
-function FilaUsuario({ u, puedeEditar, onActualizar, esSuperAdmin, onVerDetalle }) {
-  const [roles, setRoles] = useState(u.roles);
-  const [nuevaPassword, setNuevaPassword] = useState('');
+function rolMasAlto(roles) {
+  if (roles.includes('SuperAdmin')) return 'SuperAdmin';
+  if (roles.includes('Admin')) return 'Admin';
+  return 'Colaborador';
+}
 
-  function toggleRol(rol) {
-    setRoles((prev) => prev.includes(rol) ? prev.filter((r) => r !== rol) : [...prev, rol]);
-  }
+function FilaUsuario({ u, puedeEditar, onActualizar, esSuperAdmin, onVerDetalle }) {
+  const [rol, setRol] = useState(rolMasAlto(u.roles));
+  const [nuevaPassword, setNuevaPassword] = useState('');
 
   return (
     <div className="bg-surface2 border border-border rounded-xl p-3.5">
@@ -240,13 +242,13 @@ function FilaUsuario({ u, puedeEditar, onActualizar, esSuperAdmin, onVerDetalle 
         <p className="text-xs text-textMuted">Solo un Super Admin puede editar este usuario.</p>
       ) : (
         <div className="flex flex-wrap gap-3.5 items-center">
-          {ROLES_DISPONIBLES.map((rol) => (
-            <label key={rol} className="text-xs flex gap-1 items-center">
-              <input type="checkbox" checked={roles.includes(rol)} onChange={() => toggleRol(rol)} />
-              {rol}
+          {ROLES_DISPONIBLES.map((r) => (
+            <label key={r} className="text-xs flex gap-1 items-center">
+              <input type="radio" name={`rol-${u.email}`} checked={rol === r} onChange={() => setRol(r)} />
+              {r}
             </label>
           ))}
-          <button className={btnSecCls} onClick={() => onActualizar(u.email, { roles })}>Guardar roles</button>
+          <button className={btnSecCls} onClick={() => onActualizar(u.email, { roles: [rol] })}>Guardar rol</button>
           <button className={btnSecCls} onClick={() => onActualizar(u.email, { activo: !u.activo })}>
             {u.activo ? 'Desactivar' : 'Reactivar'}
           </button>
