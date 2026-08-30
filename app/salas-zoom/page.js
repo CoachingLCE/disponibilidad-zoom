@@ -325,7 +325,7 @@ function VistaEstado({ vista, diaHoy, onClick }) {
                   <div className={`text-sm font-medium ${color.text}`}>{actual.label}</div>
                   <div className="text-xs text-textSec mt-0.5">{minutosAHora(actual.horaMin)}–{minutosAHora(actual.fin)}</div>
                   <div className="text-[11px] text-textMuted mt-1">
-                    {enBuffer ? 'Sala en preparación (buffer previo a la clase)' : 'Clase en curso'}
+                    {enBuffer ? 'Sala en preparación (15 min previos a la clase)' : 'Clase en curso'}
                   </div>
                 </>
               ) : (

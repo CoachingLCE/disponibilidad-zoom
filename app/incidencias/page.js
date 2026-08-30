@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta, calcularAlertas } from '../../lib/salasLogic';
+import { formatFechaCorta, calcularAlertas, calcularConflictosDetalle, minutosAHora } from '../../lib/salasLogic';
 import { FERIADOS_DEFAULT } from '../../lib/feriadosDefault';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
@@ -60,6 +60,7 @@ export default function IncidenciasPage() {
   }
 
   const alertas = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
+  const conflictosDetalle = useMemo(() => calcularConflictosDetalle(clases), [clases]);
 
   async function crearFeriado() {
     setMsgFeriado(null);
@@ -107,6 +108,32 @@ export default function IncidenciasPage() {
                 {a.tipo === 'warn' ? '🔴' : '🟡'} {a.texto}
               </div>
             ))}
+          </div>
+        )}
+
+        {conflictosDetalle.length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-textSec mb-2">Detalle de las clases superpuestas ({conflictosDetalle.length}):</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-textSec text-left">
+                    <th className="p-1.5">Sala</th><th className="p-1.5">Día</th>
+                    <th className="p-1.5">Clase A</th><th className="p-1.5">Clase B</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conflictosDetalle.map((c, i) => (
+                    <tr key={i} className="border-b border-border">
+                      <td className="p-1.5">{c.sala}</td>
+                      <td className="p-1.5">{c.dia.charAt(0) + c.dia.slice(1).toLowerCase()}</td>
+                      <td className="p-1.5">{c.claseA.label} · {minutosAHora(c.claseA.horaMin)}{c.claseA.fecha ? ' · ' + formatFechaCorta(c.claseA.fecha) : ''}</td>
+                      <td className="p-1.5">{c.claseB.label} · {minutosAHora(c.claseB.horaMin)}{c.claseB.fecha ? ' · ' + formatFechaCorta(c.claseB.fecha) : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
