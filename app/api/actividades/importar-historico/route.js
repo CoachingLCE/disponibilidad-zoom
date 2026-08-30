@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
-import { leerActividades, agregarActividad } from '../../../../lib/datosClases';
+import { leerActividades, agregarActividades } from '../../../../lib/datosClases';
 import { nombreCurso } from '../../../../lib/salasLogic';
 import { registrarAccion } from '../../../../lib/auditoria';
 
@@ -24,6 +24,10 @@ function idEstable(item) {
 // El id de cada fila se calcula a partir de su propio contenido (idEstable), así que
 // re-importar (incluso con un archivo actualizado que reordenó o agregó filas en el medio)
 // nunca duplica lo que ya está — solo agrega lo que sea realmente nuevo.
+//
+// IMPORTANTE: se escribe TODO en un solo llamado a la API (agregarActividades en bloque),
+// no una fila a la vez — Google Sheets tiene un límite de escrituras por minuto que se
+// supera enseguida si se escribe de a una con listas de cientos de elementos.
 export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -37,21 +41,24 @@ export const POST = conManejo(async (request) => {
   const existentes = await leerActividades();
   const idsExistentes = new Set(existentes.map((e) => e.id));
 
-  let agregadas = 0;
+  const nuevas = [];
   for (const item of items) {
     const id = idEstable(item);
     if (idsExistentes.has(id)) continue;
-    await agregarActividad({
+    idsExistentes.add(id); // por si el propio archivo trae duplicados internos
+    nuevas.push({
       fecha: item.fecha || '', dia: item.dia || '', tipo: item.tipo,
       curso: item.curso || '', nombreCurso: item.nombreCurso || nombreCurso(item.curso),
       edicion: item.edicion || '', horaMin: item.horaMin, horaTxt: item.horaTxt || '',
       docente: item.docente || '', tematica: item.tematica || '', observaciones: item.observaciones || '',
       id
     });
-    idsExistentes.add(id);
-    agregadas++;
   }
 
-  await registrarAccion(usuario.email, usuario.nombre, 'Importó histórico de Cronograma', `${agregadas} actividad(es) nuevas`);
-  return NextResponse.json({ ok: true, agregadas, omitidas: items.length - agregadas });
+  if (nuevas.length > 0) {
+    await agregarActividades(nuevas);
+  }
+
+  await registrarAccion(usuario.email, usuario.nombre, 'Importó histórico de Cronograma', `${nuevas.length} actividad(es) nuevas`);
+  return NextResponse.json({ ok: true, agregadas: nuevas.length, omitidas: items.length - nuevas.length });
 })

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
-import { leerClases, agregarClase, leerFeriados, feriadoEnFecha } from '../../../../lib/datosClases';
+import { leerClases, agregarClases, leerFeriados, feriadoEnFecha } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 import {
   DURACIONES, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad
@@ -14,6 +14,10 @@ import {
 // Si `sala` viene vacía, solo CONSULTA disponibilidad (no reserva) y devuelve { libres, ocupadas }.
 // Si `sala` viene, RESERVA de verdad (una clase, o una serie completa si cantidad > 1),
 // corriendo por feriado cada ocurrencia que caiga en una fecha bloqueada.
+//
+// Toda la serie se escribe en UN solo llamado a la API (agregarClases en bloque) — reservar
+// una edición completa (por ejemplo 48 clases) de a una por vez supera el límite de
+// escrituras por minuto de Google Sheets.
 export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -54,11 +58,11 @@ export const POST = conManejo(async (request) => {
     return NextResponse.json({ error: `${sala} ya no está libre a esa hora — volvé a consultar.` }, { status: 409 });
   }
 
-  // Reservar (una clase, o la serie completa corriendo por feriado)
+  // Armar la serie completa (corriendo por feriado) y recién al final escribirla toda junta.
   const numeroInicial = numero ? parseInt(numero, 10) : null;
   const corridas = [];
   const omitidas = [];
-  let agregadas = 0;
+  const nuevasClases = [];
   let fechaCursor = new Date(fecha + 'T00:00:00');
 
   for (let i = 0; i < cantidad; i++) {
@@ -78,13 +82,17 @@ export const POST = conManejo(async (request) => {
       continue;
     }
 
-    await agregarClase({
+    nuevasClases.push({
       dia, horaMin, codigo, edicion: edicion || '1', numero: numeroI, sala, label: labelI, duracion,
       fecha: fechaStr, docente: docente || '', tematica: tematica || '', observaciones: observaciones || '',
-      id: `${codigo}-${edicion || '1'}-${numeroI || 'x'}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      id: `${codigo}-${edicion || '1'}-${numeroI || 'x'}-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`
     });
-    agregadas++;
   }
+
+  if (nuevasClases.length > 0) {
+    await agregarClases(nuevasClases);
+  }
+  const agregadas = nuevasClases.length;
 
   const primerLabel = codigo + (numeroInicial !== null ? ' ' + numeroInicial : '');
   await registrarAccion(

@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar } from '../../../../lib/permisos';
-import { leerFeriados, agregarFeriado } from '../../../../lib/datosClases';
+import { leerFeriados, agregarFeriados } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 
 // POST /api/feriados/importar -> { items: [{fecha, motivo, bloquea}, ...] }
+// Se escribe todo en un solo llamado a la API (agregarFeriados en bloque), no uno por uno.
 export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -19,14 +20,17 @@ export const POST = conManejo(async (request) => {
   const existentes = await leerFeriados();
   const fechasExistentes = new Set(existentes.map((f) => f.fecha));
 
-  let agregados = 0;
+  const nuevos = [];
   for (const item of items) {
     if (fechasExistentes.has(item.fecha)) continue; // no duplicar por fecha
-    await agregarFeriado({ fecha: item.fecha, motivo: item.motivo, bloquea: !!item.bloquea });
     fechasExistentes.add(item.fecha);
-    agregados++;
+    nuevos.push({ fecha: item.fecha, motivo: item.motivo, bloquea: !!item.bloquea });
   }
 
-  await registrarAccion(usuario.email, usuario.nombre, 'Importó feriados', `${agregados} feriado(s) nuevos`);
-  return NextResponse.json({ ok: true, agregados, omitidos: items.length - agregados });
+  if (nuevos.length > 0) {
+    await agregarFeriados(nuevos);
+  }
+
+  await registrarAccion(usuario.email, usuario.nombre, 'Importó feriados', `${nuevos.length} feriado(s) nuevos`);
+  return NextResponse.json({ ok: true, agregados: nuevos.length, omitidos: items.length - nuevos.length });
 })
