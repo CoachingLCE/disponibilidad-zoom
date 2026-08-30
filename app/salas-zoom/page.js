@@ -30,7 +30,7 @@ export default function SalasZoomPage() {
   const [feriados, setFeriados] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
-  const [vista, setVista] = useState('grilla');
+  const [vista, setVista] = useState('estado');
   const [diaSala, setDiaSala] = useState('LUNES');
 
   const [textoImportar, setTextoImportar] = useState(HORARIO_EJEMPLO);
@@ -104,20 +104,41 @@ export default function SalasZoomPage() {
 
   if (cargando || !usuario) return null;
 
+  const vistaAgrupadaHoy = vistaAgrupada.filter((c) => c.dia === diaHoy)
+    .map((c) => ({ ...c, inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }));
+  const ahoraMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const ocupadasCount = SALAS.filter((s) => vistaAgrupadaHoy.some((o) => o.sala === s && ahoraMin >= o.inicio && ahoraMin < o.fin)).length;
+
   return (
     <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">🎥 Salas Zoom</h1>
-      <p className="text-textSec text-sm mb-5">
+      <p className="text-textSec text-sm mb-4">
         Horario semanal de las 8 salas — cargar, ver disponibilidad, y reservar.
         {!puedeEditar && ' Tu rol (Colaborador) solo puede ver, no puede cargar ni reservar.'}
       </p>
+
+      <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))' }}>
+        <div className="bg-surface2 border border-border rounded-xl p-3.5 text-center">
+          <div className="text-2xl font-bold">{SALAS.length}</div>
+          <div className="text-[11px] text-textSec mt-0.5">Salas totales</div>
+        </div>
+        <div className="bg-surface2 border border-border rounded-xl p-3.5 text-center">
+          <div className="text-2xl font-bold text-successText">{SALAS.length - ocupadasCount}</div>
+          <div className="text-[11px] text-textSec mt-0.5">Disponibles</div>
+        </div>
+        <div className="bg-surface2 border border-border rounded-xl p-3.5 text-center">
+          <div className="text-2xl font-bold text-warningText">{ocupadasCount}</div>
+          <div className="text-[11px] text-textSec mt-0.5">Ocupadas</div>
+        </div>
+      </div>
+
       {errorCarga && (
         <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{errorCarga}</div>
       )}
 
       {puedeEditar && (
         <div className={boxCls}>
-          <h2 className="text-sm font-semibold mb-2">1. Cargar horario</h2>
+          <h2 className="text-sm font-semibold mb-2">Cargar horario</h2>
           <p className="text-xs text-textSec mb-2.5">
             Formato: <b>DÍA HH:MM CÓDIGO NÚMERO Sala N</b> — una clase por línea. Ya viene con el horario de ejemplo cargado; editalo o vaciálo y pegá el real.
           </p>
@@ -137,11 +158,11 @@ export default function SalasZoomPage() {
       )}
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">2. Ver horario</h2>
+        <h2 className="text-sm font-semibold mb-3">Ver horario</h2>
         <div className="flex gap-2 mb-4">
+          <button className={tabCls(vista === 'estado')} onClick={() => setVista('estado')}>Estado ahora</button>
           <button className={tabCls(vista === 'grilla')} onClick={() => setVista('grilla')}>Grilla semanal</button>
           <button className={tabCls(vista === 'porSala')} onClick={() => setVista('porSala')}>Vista por sala</button>
-          <button className={tabCls(vista === 'estado')} onClick={() => setVista('estado')}>Estado ahora</button>
         </div>
 
         {cargandoDatos ? (
@@ -151,7 +172,7 @@ export default function SalasZoomPage() {
         ) : vista === 'porSala' ? (
           <VistaPorSala vista={vistaAgrupada} diaSala={diaSala} setDiaSala={setDiaSala} />
         ) : (
-          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} />
+          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} onClick={puedeEditar ? (c) => setAccion({ clase: c }) : null} />
         )}
       </div>
 
@@ -258,32 +279,53 @@ function VistaPorSala({ vista, diaSala, setDiaSala }) {
   );
 }
 
-function VistaEstado({ vista, diaHoy }) {
+function VistaEstado({ vista, diaHoy, onClick }) {
   const ahora = new Date();
   const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-textSec mb-1">Hoy {diaHoy.toLowerCase()}, {minutosAHora(horaActual)} hs.</p>
-      {SALAS.map((sala) => {
-        const ocupHoy = vista.filter((c) => c.dia === diaHoy && c.sala === sala)
-          .map((c) => ({ ...c, inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }))
-          .sort((a, b) => a.inicio - b.inicio);
-        const actual = ocupHoy.find((o) => horaActual >= o.inicio && horaActual < o.fin);
-        const proxima = ocupHoy.find((o) => o.inicio > horaActual);
-        return (
-          <div key={sala} className={`rounded-lg px-3.5 py-2.5 border ${actual ? 'bg-dangerBg border-dangerText/30' : 'bg-successBg border-successText/25'}`}>
-            <div className="font-bold text-sm">{sala}</div>
-            <div className="text-xs text-textSec">
-              {actual
-                ? `Ocupada por ${actual.label} — se desocupa a las ${minutosAHora(actual.fin)}`
-                : proxima
-                  ? `Libre ahora — próxima clase hoy a las ${minutosAHora(proxima.horaMin)}`
-                  : 'Libre el resto del día'}
+    <div>
+      <p className="text-xs text-textSec mb-3">Hoy {diaHoy.charAt(0) + diaHoy.slice(1).toLowerCase()}, {minutosAHora(horaActual)} hs.</p>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))' }}>
+        {SALAS.map((sala) => {
+          const ocupHoy = vista.filter((c) => c.dia === diaHoy && c.sala === sala)
+            .map((c) => ({ ...c, inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }))
+            .sort((a, b) => a.inicio - b.inicio);
+          const enClase = ocupHoy.find((o) => horaActual >= o.horaMin && horaActual < o.fin);
+          const enBuffer = !enClase && ocupHoy.find((o) => horaActual >= o.inicio && horaActual < o.horaMin);
+          const actual = enClase || enBuffer;
+          const proxima = ocupHoy.find((o) => o.inicio > horaActual);
+          const libre = !actual;
+
+          return (
+            <div
+              key={sala}
+              onClick={() => actual && onClick && onClick(actual)}
+              className={`rounded-xl border p-3.5 ${libre ? 'bg-successBg border-successText/25' : 'bg-dangerBg border-dangerText/30'} ${actual && onClick ? 'cursor-pointer' : ''}`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-semibold text-sm">{sala}</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${libre ? 'bg-successText/20 text-successText' : 'bg-dangerText/20 text-dangerText'}`}>
+                  {libre ? 'LIBRE' : 'OCUPADA'}
+                </span>
+              </div>
+              {actual ? (
+                <>
+                  <div className="text-sm font-medium">{actual.label}</div>
+                  <div className="text-xs text-textSec mt-0.5">{minutosAHora(actual.horaMin)}–{minutosAHora(actual.fin)}</div>
+                  <div className="text-[11px] text-textMuted mt-1">
+                    {enBuffer ? 'Motivo: sala en preparación (buffer previo a la clase)' : 'Motivo: clase en curso'}
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-textSec">
+                  {proxima ? `Próxima clase: ${minutosAHora(proxima.horaMin)} · ${proxima.label}` : 'Sin clases el resto del día'}
+                </div>
+              )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -332,7 +374,7 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
 
   return (
     <div className={boxCls}>
-      <h2 className="text-sm font-semibold mb-3">3. Buscar disponibilidad / Reservar</h2>
+      <h2 className="text-sm font-semibold mb-3">Buscar disponibilidad / Reservar</h2>
       <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
         <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
         <div><label className={labelCls}>Hora</label>

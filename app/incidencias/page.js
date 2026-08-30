@@ -93,11 +93,26 @@ export default function IncidenciasPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">⚠️ Incidencias</h1>
-      <p className="text-textSec text-sm mb-5">Feriados, clases postergadas y conflictos automáticos.</p>
+      <h1 className="text-xl mb-1">Incidencias</h1>
+      <p className="text-textSec text-sm mb-5">Situaciones que requieren atención, y la información administrativa de feriados y postergaciones.</p>
+
+      <div className="bg-surface2 border-2 border-dangerText/30 rounded-2xl p-5 mb-5">
+        <h2 className="text-sm font-bold mb-3">🔴 Requiere atención</h2>
+        {alertas.length === 0 ? (
+          <p className="text-successText text-sm py-1">✔ Sin conflictos ni situaciones urgentes por ahora.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {alertas.map((a, i) => (
+              <div key={i} className={`rounded-lg px-3.5 py-2.5 text-sm font-semibold ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`}>
+                {a.tipo === 'warn' ? '🔴' : '🟡'} {a.texto}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">📅 Feriados</h2>
+        <h2 className="text-sm font-semibold mb-3">Feriados</h2>
         {puedeEditar && (
           <div className="mb-4">
             <div className="grid gap-2.5 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
@@ -105,12 +120,12 @@ export default function IncidenciasPage() {
               <div><label className={labelCls}>Motivo</label><input value={fMotivo} onChange={(e) => setFMotivo(e.target.value)} placeholder="ej: Día del Docente" className={inputCls} /></div>
               <div><label className={labelCls}>Estado</label>
                 <select value={fBloquea ? 'si' : 'no'} onChange={(e) => setFBloquea(e.target.value === 'si')} className={inputCls}>
-                  <option value="si">🔒 Bloquea</option>
-                  <option value="no">👁️ Informativo</option>
+                  <option value="si">Bloquea</option>
+                  <option value="no">Informativo</option>
                 </select>
               </div>
             </div>
-            <button className={btnCls} onClick={crearFeriado}>➕ Agregar feriado</button>
+            <button className={btnCls} onClick={crearFeriado}>Agregar feriado</button>
             {msgFeriado && <p className={`text-xs mt-2 ${msgFeriado.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msgFeriado.texto}</p>}
           </div>
         )}
@@ -124,8 +139,8 @@ export default function IncidenciasPage() {
                 <tr key={f.id} className="border-b border-border">
                   <td className="p-1.5">{formatFechaCorta(f.fecha)}</td>
                   <td className="p-1.5">{f.motivo}</td>
-                  <td className="p-1.5">{f.bloquea ? '🔒 Bloquea' : '👁️ Informativo'}</td>
-                  <td className="p-1.5">{puedeEditar && <button className={btnSecCls} onClick={() => eliminarFeriado(f.id)}>🗑️</button>}</td>
+                  <td className="p-1.5">{f.bloquea ? 'Bloquea' : 'Informativo'}</td>
+                  <td className="p-1.5">{puedeEditar && <button className={btnSecCls} onClick={() => eliminarFeriado(f.id)}>Eliminar</button>}</td>
                 </tr>
               ))}
             </tbody>
@@ -134,7 +149,7 @@ export default function IncidenciasPage() {
       </div>
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">🟡 Clases postergadas</h2>
+        <h2 className="text-sm font-semibold mb-3">Clases postergadas</h2>
         {postergaciones.length === 0 ? <p className="text-textSec text-sm">Todavía no se postergó ninguna clase.</p> : (
           <table className="w-full text-xs border-collapse">
             <thead>
@@ -156,19 +171,6 @@ export default function IncidenciasPage() {
               ))}
             </tbody>
           </table>
-        )}
-      </div>
-
-      <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">🚨 Panel de conflictos</h2>
-        {alertas.length === 0 ? <p className="text-textSec text-sm">✔ Sin conflictos detectados por ahora.</p> : (
-          <div className="flex flex-col gap-1.5">
-            {alertas.map((a, i) => (
-              <div key={i} className={`rounded-lg px-3 py-2 text-xs font-semibold ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`}>
-                ⚠ {a.texto}
-              </div>
-            ))}
-          </div>
         )}
       </div>
     </div>
