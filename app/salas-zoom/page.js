@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, TOTALES, NOMBRES, ICONOS,
-  minutosAHora, formatFechaCorta, agruparParaVista
+  minutosAHora, formatFechaCorta, agruparParaVista, colorFormacion
 } from '../../lib/salasLogic';
 import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
 
@@ -110,7 +110,7 @@ export default function SalasZoomPage() {
   const ocupadasCount = SALAS.filter((s) => vistaAgrupadaHoy.some((o) => o.sala === s && ahoraMin >= o.inicio && ahoraMin < o.fin)).length;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">Salas Zoom</h1>
       <p className="text-textSec text-sm mb-4">
         Horario semanal de las 8 salas — cargar, ver disponibilidad, y reservar.
@@ -213,21 +213,24 @@ function VistaGrilla({ vista, diaHoy, onClick }) {
                 const items = vista.filter((c) => c.dia === d && c.horaMin === h);
                 return (
                   <td key={d} className="border border-border align-top p-1 min-w-[100px]">
-                    {items.map((c) => (
-                      <div
-                        key={c.id}
-                        onClick={() => onClick && onClick(c)}
-                        className={`bg-gradient-to-br from-accentPurple to-accentMagenta rounded-md px-2 py-1 text-[11.5px] font-bold text-white mb-1 ${onClick ? 'cursor-pointer' : ''} ${c.pasada ? 'opacity-45 line-through' : ''}`}
-                      >
-                        {ICONOS[c.codigo] || ''} {c.label}
-                        <span className="block font-medium text-[10px] opacity-85">{c.sala}</span>
-                        {c.numero && (
-                          <span className="block font-medium text-[9.5px] opacity-80">
-                            Clase {c.serieTotal > 1 ? c.serieIndex : c.numero}{TOTALES[c.codigo] ? ' de ' + TOTALES[c.codigo] : ''}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                    {items.map((c) => {
+                      const color = colorFormacion(c.codigo);
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => onClick && onClick(c)}
+                          className={`${color.bg} ${color.text} border-l-2 ${color.border} rounded-md px-2 py-1 text-[11.5px] font-bold mb-1 ${onClick ? 'cursor-pointer' : ''} ${c.pasada ? 'opacity-45 line-through' : ''}`}
+                        >
+                          {ICONOS[c.codigo] || ''} {c.label}
+                          <span className="block font-medium text-[10px] opacity-85">{c.sala}</span>
+                          {c.numero && (
+                            <span className="block font-medium text-[9.5px] opacity-80">
+                              Clase {c.serieTotal > 1 ? c.serieIndex : c.numero}{TOTALES[c.codigo] ? ' de ' + TOTALES[c.codigo] : ''}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </td>
                 );
               })}
@@ -294,27 +297,34 @@ function VistaEstado({ vista, diaHoy, onClick }) {
           const enClase = ocupHoy.find((o) => horaActual >= o.horaMin && horaActual < o.fin);
           const enBuffer = !enClase && ocupHoy.find((o) => horaActual >= o.inicio && horaActual < o.horaMin);
           const actual = enClase || enBuffer;
-          const proxima = ocupHoy.find((o) => o.inicio > horaActual);
+          const proxima = !actual && ocupHoy.find((o) => o.inicio > horaActual);
+          const proximaPronto = proxima && (proxima.inicio - horaActual) <= 30;
           const libre = !actual;
+          const color = actual ? colorFormacion(actual.codigo) : null;
+
+          const estadoTxt = actual ? 'OCUPADA' : proximaPronto ? 'PRÓXIMA' : 'LIBRE';
+          const estadoCls = actual
+            ? 'bg-dangerText/20 text-dangerText'
+            : proximaPronto
+              ? 'bg-warningText/20 text-warningText'
+              : 'bg-successText/20 text-successText';
 
           return (
             <div
               key={sala}
               onClick={() => actual && onClick && onClick(actual)}
-              className={`rounded-xl border p-3.5 ${libre ? 'bg-successBg border-successText/25' : 'bg-dangerBg border-dangerText/30'} ${actual && onClick ? 'cursor-pointer' : ''}`}
+              className={`rounded-xl border-l-4 ${color ? color.border : 'border-border'} border-t border-r border-b border-border bg-surface2 p-3.5 ${actual && onClick ? 'cursor-pointer' : ''}`}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-semibold text-sm">{sala}</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${libre ? 'bg-successText/20 text-successText' : 'bg-dangerText/20 text-dangerText'}`}>
-                  {libre ? 'LIBRE' : 'OCUPADA'}
-                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${estadoCls}`}>{estadoTxt}</span>
               </div>
               {actual ? (
                 <>
-                  <div className="text-sm font-medium">{actual.label}</div>
+                  <div className={`text-sm font-medium ${color.text}`}>{actual.label}</div>
                   <div className="text-xs text-textSec mt-0.5">{minutosAHora(actual.horaMin)}–{minutosAHora(actual.fin)}</div>
                   <div className="text-[11px] text-textMuted mt-1">
-                    {enBuffer ? 'Motivo: sala en preparación (buffer previo a la clase)' : 'Motivo: clase en curso'}
+                    {enBuffer ? 'Sala en preparación (buffer previo a la clase)' : 'Clase en curso'}
                   </div>
                 </>
               ) : (

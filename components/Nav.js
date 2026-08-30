@@ -48,7 +48,7 @@ export default function Nav() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 pt-4 no-print">
+    <div className="max-w-[1440px] mx-auto px-6 pt-4 no-print">
       <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
         <Link href="/" className="text-sm font-bold shrink-0">Cronograma ILCE</Link>
 

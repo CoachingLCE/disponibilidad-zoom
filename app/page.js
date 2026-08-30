@@ -3,13 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../lib/useSession';
 import {
-  SALAS, DIAS, DIAS_JS, BUFFER_MIN,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones
+  SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES,
+  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS
 } from '../lib/salasLogic';
 
 const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
-const rowCls = 'flex items-center justify-between gap-3 py-2.5 border-b border-border last:border-0';
 
 export default function InicioPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
@@ -67,11 +66,12 @@ export default function InicioPage() {
 
   const actividadesTodas = useMemo(() => {
     const deClases = clases.filter((c) => c.fecha).map((c) => ({
-      fecha: c.fecha, dia: c.dia, label: c.label + (c.edicion ? ' · Ed. ' + c.edicion : ''),
-      horaMin: c.horaMin, sala: c.sala
+      fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
+      edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
     }));
     const deOtras = actividades.filter((a) => a.fecha).map((a) => ({
-      fecha: a.fecha, dia: a.dia, label: (a.nombreCurso || a.tipo), horaMin: a.horaMin, sala: ''
+      fecha: a.fecha, dia: a.dia, curso: '', nombreCurso: a.nombreCurso || a.tipo,
+      edicion: '', numero: '', horaMin: a.horaMin, sala: '', esFormacion: false
     }));
     return deClases.concat(deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades]);
@@ -84,43 +84,59 @@ export default function InicioPage() {
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-5xl mx-auto px-6 pt-6 pb-16">
-      <h1 className="text-lg font-semibold mb-4">Inicio</h1>
+    <div className="max-w-[1440px] mx-auto px-6 pt-6 pb-16">
+      <div className="mb-5">
+        <h1 className="text-lg font-semibold">HOY</h1>
+        <p className="text-textSec text-sm mt-0.5">
+          {agendaHoy.length} clase{agendaHoy.length !== 1 ? 's' : ''} · {ocupadasAhora} sala{ocupadasAhora !== 1 ? 's' : ''} ocupada{ocupadasAhora !== 1 ? 's' : ''} · {libresAhora} disponible{libresAhora !== 1 ? 's' : ''}
+        </p>
+      </div>
 
       {cargandoDatos ? (
         <p className="text-textSec text-sm">Cargando…</p>
       ) : (
         <>
           <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
-            <Metrica valor={agendaHoy.length} label="Clases de hoy" />
+            <Metrica valor={agendaHoy.length} label="Clases hoy" />
             <Metrica
               valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
-              label={proximaClase ? `Próxima: ${proximaClase.label}` : 'Próxima clase'}
+              label={proximaClase ? `Próxima: ${proximaClase.nombreCurso}` : 'Próxima clase'}
               chico
             />
-            <Metrica valor={ocupadasAhora} label="Salas ocupadas" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
+            <Metrica valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
             <Metrica valor={libresAhora} label="Salas disponibles" acento="success" />
             <Metrica valor={alertas.length} label="Incidencias activas" acento={alertas.length > 0 ? 'danger' : undefined} />
-            <Metrica valor={formacionesEnCurso} label="Formaciones en curso" />
+            <Metrica valor={formacionesEnCurso} label="Formaciones activas" />
           </div>
 
           <div className={sectionCls}>
             <h2 className="text-sm font-semibold mb-1">Agenda de hoy</h2>
-            <p className="text-xs text-textMuted mb-2">{formatFechaCorta(hoyISO)}</p>
+            <p className="text-xs text-textMuted mb-3">{formatFechaCorta(hoyISO)}</p>
             {agendaHoy.length === 0 ? (
               <p className="text-textSec text-sm py-2">Sin actividades cargadas para hoy.</p>
             ) : (
-              <div>
+              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
                 {agendaHoy.map((a, i) => {
                   const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + 90;
+                  const color = a.esFormacion ? colorFormacion(a.curso) : null;
                   return (
-                    <div key={i} className={rowCls}>
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
-                        <span className="text-sm truncate">{a.label}</span>
-                        {enCurso && <span className="text-[10px] font-bold text-accentTeal border border-accentTeal/40 rounded-full px-2 py-0.5 shrink-0">En curso</span>}
+                    <div key={i} className={`border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3`}>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span className="font-mono text-xs text-textSec">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
+                        {enCurso && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADOS.enCurso.bg} ${ESTADOS.enCurso.text}`}>
+                            {ESTADOS.enCurso.label.toUpperCase()}
+                          </span>
+                        )}
                       </div>
-                      {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
+                        <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[a.curso] || ''} {a.nombreCurso}</span>
+                      </div>
+                      {a.esFormacion && (
+                        <p className="text-xs text-textMuted">Clase {a.numero} · Edición {a.edicion}</p>
+                      )}
+                      {a.sala && <p className="text-xs text-textMuted">{a.sala}</p>}
                     </div>
                   );
                 })}
@@ -149,16 +165,20 @@ export default function InicioPage() {
               <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
             ) : (
               <div>
-                {proximas.map((a, i) => (
-                  <div key={i} className={rowCls}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-xs text-textMuted w-20 shrink-0">{formatFechaCorta(a.fecha)}</span>
-                      <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
-                      <span className="text-sm truncate">{a.label}</span>
+                {proximas.map((a, i) => {
+                  const color = a.esFormacion ? colorFormacion(a.curso) : null;
+                  return (
+                    <div key={i} className="flex items-center justify-between gap-3 py-2.5 border-b border-border last:border-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-xs text-textMuted w-20 shrink-0">{formatFechaCorta(a.fecha)}</span>
+                        <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
+                        {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
+                        <span className={`text-sm truncate ${color ? color.text : ''}`}>{a.nombreCurso}{a.esFormacion ? ` · Ed. ${a.edicion}` : ''}</span>
+                      </div>
+                      {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
                     </div>
-                    {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

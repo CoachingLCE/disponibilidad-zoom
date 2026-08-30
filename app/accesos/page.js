@@ -101,7 +101,7 @@ export default function AccesosPage() {
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 pb-16 pt-10">
+    <div className="max-w-[900px] mx-auto px-6 pb-16 pt-10">
       <h1 className="text-xl mb-1">Accesos</h1>
       <p className="text-textSec text-sm mb-5">
         Gestioná quién entra a Cronograma ILCE y con qué rol.

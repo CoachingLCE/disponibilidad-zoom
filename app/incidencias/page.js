@@ -92,7 +92,7 @@ export default function IncidenciasPage() {
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[1200px] mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">Incidencias</h1>
       <p className="text-textSec text-sm mb-5">Situaciones que requieren atención, y la información administrativa de feriados y postergaciones.</p>
 

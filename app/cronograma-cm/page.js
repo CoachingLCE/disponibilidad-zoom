@@ -14,7 +14,7 @@ export default function CronogramaCMPage() {
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[900px] mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">Cronograma CM</h1>
       <div className="bg-surface2 border border-border rounded-2xl p-10 mt-6 text-center">
         <p className="text-2xl font-semibold text-textSec mb-2">Próximamente</p>

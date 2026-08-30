@@ -4,7 +4,7 @@ function conVariable(nombre) {
 }
 
 module.exports = {
-  content: ['./app/**/*.{js,jsx}', './components/**/*.{js,jsx}'],
+  content: ['./app/**/*.{js,jsx}', './components/**/*.{js,jsx}', './lib/**/*.{js,jsx}'],
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {

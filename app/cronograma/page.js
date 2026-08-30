@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, minutosAHora, formatFechaCorta, esPasada
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, minutosAHora, formatFechaCorta, esPasada, colorFormacion, ESTADOS
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 
@@ -52,6 +52,7 @@ export default function CronogramaPage() {
   const [filtroCurso, setFiltroCurso] = useState('');
   const [filtroSala, setFiltroSala] = useState('');
   const [filtroDia, setFiltroDia] = useState('');
+  const [filtroRango, setFiltroRango] = useState('');
   const [seleccionado, setSeleccionado] = useState(null);
 
   const [fecha, setFecha] = useState('');
@@ -91,6 +92,25 @@ export default function CronogramaPage() {
     } finally { setCargandoDatos(false); }
   }
 
+  function dentroDeRango(fechaISO, rango) {
+    if (!rango || !fechaISO) return true;
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const f = new Date(fechaISO + 'T00:00:00');
+    if (rango === 'hoy') {
+      return toISO(f) === toISO(hoy);
+    }
+    if (rango === 'estaSemana' || rango === 'proximaSemana') {
+      const offset = rango === 'proximaSemana' ? 1 : 0;
+      const lunesRango = lunesDeSemana(offset);
+      const domingoRango = new Date(lunesRango); domingoRango.setDate(lunesRango.getDate() + 6);
+      return f >= lunesRango && f <= domingoRango;
+    }
+    if (rango === 'esteMes') {
+      return f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth();
+    }
+    return true;
+  }
+
   const { todas, totalSinFiltro } = useMemo(() => {
     const deClases = clases.filter((c) => c.fecha).map((c) => ({
       id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
@@ -104,8 +124,9 @@ export default function CronogramaPage() {
     if (filtroCurso) out = out.filter((a) => a.curso === filtroCurso);
     if (filtroSala) out = out.filter((a) => a.sala === filtroSala);
     if (filtroDia) out = out.filter((a) => a.dia === filtroDia);
+    if (filtroRango) out = out.filter((a) => dentroDeRango(a.fecha, filtroRango));
     return { todas: out, totalSinFiltro: completo.length };
-  }, [clases, actividades, filtroTipo, filtroCurso, filtroSala, filtroDia]);
+  }, [clases, actividades, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
 
   const tiposUsados = [...new Set(['Formación', ...actividades.map((a) => a.tipo)])];
   const cursosUsados = [...new Set(clases.map((c) => c.codigo).concat(actividades.filter((a) => a.curso).map((a) => a.curso)))];
@@ -190,7 +211,7 @@ export default function CronogramaPage() {
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-5xl mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">Cronograma</h1>
       <p className="text-textSec text-sm mb-5">Todo lo que sucede en ILCE: Formaciones, BLOG, Masterclass, Reuniones, Capacitaciones, Jornadas y más.</p>
 
@@ -268,10 +289,17 @@ export default function CronogramaPage() {
             <option value="">Todos los días</option>
             {DIAS.map((d) => <option key={d} value={d}>{d.charAt(0) + d.slice(1).toLowerCase()}</option>)}
           </select>
+          <select value={filtroRango} onChange={(e) => setFiltroRango(e.target.value)} className={`${inputCls} w-auto`}>
+            <option value="">Cualquier fecha</option>
+            <option value="hoy">Hoy</option>
+            <option value="estaSemana">Esta semana</option>
+            <option value="proximaSemana">Próxima semana</option>
+            <option value="esteMes">Este mes</option>
+          </select>
         </div>
 
         <p className="text-xs text-textSec mb-3">
-          {totalSinFiltro} actividad(es) cargadas en total{(filtroTipo || filtroCurso || filtroSala || filtroDia) ? ` · mostrando ${todas.length} con el filtro actual` : ''}.
+          {totalSinFiltro} actividad(es) cargadas en total{(filtroTipo || filtroCurso || filtroSala || filtroDia || filtroRango) ? ` · mostrando ${todas.length} con el filtro actual` : ''}.
         </p>
 
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : vista === 'calendario' ? (
@@ -312,18 +340,18 @@ export default function CronogramaPage() {
                                 const idKey = a.id || `${a.fecha}-${a.horaMin}-${idx}`;
                                 const enCurso = f === hoyISO && horaActualMin >= h - BUFFER_MIN && horaActualMin < h + (a.duracion || 90);
                                 const conChoque = idsConChoque.has(a.id || `${a.fecha}-${a.horaMin}-${a.sala}`);
+                                const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
                                 return (
                                   <div
                                     key={idKey}
                                     onClick={() => setSeleccionado(a)}
-                                    className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 cursor-pointer ${
-                                      conChoque ? 'bg-dangerBg text-dangerText border border-dangerText/50'
-                                      : a.tipo === 'Formación' ? 'bg-gradient-to-br from-accentPurple to-accentMagenta text-white'
-                                      : 'bg-infoBg text-infoText'
-                                    } ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${a.pasada ? 'opacity-45' : ''}`}
+                                    className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 cursor-pointer border-l-2 ${
+                                      color ? `${color.bg} ${color.text} ${color.border}` : 'bg-infoBg text-infoText border-infoText/40'
+                                    } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${a.pasada ? 'opacity-45' : ''}`}
                                   >
-                                    {conChoque && '⚠ '}{a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
-                                    <span className="block font-normal text-[10px] opacity-90">{a.sala || a.nombreCurso || ''}</span>
+                                    {conChoque && <span className="text-dangerText">⚠ </span>}
+                                    {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
+                                    <span className="block font-normal text-[10px] opacity-80">{a.sala || a.nombreCurso || ''}</span>
                                   </div>
                                 );
                               })}
@@ -350,24 +378,32 @@ export default function CronogramaPage() {
                 </tr>
               </thead>
               <tbody>
-                {todas.map((a, i) => (
-                  <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${a.pasada ? 'opacity-45 line-through' : ''}`}>
-                    <td className="p-1.5">{formatFechaCorta(a.fecha)}</td>
-                    <td className="p-1.5">
-                      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                        a.tipo === 'Formación' ? 'bg-successBg text-successText' : a.curso ? 'bg-infoBg text-infoText' : 'bg-surface2 text-textMuted'
-                      }`}>
-                        {a.tipo}
-                      </span>
-                    </td>
-                    <td className="p-1.5">{a.nombreCurso || '—'}{a.edicion ? ' · ' + a.edicion : ''}</td>
-                    <td className="p-1.5">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
-                    <td className="p-1.5">{a.sala || '—'}</td>
-                    <td className="p-1.5">{a.docente || '—'}</td>
-                    <td className="p-1.5">{a.tematica || '—'}</td>
-                    <td className="p-1.5">{a.observaciones || '—'}</td>
-                  </tr>
-                ))}
+                {todas.map((a, i) => {
+                  const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
+                  return (
+                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${a.pasada ? 'opacity-45 line-through' : ''}`}>
+                      <td className="p-1.5">{formatFechaCorta(a.fecha)}</td>
+                      <td className="p-1.5">
+                        <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          a.tipo === 'Formación' ? 'bg-successBg text-successText' : a.curso ? 'bg-infoBg text-infoText' : 'bg-surface2 text-textMuted'
+                        }`}>
+                          {a.tipo}
+                        </span>
+                      </td>
+                      <td className="p-1.5">
+                        <span className="flex items-center gap-1.5">
+                          {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
+                          <span className={color ? color.text : ''}>{a.nombreCurso || '—'}{a.edicion ? ' · ' + a.edicion : ''}</span>
+                        </span>
+                      </td>
+                      <td className="p-1.5">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
+                      <td className="p-1.5">{a.sala || '—'}</td>
+                      <td className="p-1.5">{a.docente || '—'}</td>
+                      <td className="p-1.5">{a.tematica || '—'}</td>
+                      <td className="p-1.5">{a.observaciones || '—'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -76,7 +76,7 @@ function BuscarContenido() {
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[800px] mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">Buscar</h1>
       <p className="text-textSec text-sm mb-5">Curso, edición, formación, sala o clase — por ejemplo "CO 43" o "Sala 2".</p>
 
