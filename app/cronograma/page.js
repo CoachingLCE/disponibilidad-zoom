@@ -76,7 +76,7 @@ export default function CronogramaPage() {
       if (rc.ok) setClases(dc.clases);
       if (ra.ok) {
         setActividades(da.actividades);
-        if (da.actividades.length === 0 && puedeEditar) {
+        if (da.actividades.length < CRONOGRAMA_HISTORICO.length && puedeEditar) {
           try {
             await fetchAutenticado('/api/actividades/importar-historico', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },

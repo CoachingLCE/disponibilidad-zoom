@@ -42,7 +42,7 @@ export default function IncidenciasPage() {
         setFeriados(df.feriados);
         // Auto-carga por código, en silencio: si no hay ningún feriado todavía y el
         // usuario puede editar, importa la lista por defecto una sola vez (no duplica por fecha).
-        if (df.feriados.length === 0 && puedeEditar) {
+        if (df.feriados.length < FERIADOS_DEFAULT.length && puedeEditar) {
           try {
             await fetchAutenticado('/api/feriados/importar', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
