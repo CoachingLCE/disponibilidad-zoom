@@ -15,14 +15,6 @@ const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg p
 const chipCls = (activo) => `text-xs font-semibold px-2.5 py-1 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 const tabCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-lg border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
-const TIPOS = ['Formación', 'BLOG', 'Masterclass', 'Reuniones', 'Capacitación', 'Jornada', 'Clases de apoyo', 'Auditorio', 'Caja de ideas', 'Encuentro Potencia', 'Laboratorio C.O', 'Clase especial', 'Equipo docente', 'Otro'];
-const CURSOS = [
-  ['CO', 'Coaching Ontológico'], ['CE', 'Coaching Educativo'], ['CEQUI', 'Coaching de Equipos'],
-  ['CDEP', 'Coaching Deportivo'], ['CV', 'Coaching Vocacional'], ['OR', 'Oratoria'], ['IE', 'Inteligencia Emocional'],
-  ['OTRO_Copywriting', 'Copywriting para redes sociales'], ['OTRO_Mindfulness', 'Mindfulness'],
-  ['OTRO_Formador', 'Formador para formadores'], ['OTRO_PNL', 'PNL'], ['', '— Ninguno / no aplica —']
-];
-const HORAS_OPCIONES = (() => { const out = []; for (let m = 8 * 60; m <= 22.5 * 60; m += 30) out.push(minutosAHora(m)); return out; })();
 const DIAS_SEMANA = DIAS.slice(0, 6); // Lunes a Sábado
 
 function toISO(d) {
@@ -54,17 +46,6 @@ export default function CronogramaPage() {
   const [filtroDia, setFiltroDia] = useState('');
   const [filtroRango, setFiltroRango] = useState('');
   const [seleccionado, setSeleccionado] = useState(null);
-
-  const [fecha, setFecha] = useState('');
-  const [tipo, setTipo] = useState('Formación');
-  const [curso, setCurso] = useState('CO');
-  const [edicion, setEdicion] = useState('');
-  const [horaTxt, setHoraTxt] = useState('18:00');
-  const [docente, setDocente] = useState('');
-  const [tematica, setTematica] = useState('');
-  const [obs, setObs] = useState('');
-  const [msg, setMsg] = useState(null);
-  const [resultado, setResultado] = useState(null);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -168,104 +149,24 @@ export default function CronogramaPage() {
     return set;
   }, [itemsSemana]);
 
-  async function agregar() {
-    setMsg(null); setResultado(null);
-    if (!fecha || !horaTxt) { setMsg({ tipo: 'error', texto: 'Elegí fecha y hora.' }); return; }
-    try {
-      if (tipo !== 'Formación') {
-        const res = await fetchAutenticado('/api/actividades', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fecha, tipo, curso, edicion, horaTxt, docente, tematica, observaciones: obs })
-        });
-        const data = await res.json();
-        if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-        setMsg({ tipo: 'ok', texto: `"${tipo}" agregado al cronograma.` });
-        setTematica(''); setObs('');
-        cargarDatos();
-        return;
-      }
-      const res = await fetchAutenticado('/api/clases/reservar', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, horaTxt, codigo: curso, edicion, numero: edicion, cantidad: 1 })
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setResultado(data);
-    } catch (err) {
-      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
-    }
-  }
-
-  async function reservarEn(sala) {
-    try {
-      const res = await fetchAutenticado('/api/clases/reservar', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, horaTxt, codigo: curso, edicion, numero: edicion, cantidad: 1, sala, docente, tematica, observaciones: obs })
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: `Reservado en ${sala}.` });
-      setResultado(null); setTematica(''); setObs('');
-      cargarDatos();
-    } catch (err) {
-      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
-    }
-  }
-
   if (cargando || !usuario) return null;
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">Cronograma</h1>
-      <p className="text-textSec text-sm mb-5">Todo lo que sucede en ILCE: Formaciones, BLOG, Masterclass, Reuniones, Capacitaciones, Jornadas y más.</p>
-
-      {puedeEditar && (
-        <div className={boxCls}>
-          <h2 className="text-sm font-semibold mb-3">Nueva actividad</h2>
-          <div className="grid gap-2.5 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
-            <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Tipo</label>
-              <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputCls}>
-                {TIPOS.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div><label className={labelCls}>Curso/Materia</label>
-              <select value={curso} onChange={(e) => setCurso(e.target.value)} className={inputCls}>
-                {CURSOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
-            <div><label className={labelCls}>Edición/Número</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} placeholder="ej: 15" className={inputCls} /></div>
-            <div><label className={labelCls}>Horario</label>
-              <select value={horaTxt} onChange={(e) => setHoraTxt(e.target.value)} className={inputCls}>
-                {HORAS_OPCIONES.map((h) => <option key={h}>{h}</option>)}
-              </select>
-            </div>
-            <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
-          </div>
-          <div className="mb-2.5"><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>
-          <div className="mb-3"><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
-          <button className={btnCls} onClick={agregar}>Agregar al cronograma</button>
-          {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
-
-          {resultado && (
-            <div className="mt-3.5">
-              <div className={`px-3.5 py-2.5 rounded-lg mb-3 font-semibold text-sm ${resultado.libres.length ? 'bg-successBg text-successText' : 'bg-dangerBg text-dangerText'}`}>
-                {resultado.libres.length ? `Sí hay lugar — ${resultado.libres.length} sala(s) libre(s)` : 'No hay lugar'}
-              </div>
-              <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px,1fr))' }}>
-                {SALAS.map((s) => {
-                  const ocupada = resultado.ocupadas.find((o) => o.sala === s);
-                  return (
-                    <button key={s} disabled={!!ocupada} className={`${btnCls} text-xs`} onClick={() => reservarEn(s)}>
-                      {ocupada ? `${s} (ocupada)` : `Reservar en ${s}`}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-1">
+        <div>
+          <h1 className="text-xl mb-1">Cronograma</h1>
+          <p className="text-textSec text-sm">Todo lo que sucede en ILCE: Formaciones, BLOG, Masterclass, Reuniones, Capacitaciones, Jornadas y más.</p>
         </div>
-      )}
+        {puedeEditar && (
+          <a href="/salas-zoom" className={btnCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
+            Agregar actividad →
+          </a>
+        )}
+      </div>
+      <p className="text-textMuted text-xs mb-5">
+        {puedeEditar && 'Se carga desde Salas Zoom (un solo lugar, con búsqueda de sala disponible incluida).'}
+      </p>
 
       <div className={boxCls}>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-3">

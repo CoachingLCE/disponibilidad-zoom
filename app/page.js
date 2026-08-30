@@ -158,8 +158,8 @@ export default function InicioPage() {
                         {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
                         <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[a.curso] || ''} {a.nombreCurso}</span>
                       </div>
-                      {a.esFormacion && (
-                        <p className="text-xs text-textMuted">Clase {a.numero} · Edición {a.edicion}</p>
+                      {a.esFormacion && a.numero && (
+                        <p className="text-xs text-textMuted">Clase {a.numero}</p>
                       )}
                       {a.sala && <p className="text-xs text-textMuted">{a.sala}</p>}
                     </div>
@@ -198,7 +198,7 @@ export default function InicioPage() {
                         <span className="text-xs text-textMuted w-20 shrink-0">{formatFechaCorta(a.fecha)}</span>
                         <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
                         {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-sm truncate ${color ? color.text : ''}`}>{a.nombreCurso}{a.esFormacion ? ` · Ed. ${a.edicion}` : ''}</span>
+                        <span className={`text-sm truncate ${color ? color.text : ''}`}>{a.nombreCurso}{a.esFormacion && a.numero ? ` · Clase ${a.numero}` : ''}</span>
                       </div>
                       {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
                     </div>

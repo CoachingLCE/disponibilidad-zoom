@@ -61,7 +61,8 @@ export default function SalasZoomPage() {
         // Auto-carga por código, en silencio: si todavía no hay ninguna clase cargada
         // y el usuario puede editar, importa el horario de ejemplo una sola vez.
         // El textarea de abajo sigue disponible para cargar el horario real cuando haga falta.
-        if (dc.clases.length === 0 && puedeEditar) {
+        const totalEjemplo = HORARIO_EJEMPLO.split('\n').map((l) => l.trim()).filter(Boolean).length;
+        if (dc.clases.length < totalEjemplo && puedeEditar) {
           try {
             await fetchAutenticado('/api/clases/importar', {
               method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: HORARIO_EJEMPLO })
@@ -340,13 +341,25 @@ function VistaEstado({ vista, diaHoy, onClick }) {
   );
 }
 
+const TIPOS = ['Formación', 'BLOG', 'Masterclass', 'Reuniones', 'Capacitación', 'Jornada', 'Clases de apoyo', 'Auditorio', 'Caja de ideas', 'Encuentro Potencia', 'Laboratorio C.O', 'Clase especial', 'Equipo docente', 'Otro'];
+const CURSOS_MATERIA = [
+  ['CO', 'Coaching Ontológico'], ['CE', 'Coaching Educativo'], ['CEQUI', 'Coaching de Equipos'],
+  ['CDEP', 'Coaching Deportivo'], ['CV', 'Coaching Vocacional'], ['OR', 'Oratoria'], ['IE', 'Inteligencia Emocional'],
+  ['OTRO_Copywriting', 'Copywriting para redes sociales'], ['OTRO_Mindfulness', 'Mindfulness'],
+  ['OTRO_Formador', 'Formador para formadores'], ['OTRO_PNL', 'PNL'], ['', '— Ninguno / no aplica —']
+];
+
 function PanelReservar({ fetchAutenticado, onReservado }) {
+  const [tipo, setTipo] = useState('Formación');
   const [fecha, setFecha] = useState('');
   const [horaTxt, setHoraTxt] = useState('18:00');
   const [codigo, setCodigo] = useState('CO');
   const [edicion, setEdicion] = useState('1');
   const [numero, setNumero] = useState('');
   const [cantidad, setCantidad] = useState(1);
+  const [docente, setDocente] = useState('');
+  const [tematica, setTematica] = useState('');
+  const [obs, setObs] = useState('');
   const [resultado, setResultado] = useState(null);
   const [msg, setMsg] = useState(null);
 
@@ -370,21 +383,51 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
     try {
       const res = await fetchAutenticado('/api/clases/reservar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala })
+        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala, docente, tematica, observaciones: obs })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({ tipo: 'ok', texto: `Reservado en ${sala} (${data.agregadas} clase(s)).${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
-      setResultado(null);
+      setResultado(null); setDocente(''); setTematica(''); setObs('');
       onReservado();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
     }
   }
 
+  async function agregarActividadNoFormacion() {
+    setMsg(null);
+    if (!fecha || !horaTxt) { setMsg({ tipo: 'error', texto: 'Elegí fecha y hora.' }); return; }
+    try {
+      const res = await fetchAutenticado('/api/actividades', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha, tipo, curso: codigo, edicion, horaTxt, docente, tematica, observaciones: obs })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+      setMsg({ tipo: 'ok', texto: `"${tipo}" agregado al cronograma.` });
+      setTematica(''); setObs('');
+      onReservado();
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
+  }
+
+  const esFormacion = tipo === 'Formación';
+
   return (
     <div className={boxCls}>
-      <h2 className="text-sm font-semibold mb-3">Buscar disponibilidad / Reservar</h2>
+      <h2 className="text-sm font-semibold mb-3">Agregar actividad</h2>
+      <p className="text-xs text-textSec mb-3">
+        Un solo lugar para cargar todo — Formaciones buscan sala disponible; el resto de los tipos se agrega directo al cronograma.
+      </p>
+      <div className="mb-3">
+        <label className={labelCls}>Tipo</label>
+        <select value={tipo} onChange={(e) => { setTipo(e.target.value); setResultado(null); setMsg(null); }} className={`${inputCls} max-w-xs`}>
+          {TIPOS.map((t) => <option key={t}>{t}</option>)}
+        </select>
+      </div>
+
       <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
         <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
         <div><label className={labelCls}>Hora</label>
@@ -392,16 +435,36 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
             {HORAS_OPCIONES.map((h) => <option key={h}>{h}</option>)}
           </select>
         </div>
-        <div><label className={labelCls}>Curso</label>
-          <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={inputCls}>
-            {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
-          </select>
+        <div><label className={labelCls}>{esFormacion ? 'Curso' : 'Curso/Materia'}</label>
+          {esFormacion ? (
+            <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={inputCls}>
+              {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
+            </select>
+          ) : (
+            <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={inputCls}>
+              {CURSOS_MATERIA.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          )}
         </div>
         <div><label className={labelCls}>Edición</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
-        <div><label className={labelCls}>Número (1ª clase)</label><input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="ej: 1" className={inputCls} /></div>
-        <div><label className={labelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={inputCls} /></div>
+        {esFormacion && (
+          <>
+            <div><label className={labelCls}>Número (1ª clase)</label><input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="ej: 1" className={inputCls} /></div>
+            <div><label className={labelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={inputCls} /></div>
+          </>
+        )}
+        <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
       </div>
-      <button className={btnCls} onClick={consultar}>Buscar disponibilidad</button>
+      <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))' }}>
+        <div><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>
+        <div><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
+      </div>
+
+      {esFormacion ? (
+        <button className={btnCls} onClick={consultar}>Buscar disponibilidad</button>
+      ) : (
+        <button className={btnCls} onClick={agregarActividadNoFormacion}>Agregar al cronograma</button>
+      )}
       {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
 
       {resultado && (
@@ -427,6 +490,7 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
           </div>
         </div>
       )}
+
     </div>
   );
 }
