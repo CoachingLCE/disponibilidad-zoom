@@ -13,6 +13,8 @@ export default function FormacionesPage() {
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
   const [filtro, setFiltro] = useState('todas');
+  const [filtroCurso, setFiltroCurso] = useState('');
+  const [filtroCuatrimestre, setFiltroCuatrimestre] = useState('');
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargar(); }, [usuario]);
@@ -34,12 +36,17 @@ export default function FormacionesPage() {
   const formaciones = useMemo(() => calcularFormaciones(clases), [clases]);
 
   const filtradas = useMemo(() => {
-    if (filtro === 'todas') return formaciones;
-    if (filtro === 'enCurso') return formaciones.filter((f) => f.estado === 'En proceso');
-    if (filtro === 'porFinalizar') return formaciones.filter((f) => f.estado === 'En proceso' && f.pct != null && f.pct >= 85);
-    if (filtro === 'finalizadas') return formaciones.filter((f) => f.estado === 'Finalizó');
-    return formaciones;
-  }, [formaciones, filtro]);
+    let out = formaciones;
+    if (filtro === 'enCurso') out = out.filter((f) => f.estado === 'En proceso');
+    else if (filtro === 'porFinalizar') out = out.filter((f) => f.estado === 'En proceso' && f.pct != null && f.pct >= 85);
+    else if (filtro === 'finalizadas') out = out.filter((f) => f.estado === 'Finalizó');
+    if (filtroCurso) out = out.filter((f) => f.codigo === filtroCurso);
+    if (filtroCuatrimestre) out = out.filter((f) => f.cuatrimestre === parseInt(filtroCuatrimestre, 10));
+    return out;
+  }, [formaciones, filtro, filtroCurso, filtroCuatrimestre]);
+
+  const cursosUsados = [...new Set(formaciones.map((f) => f.codigo))].sort();
+  const hayCuatrimestres = formaciones.some((f) => f.cuatrimestre != null && f.cuatrimestre > 1) || formaciones.some((f) => f.total === 48);
 
   if (cargando || !usuario) return null;
 
@@ -49,12 +56,28 @@ export default function FormacionesPage() {
       <p className="text-textSec text-sm mb-4">Estado, fechas y progreso de cada edición.</p>
       {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
 
-      <div className="flex flex-wrap gap-1.5 mb-5">
+      <div className="flex flex-wrap gap-1.5 mb-2">
         <button className={chipCls(filtro === 'todas')} onClick={() => setFiltro('todas')}>Todas</button>
         <button className={chipCls(filtro === 'enCurso')} onClick={() => setFiltro('enCurso')}>En curso</button>
         <button className={chipCls(filtro === 'porFinalizar')} onClick={() => setFiltro('porFinalizar')}>Próximas a finalizar</button>
         <button className={chipCls(filtro === 'finalizadas')} onClick={() => setFiltro('finalizadas')}>Finalizadas</button>
       </div>
+      <div className="flex flex-wrap gap-1.5 mb-5">
+        <button className={chipCls(filtroCurso === '')} onClick={() => setFiltroCurso('')}>Todas las formaciones</button>
+        {cursosUsados.map((c) => (
+          <button key={c} className={chipCls(filtroCurso === c)} onClick={() => setFiltroCurso(c)}>
+            {ICONOS[c] || ''} {NOMBRES[c] || c}
+          </button>
+        ))}
+      </div>
+      {hayCuatrimestres && (
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          <button className={chipCls(filtroCuatrimestre === '')} onClick={() => setFiltroCuatrimestre('')}>Todos los cuatrimestres</button>
+          <button className={chipCls(filtroCuatrimestre === '1')} onClick={() => setFiltroCuatrimestre('1')}>1er cuatrimestre</button>
+          <button className={chipCls(filtroCuatrimestre === '2')} onClick={() => setFiltroCuatrimestre('2')}>2do cuatrimestre</button>
+          <button className={chipCls(filtroCuatrimestre === '3')} onClick={() => setFiltroCuatrimestre('3')}>3er cuatrimestre</button>
+        </div>
+      )}
 
       {cargandoDatos ? (
         <p className="text-textSec text-sm">Cargando…</p>
@@ -74,6 +97,10 @@ export default function FormacionesPage() {
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${estado.bg} ${estado.text}`}>{estado.label}</span>
                 </div>
+
+                {f.total === 48 && f.cuatrimestre && (
+                  <p className="text-[11px] text-textMuted mb-1.5">{f.cuatrimestre}º cuatrimestre (clases {(f.cuatrimestre - 1) * 16 + 1}-{f.cuatrimestre * 16})</p>
+                )}
 
                 {f.pct != null ? (
                   <>
