@@ -29,6 +29,7 @@ Dejalas creadas con estos encabezados para que estén listas:
 - **Formaciones**: Codigo, Edicion, FechaInicio, FechaFinal, Estado
 - **Postergaciones**: Codigo, Edicion, Numero, Dia, HoraMin, Sala, Duracion, FechaOriginal, FechaNueva, Motivo, Observaciones, Usuario, FechaRegistro
 - **ActividadesCronograma**: Fecha, Dia, Tipo, Curso, NombreCurso, Edicion, HoraMin, HoraTxt, Docente, Tematica, Observaciones, Id
+- **CronogramaCM** (nueva, para el módulo Cronograma CM): Fecha, Dia, HoraMin, Tipo, Detalle, Id — solo Jennifer Rebasti (y SuperAdmin) pueden cargar acá.
 
 ## 2. Compartir el Sheet con la cuenta de servicio
 
