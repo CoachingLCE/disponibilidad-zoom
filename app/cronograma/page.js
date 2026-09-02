@@ -25,6 +25,23 @@ function esMesActual(fechaISO) {
   return f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth();
 }
 
+// Clasifica una fecha en 3 grupos para la Lista: futura (todavía no pasó), reciente
+// (pasó hace 1-29 días), o vieja (pasó hace 30 días o más).
+function antiguedad(fechaISO) {
+  if (!fechaISO) return 'futura';
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const f = new Date(fechaISO + 'T00:00:00');
+  const dias = Math.floor((hoy - f) / (24 * 60 * 60 * 1000));
+  if (dias <= 0) return 'futura';
+  if (dias < 30) return 'reciente';
+  return 'vieja';
+}
+const CLASE_ANTIGUEDAD = {
+  futura: '',
+  reciente: 'text-warningText',
+  vieja: 'text-textMuted opacity-70'
+};
+
 function toISO(d) {
   const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
@@ -314,7 +331,7 @@ export default function CronogramaPage() {
                 {todas.map((a, i) => {
                   const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
                   return (
-                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${a.pasada ? 'text-textMuted' : ''} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
+                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha)]} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
                       <td className="p-1.5">{formatFechaCorta(a.fecha)}</td>
                       <td className="p-1.5">
                         <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${

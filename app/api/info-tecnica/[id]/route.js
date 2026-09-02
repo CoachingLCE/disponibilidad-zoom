@@ -17,7 +17,7 @@ export const PATCH = conManejo(async (request, { params }) => {
 
   const body = await request.json();
   await actualizarInfoTecnica(item._rowIndex, body);
-  await registrarAccion(usuario.email, usuario.nombre, 'Editó información técnica', item.nombreActividad);
+  await registrarAccion(usuario.email, usuario.nombre, 'Editó información técnica', item.nombre);
 
   return NextResponse.json({ ok: true });
 })
@@ -33,7 +33,7 @@ export const DELETE = conManejo(async (request, { params }) => {
   if (!item) return NextResponse.json({ error: 'No existe ese registro.' }, { status: 404 });
 
   await eliminarInfoTecnica(item._rowIndex);
-  await registrarAccion(usuario.email, usuario.nombre, 'Eliminó información técnica', item.nombreActividad);
+  await registrarAccion(usuario.email, usuario.nombre, 'Eliminó información técnica', item.nombre);
 
   return NextResponse.json({ ok: true });
 })

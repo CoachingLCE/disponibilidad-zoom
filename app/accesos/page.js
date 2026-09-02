@@ -240,6 +240,7 @@ function FilaDetalle({ label, valor }) {
 function rolMasAlto(roles) {
   if (roles.includes('SuperAdmin')) return 'SuperAdmin';
   if (roles.includes('Admin')) return 'Admin';
+  if (roles.includes('Educativo')) return 'Educativo';
   return 'Colaborador';
 }
 

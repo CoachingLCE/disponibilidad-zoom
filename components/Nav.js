@@ -17,7 +17,8 @@ const LINKS = [
   { href: '/salas-zoom', label: 'Salas Zoom' },
   { href: '/info-tecnica', label: 'Info. técnica' },
   { href: '/incidencias', label: 'Incidencias' },
-  { href: '/analisis', label: 'Análisis' }
+  { href: '/analisis', label: 'Análisis' },
+  { href: '/accesos', label: 'Accesos', soloAdmin: true }
 ];
 
 function itemNav(href, label, pathname) {
@@ -42,6 +43,9 @@ export default function Nav() {
   const [cambiandoPassword, setCambiandoPassword] = useState(false);
 
   if (!usuario || pathname === '/login' || pathname === '/setup-password') return null;
+
+  const puedeVerAccesos = (usuario.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
+  const links = LINKS.filter((l) => !l.soloAdmin || puedeVerAccesos);
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 pt-4 no-print">
@@ -79,7 +83,7 @@ export default function Nav() {
       </div>
 
       <nav className="mb-5 flex items-center gap-1.5 flex-wrap">
-        {LINKS.map((l) => itemNav(l.href, l.label, pathname))}
+        {links.map((l) => itemNav(l.href, l.label, pathname))}
       </nav>
 
       <AccionesRapidas />
