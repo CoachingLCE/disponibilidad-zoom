@@ -1,22 +1,38 @@
-import { readSheet, appendRow, appendRows, patchRow } from './sheets';
+import { readSheet, appendRow, appendRows, patchRow, clearRows } from './sheets';
 
 export async function leerClases() {
   const filas = await readSheet('Clases');
-  return filas.map((f) => ({
-    id: f.Id || String(f._rowIndex),
-    dia: f.Dia,
-    horaMin: parseInt(f.HoraMin, 10) || 0,
-    codigo: f.Codigo,
-    edicion: f.Edicion || '1',
-    numero: f.Numero || '',
-    sala: f.Sala,
-    label: f.Label || (f.Codigo + (f.Numero ? ' ' + f.Numero : '')),
-    duracion: parseInt(f.Duracion, 10) || 90,
-    fecha: f.Fecha || '',
-    docente: f.Docente || '',
-    tematica: f.Tematica || '',
-    observaciones: f.Observaciones || '',
-    _rowIndex: f._rowIndex
+  return filas
+    .filter((f) => f.Codigo) // las filas "borradas" quedan en blanco (no se pueden eliminar de
+    // verdad vía la API) — sin Codigo no son una clase real, hay que descartarlas acá.
+    .map((f) => ({
+      id: f.Id || String(f._rowIndex),
+      dia: f.Dia,
+      horaMin: parseInt(f.HoraMin, 10) || 0,
+      codigo: f.Codigo,
+      edicion: f.Edicion || '1',
+      numero: f.Numero || '',
+      sala: f.Sala,
+      label: f.Label || (f.Codigo + (f.Numero ? ' ' + f.Numero : '')),
+      duracion: parseInt(f.Duracion, 10) || 90,
+      fecha: f.Fecha || '',
+      docente: f.Docente || '',
+      tematica: f.Tematica || '',
+      observaciones: f.Observaciones || '',
+      _rowIndex: f._rowIndex
+    }));
+}
+
+/**
+ * Lee la pestaña "Formaciones" del Sheet — fechas y estado reales cargados a mano
+ * (Codigo, Edicion, FechaInicio, FechaFinal, Estado), como referencia autoritativa cuando
+ * el número del horario recurrente no alcanza para saber si una edición ya terminó.
+ */
+export async function leerFormacionesManual() {
+  const filas = await readSheet('Formaciones');
+  return filas.filter((f) => f.Codigo).map((f) => ({
+    codigo: f.Codigo, edicion: f.Edicion || '', fechaInicio: f.FechaInicio || '',
+    fechaFinal: f.FechaFinal || '', estado: f.Estado || ''
   }));
 }
 
@@ -61,6 +77,31 @@ export async function eliminarClasePorId(id) {
     Label: '', Duracion: '', Fecha: '', Docente: '', Tematica: '', Observaciones: '', Id: ''
   });
   return true;
+}
+
+/**
+ * Detecta clases duplicadas (mismo curso+número+día+hora+sala+fecha — la misma clase cargada
+ * más de una vez, típicamente por una auto-carga que se disparó dos veces) y borra las copias
+ * de más, dejando solo una de cada una. Devuelve cuántas se borraron.
+ */
+export async function limpiarClasesDuplicadas() {
+  const clases = await leerClases();
+  const vistos = new Map(); // firma -> primera clase encontrada (la que se conserva)
+  const aBorrar = [];
+
+  clases.forEach((c) => {
+    const firma = `${c.codigo}|${c.numero}|${c.dia}|${c.horaMin}|${c.sala}|${c.fecha || ''}`;
+    if (vistos.has(firma)) {
+      aBorrar.push(c._rowIndex);
+    } else {
+      vistos.set(firma, c);
+    }
+  });
+
+  if (aBorrar.length > 0) {
+    await clearRows('Clases', aBorrar);
+  }
+  return aBorrar.length;
 }
 
 export async function leerFeriados() {

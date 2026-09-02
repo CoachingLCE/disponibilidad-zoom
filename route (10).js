@@ -1,34 +1,22 @@
 import { NextResponse } from 'next/server';
-import { conManejo } from '../../../../lib/apiHandler';
-import { requireUsuario } from '../../../../lib/requireUsuario';
-import { hashPassword, verifyPassword } from '../../../../lib/passwords';
-import { buscarUsuarioPorEmail } from '../../../../lib/gestionUsuarios';
-import { patchRow } from '../../../../lib/sheets';
-import { registrarAccion } from '../../../../lib/auditoria';
+import { conManejo } from '../../../../../lib/apiHandler';
+import { requireUsuario } from '../../../../../lib/requireUsuario';
+import { tienePermisoEditarCM } from '../../../../../lib/permisos';
+import { leerEnlacesCM, eliminarEnlaceCM } from '../../../../../lib/datosCMExtras';
+import { registrarAccion } from '../../../../../lib/auditoria';
 
-// POST /api/auth/cambiar-password -> { passwordActual, passwordNueva }
-// El usuario logueado cambia su propia contraseña. Si todavía no tenía ninguna
-// asignada (se la puso un Admin al crearlo, o quedó vacía), no hace falta la actual.
-export const POST = conManejo(async (request) => {
+export const DELETE = conManejo(async (request, { params }) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!tienePermisoEditarCM(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
-  const { passwordActual, passwordNueva } = await request.json();
-  if (!passwordNueva || passwordNueva.length < 8) {
-    return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' }, { status: 400 });
-  }
+  const id = decodeURIComponent(params.id);
+  const enlaces = await leerEnlacesCM();
+  const e = enlaces.find((x) => x.id === id);
+  if (!e) return NextResponse.json({ error: 'No existe ese enlace.' }, { status: 404 });
 
-  const registro = await buscarUsuarioPorEmail(usuario.email);
-  if (!registro) return NextResponse.json({ error: 'No se encontró tu usuario.' }, { status: 404 });
-
-  if (registro.PasswordHash) {
-    if (!passwordActual || !verifyPassword(passwordActual, registro.PasswordHash)) {
-      return NextResponse.json({ error: 'La contraseña actual no es correcta.' }, { status: 401 });
-    }
-  }
-
-  await patchRow('Usuarios', registro._rowIndex, { PasswordHash: hashPassword(passwordNueva) });
-  await registrarAccion(usuario.email, usuario.nombre, 'Cambió su contraseña', '');
+  await eliminarEnlaceCM(e._rowIndex);
+  await registrarAccion(usuario.email, usuario.nombre, 'Eliminó enlace de Cronograma CM', e.titulo);
 
   return NextResponse.json({ ok: true });
 })

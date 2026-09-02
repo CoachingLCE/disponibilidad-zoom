@@ -1,57 +1,22 @@
 import { NextResponse } from 'next/server';
-import { conManejo } from '../../../lib/apiHandler';
-import { requireUsuario } from '../../../lib/requireUsuario';
-import { tienePermisoAccesos, tienePermisoGestionarAdmins } from '../../../lib/permisos';
-import { listarUsuarios, crearUsuario, puedeAsignarRoles, rolesValidos, buscarUsuarioPorEmail } from '../../../lib/gestionUsuarios';
-import { leerHistorialCompleto } from '../../../lib/datosClases';
-import { registrarAccion } from '../../../lib/auditoria';
+import { conManejo } from '../../../../../lib/apiHandler';
+import { requireUsuario } from '../../../../../lib/requireUsuario';
+import { tienePermisoEditarCM } from '../../../../../lib/permisos';
+import { leerNotasCM, eliminarNotaCM } from '../../../../../lib/datosCMExtras';
+import { registrarAccion } from '../../../../../lib/auditoria';
 
-export const GET = conManejo(async (request) => {
-  const actor = await requireUsuario(request);
-  if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
+export const DELETE = conManejo(async (request, { params }) => {
+  const usuario = await requireUsuario(request);
+  if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!tienePermisoEditarCM(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
-  const [usuarios, historial] = await Promise.all([listarUsuarios(), leerHistorialCompleto()]);
+  const id = decodeURIComponent(params.id);
+  const notas = await leerNotasCM();
+  const n = notas.find((x) => x.id === id);
+  if (!n) return NextResponse.json({ error: 'No existe esa nota.' }, { status: 404 });
 
-  // El último login de cada email es la entrada "Inició sesión" más reciente en el Historial
-  // (leerHistorialCompleto ya viene ordenado de más reciente a más viejo).
-  const conUltimoLogin = usuarios.map((u) => {
-    const ultimo = historial.find((h) => h.accion === 'Inició sesión' && h.email?.toLowerCase() === u.email?.toLowerCase());
-    const totalLogins = historial.filter((h) => h.accion === 'Inició sesión' && h.email?.toLowerCase() === u.email?.toLowerCase()).length;
-    return { ...u, ultimoLogin: ultimo ? ultimo.fecha : '', totalLogins };
-  });
-
-  return NextResponse.json({ usuarios: conUltimoLogin });
-})
-
-export const POST = conManejo(async (request) => {
-  const actor = await requireUsuario(request);
-  if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (!tienePermisoAccesos(actor)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
-
-  const body = await request.json();
-  const { email, nombre, roles, password } = body;
-
-  if (!email || !nombre || !rolesValidos(roles)) {
-    return NextResponse.json({ error: 'Faltan datos o los roles no son válidos.' }, { status: 400 });
-  }
-  if (password && password.length < 8) {
-    return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres.' }, { status: 400 });
-  }
-  if (!puedeAsignarRoles(actor, roles, tienePermisoGestionarAdmins)) {
-    return NextResponse.json(
-      { error: 'Solo un Super Admin puede crear usuarios con rol Admin o SuperAdmin.' },
-      { status: 403 }
-    );
-  }
-
-  const existente = await buscarUsuarioPorEmail(email);
-  if (existente) {
-    return NextResponse.json({ error: 'Ese email ya existe en Usuarios.' }, { status: 409 });
-  }
-
-  await crearUsuario({ email, nombre, roles, password });
-  await registrarAccion(actor.email, actor.nombre, 'Creó usuario', `${email} (${roles.join(', ')})${password ? ' — con contraseña asignada' : ''}`);
+  await eliminarNotaCM(n._rowIndex);
+  await registrarAccion(usuario.email, usuario.nombre, 'Eliminó nota de Cronograma CM', '');
 
   return NextResponse.json({ ok: true });
 })

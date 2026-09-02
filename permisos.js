@@ -25,3 +25,14 @@ export function tienePermisoAccesos(usuario) {
 export function tienePermisoGestionarAdmins(usuario) {
   return tieneAlguno(usuario, ['SuperAdmin']);
 }
+
+// Editar Cronograma CM: permiso aparte de los roles generales, específico por persona.
+// Por ahora solo Jennifer Rebasti — para sumar a alguien más, agregar su email acá.
+// SuperAdmin también puede, por si hace falta cargar algo en su ausencia.
+const EMAILS_EDITAN_CM = ['jennifer.rebasti@institutoilce.com'];
+
+export function tienePermisoEditarCM(usuario) {
+  if (!usuario) return false;
+  if (tieneAlguno(usuario, ['SuperAdmin'])) return true;
+  return EMAILS_EDITAN_CM.includes((usuario.email || '').toLowerCase());
+}

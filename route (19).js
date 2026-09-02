@@ -1,36 +1,34 @@
 import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
-import { tienePermisoEditar } from '../../../../lib/permisos';
-import { leerFeriados, agregarFeriados } from '../../../../lib/datosClases';
+import { hashPassword, verifyPassword } from '../../../../lib/passwords';
+import { buscarUsuarioPorEmail } from '../../../../lib/gestionUsuarios';
+import { patchRow } from '../../../../lib/sheets';
 import { registrarAccion } from '../../../../lib/auditoria';
 
-// POST /api/feriados/importar -> { items: [{fecha, motivo, bloquea}, ...] }
-// Se escribe todo en un solo llamado a la API (agregarFeriados en bloque), no uno por uno.
+// POST /api/auth/cambiar-password -> { passwordActual, passwordNueva }
+// El usuario logueado cambia su propia contraseña. Si todavía no tenía ninguna
+// asignada (se la puso un Admin al crearlo, o quedó vacía), no hace falta la actual.
 export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
-  const { items } = await request.json();
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: 'No se recibieron feriados para importar.' }, { status: 400 });
+  const { passwordActual, passwordNueva } = await request.json();
+  if (!passwordNueva || passwordNueva.length < 8) {
+    return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' }, { status: 400 });
   }
 
-  const existentes = await leerFeriados();
-  const fechasExistentes = new Set(existentes.map((f) => f.fecha));
+  const registro = await buscarUsuarioPorEmail(usuario.email);
+  if (!registro) return NextResponse.json({ error: 'No se encontró tu usuario.' }, { status: 404 });
 
-  const nuevos = [];
-  for (const item of items) {
-    if (fechasExistentes.has(item.fecha)) continue; // no duplicar por fecha
-    fechasExistentes.add(item.fecha);
-    nuevos.push({ fecha: item.fecha, motivo: item.motivo, bloquea: !!item.bloquea });
+  if (registro.PasswordHash) {
+    if (!passwordActual || !verifyPassword(passwordActual, registro.PasswordHash)) {
+      return NextResponse.json({ error: 'La contraseña actual no es correcta.' }, { status: 401 });
+    }
   }
 
-  if (nuevos.length > 0) {
-    await agregarFeriados(nuevos);
-  }
+  await patchRow('Usuarios', registro._rowIndex, { PasswordHash: hashPassword(passwordNueva) });
+  await registrarAccion(usuario.email, usuario.nombre, 'Cambió su contraseña', '');
 
-  await registrarAccion(usuario.email, usuario.nombre, 'Importó feriados', `${nuevos.length} feriado(s) nuevos`);
-  return NextResponse.json({ ok: true, agregados: nuevos.length, omitidos: items.length - nuevos.length });
+  return NextResponse.json({ ok: true });
 })

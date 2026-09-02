@@ -1,39 +1,41 @@
 import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
-import { findUsuario } from '../../../../lib/auth';
-import { verifyPassword } from '../../../../lib/passwords';
+import { requireUsuario } from '../../../../lib/requireUsuario';
+import { tienePermisoEditarCM } from '../../../../lib/permisos';
+import { leerEnlacesCM, agregarEnlaceCM, agregarEnlacesCM } from '../../../../lib/datosCMExtras';
 import { registrarAccion } from '../../../../lib/auditoria';
-import { crearToken } from '../../../../lib/sessionToken';
 
-// POST /api/auth/login -> { email, password }
+export const GET = conManejo(async (request) => {
+  const usuario = await requireUsuario(request);
+  if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  const enlaces = await leerEnlacesCM();
+  return NextResponse.json({ enlaces });
+})
+
+// Acepta { categoria, titulo, url } para agregar uno solo, o { items: [...] } para
+// cargar varios de una vez en un solo llamado a la API (usado en la auto-carga inicial).
 export const POST = conManejo(async (request) => {
+  const usuario = await requireUsuario(request);
+  if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!tienePermisoEditarCM(usuario)) return NextResponse.json({ error: 'No tenés permiso para editar Cronograma CM.' }, { status: 403 });
+
   const body = await request.json();
-  const usuario = await findUsuario(body.email);
 
-  if (!usuario) {
-    return NextResponse.json({ error: 'Email no autorizado' }, { status: 403 });
-  }
-  if (!usuario.activo) {
-    await registrarAccion(body.email, usuario.nombre, 'Intento de login rechazado', 'Usuario desactivado');
-    return NextResponse.json(
-      { error: 'Tu usuario está desactivado. Pedile a un Admin que lo reactive.' },
-      { status: 403 }
-    );
-  }
-  if (!usuario.passwordHash) {
-    return NextResponse.json(
-      { error: 'Tu usuario todavía no tiene contraseña asignada. Pedile a un Admin que te la asigne desde "Accesos".' },
-      { status: 403 }
-    );
-  }
-  if (!verifyPassword(body.password, usuario.passwordHash)) {
-    await registrarAccion(body.email, usuario.nombre, 'Intento de login fallido', 'Contraseña incorrecta');
-    return NextResponse.json({ error: 'Contraseña incorrecta' }, { status: 401 });
+  if (Array.isArray(body.items)) {
+    const existentes = await leerEnlacesCM();
+    const titulosExistentes = new Set(existentes.map((e) => e.titulo));
+    const nuevos = body.items.filter((e) => !titulosExistentes.has(e.titulo));
+    if (nuevos.length > 0) await agregarEnlacesCM(nuevos);
+    await registrarAccion(usuario.email, usuario.nombre, 'Importó enlaces en Cronograma CM', `${nuevos.length} nuevo(s)`);
+    return NextResponse.json({ ok: true, agregados: nuevos.length });
   }
 
-  await registrarAccion(body.email, usuario.nombre, 'Inició sesión', '');
-  return NextResponse.json({
-    usuario: { email: usuario.email, nombre: usuario.nombre, roles: usuario.roles },
-    token: crearToken(usuario.email)
-  });
+  const { categoria, titulo, url } = body;
+  if (!titulo) return NextResponse.json({ error: 'Falta el título.' }, { status: 400 });
+
+  await agregarEnlaceCM({ categoria, titulo, url });
+  await registrarAccion(usuario.email, usuario.nombre, 'Agregó enlace en Cronograma CM', titulo);
+
+  return NextResponse.json({ ok: true });
 })

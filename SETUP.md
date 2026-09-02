@@ -26,10 +26,13 @@ Dejalas creadas con estos encabezados para que estén listas:
 
 - **Clases**: Dia, HoraMin, Codigo, Edicion, Numero, Sala, Label, Duracion, Fecha, Docente, Tematica, Observaciones, Id
 - **Feriados**: Fecha, Motivo, Tipo, Bloquea, Id
-- **Formaciones**: Codigo, Edicion, FechaInicio, FechaFinal, Estado
+- **Formaciones**: Codigo, Edicion, FechaInicio, FechaFinal, Estado — carga manual, opcional pero recomendada. `Edicion` tiene que ser el mismo número que aparece junto al código en el horario recurrente (ej: para "CDEP 11", `Codigo=CDEP`, `Edicion=11`). Si completás `FechaInicio` (y opcionalmente `FechaFinal` y `Estado=Finalizó`), la pantalla Formaciones usa esos datos reales en vez de adivinar por el número — así detecta bien cuándo una edición ya terminó, incluso si el horario recurrente no se actualizó.
 - **Postergaciones**: Codigo, Edicion, Numero, Dia, HoraMin, Sala, Duracion, FechaOriginal, FechaNueva, Motivo, Observaciones, Usuario, FechaRegistro
 - **ActividadesCronograma**: Fecha, Dia, Tipo, Curso, NombreCurso, Edicion, HoraMin, HoraTxt, Docente, Tematica, Observaciones, Id
-- **CronogramaCM** (nueva, para el módulo Cronograma CM): Fecha, Dia, HoraMin, Tipo, Detalle, Id — solo Jennifer Rebasti (y SuperAdmin) pueden cargar acá.
+- **CronogramaCM** (para el módulo Cronograma CM): Fecha, Dia, HoraMin, Tipo, Detalle, Id — solo Jennifer Rebasti (y SuperAdmin) pueden cargar acá.
+- **CampanasCM** (nueva): Titulo, Fecha, Descripcion, Id
+- **EnlacesCM** (nueva): Categoria, Titulo, Url, Id
+- **NotasCM** (nueva): Texto, Color, Autor, Id
 
 ## 2. Compartir el Sheet con la cuenta de servicio
 

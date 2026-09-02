@@ -102,7 +102,9 @@ export default function InicioPage() {
   }, [clases, actividades]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
-  const proximas = actividadesTodas.filter((a) => a.fecha > hoyISO).slice(0, 8);
+  const proximas = actividadesTodas
+    .filter((a) => a.fecha > hoyISO || (a.fecha === hoyISO && a.horaMin != null && a.horaMin > horaActual))
+    .slice(0, 8);
   const proximaClase = agendaHoy.find((a) => a.horaMin > horaActual) || proximas[0] || null;
   const formacionesEnCurso = formaciones.filter((f) => f.estado === 'En proceso').length;
 
@@ -159,7 +161,7 @@ export default function InicioPage() {
                         <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[a.curso] || ''} {a.nombreCurso}</span>
                       </div>
                       {a.esFormacion && a.numero && (
-                        <p className="text-xs text-textMuted">Clase {a.numero}</p>
+                        <p className="text-xs text-textMuted">{a.curso} {a.numero} · Clase {a.numero}</p>
                       )}
                       {a.sala && <p className="text-xs text-textMuted">{a.sala}</p>}
                     </div>

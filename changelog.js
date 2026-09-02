@@ -2,6 +2,89 @@
 // Lo más nuevo va primero. Se muestra al hacer clic en el badge de versión.
 export const CHANGELOG = [
   {
+    version: '2.2.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cronograma CM: horario ampliado de 9 a 19hs.',
+      'Cronograma CM: nueva sección "📅 Campañas 2026" (con las 6 campañas que pasaste ya precargadas) — Jennifer y SuperAdmin pueden agregar o eliminar campañas.',
+      'Cronograma CM: nueva sección "🔗 Enlaces y recursos útiles" (ebooks y links para compartir, todos precargados) — con el mismo permiso para agregar/eliminar.',
+      'Cronograma CM: nueva sección "📝 Notas" tipo post-it (4 colores), para anotaciones internas del equipo de CM.',
+      'Cronograma: arreglado el color de las clases pasadas/vigentes — ya no aparecen tachadas, solo con menos opacidad; las del mes en curso tienen un resalte propio.',
+      'Cronograma: nuevo botón "Ver mes completo" — calendario mensual con las actividades de cada día, navegable mes a mes.',
+      'Inicio: "Próximas clases" ya no salteaba las clases de HOY que todavía no pasaron — antes solo mostraba fechas estrictamente futuras y saltaba directo al día siguiente.',
+      'Inicio: "Agenda de hoy" ahora muestra el identificador de la clase (ej: "CO 45") además de "Clase 45".',
+      'Formaciones: arreglado un bug real donde se mostraban fracciones imposibles como "Clase 63 de 16" — ahora se detecta y avisa cuando el número de la edición supera el total de clases del curso, en vez de mostrar el dato roto.',
+      'Formaciones: se conectó la pestaña "Formaciones" del Sheet (Codigo, Edicion, FechaInicio, FechaFinal, Estado) — si cargás ahí la fecha real de inicio de una edición, el sistema ahora la usa para saber si ya terminó, en vez de depender solo del número del horario recurrente (detalle de cómo cargarla en SETUP.md).'
+    ]
+  },
+  {
+    version: '2.1.0',
+    fecha: '2026-08-31',
+    cambios: [
+      'Cronograma CM: ahora se puede Editar (Fecha, Hora, Tipo, Detalle) y Eliminar cada actividad — clickeando cualquier tarjeta del calendario se abre un modal con las dos opciones. Mismos permisos que ya existían (Jennifer y SuperAdmin), y queda registrado en el Historial. No se tocó nada de lo que ya funcionaba (agregar, calendario, navegación por semana).'
+    ]
+  },
+  {
+    version: '2.0.0',
+    fecha: '2026-08-31',
+    cambios: [
+      'Nuevo módulo Cronograma CM (redes/comunidad): calendario semanal navegable (Lunes a Viernes, 9 a 17hs, semana actual y siguientes sin límite), con 27 tipos de actividad (Blog, Ebook, Youtube, Subir redes, Seguir 100 personas, Diplomas, Masterclass, etc.), cada uno con su color propio.',
+      'Permiso específico y separado de los roles generales: solo Jennifer Rebasti (y vos como SuperAdmin, por respaldo) pueden cargar actividades ahí — cualquier otro usuario, aunque sea Admin, solo puede ver.',
+      'Nueva pestaña "CronogramaCM" en el Google Sheet — agregala con las columnas Fecha, Dia, HoraMin, Tipo, Detalle, Id (detalle en SETUP.md).'
+    ]
+  },
+  {
+    version: '1.9.1',
+    fecha: '2026-08-31',
+    cambios: [
+      'Formaciones: nuevo filtro por cuatrimestre (1er/2do/3er), calculado automáticamente para cursos de 48 clases como Coaching Ontológico (clases 1-16 = 1er cuatrimestre, 17-32 = 2do, 33-48 = 3ro). Cada tarjeta muestra su cuatrimestre y el rango de clases que le corresponde.'
+    ]
+  },
+  {
+    version: '1.9.0',
+    fecha: '2026-08-31',
+    cambios: [
+      'Formaciones: nuevo filtro por curso (Ontológico, Educativo, Equipos, etc.), combinable con el filtro de estado (Todas/En curso/Próximas a finalizar/Finalizadas) — para ver de una, por ejemplo, solo las de Coaching Ontológico que están en curso.'
+    ]
+  },
+  {
+    version: '1.8.4',
+    fecha: '2026-08-31',
+    cambios: [
+      'Arreglado bug crítico: las filas "borradas" (que quedan vacías en el Sheet, porque la API no puede eliminar filas de verdad) se seguían leyendo como si fueran clases reales — con sala vacía, día vacío y hora 00:00. Al haber varias filas vacías, todas "chocaban entre sí" y disparaban decenas de falsas alertas de superposición. Ahora se descartan al leer, igual que ya se hacía con Feriados y Actividades.'
+    ]
+  },
+  {
+    version: '1.8.3',
+    fecha: '2026-08-31',
+    cambios: [
+      'Sacado el botón manual de "Detectar y borrar clases duplicadas" — ahora corre solo, en silencio, cada vez que un Admin/SuperAdmin entra a Incidencias o Salas Zoom. No hace falta apretar nada.'
+    ]
+  },
+  {
+    version: '1.8.2',
+    fecha: '2026-08-31',
+    cambios: [
+      'Feriados: ahora se diferencian visualmente según su estado — "🔒 Bloquea" en rojo (impide agendar clases ese día) vs. "👁️ Informativo" en celeste (solo a modo de aviso), con badge de color y franja lateral en cada fila de la tabla.'
+    ]
+  },
+  {
+    version: '1.8.1',
+    fecha: '2026-08-31',
+    cambios: [
+      'Nuevo botón "Detectar y borrar clases duplicadas" en Incidencias (aparece junto al detalle de conflictos, cuando hay alguno): identifica clases cargadas más de una vez con exactamente los mismos datos (mismo curso, número, día, hora y sala) y borra las copias de más, dejando solo una. Soluciona el caso de clases que "chocan contra sí mismas" en el detalle de conflictos.'
+    ]
+  },
+  {
+    version: '1.8.0',
+    fecha: '2026-08-31',
+    cambios: [
+      'Arreglado bug grande en Formaciones: varios cursados en paralelo del mismo curso (ej: CO 45, CO 48, CO 43, todos corriendo a la vez en salas distintas) se mezclaban en una sola tarjeta con un progreso incorrecto ("Clase 24 de 48"). Ahora cada uno aparece como su propia tarjeta con su progreso real (ej: "CO 45" muestra Clase 45/48, "CO 48" muestra Clase 48/48).',
+      'Sacado el "Edición X" de las tarjetas de Formaciones — ese dato nunca se cargaba de verdad (siempre mostraba un valor fijo inventado). Ahora el nombre de la tarjeta incluye el número identificador real (ej: "Coaching Ontológico 45").',
+      'Arreglado bug importante en Cronograma: el calendario semanal no mostraba ninguna clase del horario recurrente de Salas Zoom (solo contaba clases con fecha puntual reservada) — por eso "No hay actividades cargadas esta semana" aparecía aunque hubiera 277 actividades en total. Ahora se proyectan sobre la semana que se esté mirando, igual que ya se había arreglado en Inicio.'
+    ]
+  },
+  {
     version: '1.7.2',
     fecha: '2026-08-31',
     cambios: [
