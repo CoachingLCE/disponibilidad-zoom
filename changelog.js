@@ -2,6 +2,13 @@
 // Lo más nuevo va primero. Se muestra al hacer clic en el badge de versión.
 export const CHANGELOG = [
   {
+    version: '2.2.1',
+    fecha: '2026-09-02',
+    cambios: [
+      'Formaciones: se conectó el histórico real (el mismo Excel de 383 actividades ya importado) como la fuente más confiable para saber la fecha de inicio real de cada edición puntual — antes esos datos estaban guardados pero nunca se usaban para calcular el progreso. Cuando el histórico tiene la fecha de inicio real, el sistema estima el fin (1 clase por semana) y marca "Finalizó" correctamente aunque el horario recurrente no se haya actualizado. Ejemplo verificado: CDEP 11 arrancó el 22/04/2026 → con 16 clases semanales, termina el 05/08/2026 → ya finalizó.'
+    ]
+  },
+  {
     version: '2.2.0',
     fecha: '2026-09-02',
     cambios: [
