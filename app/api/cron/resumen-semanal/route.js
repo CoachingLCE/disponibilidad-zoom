@@ -75,11 +75,28 @@ async function armarYEnviar() {
 
 // GET /api/cron/resumen-semanal — la llama Vercel Cron una vez por semana.
 // Se protege con CRON_SECRET (Vercel manda ese header automáticamente si está configurado).
+//
+// IMPORTANTE: antes, si CRON_SECRET no estaba configurado, la condición de abajo se
+// saltaba por completo y el endpoint quedaba abierto sin ningún chequeo — cualquiera
+// podía disparar el envío de mail solo conociendo la URL. Ahora, en producción, la
+// ausencia de CRON_SECRET es un error de configuración explícito (500), nunca un
+// "dejar pasar".
 export const GET = conManejo(async (request) => {
   const secretEsperado = process.env.CRON_SECRET;
-  const auth = request.headers.get('authorization');
-  if (secretEsperado && auth !== `Bearer ${secretEsperado}`) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  if (!secretEsperado) {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Falta configurar CRON_SECRET en las variables de entorno. Este endpoint no puede quedar sin proteger en producción.' },
+        { status: 500 }
+      );
+    }
+    console.warn('⚠️ CRON_SECRET no está configurado — este endpoint quedaría abierto si esto fuera producción.');
+  } else {
+    const auth = request.headers.get('authorization');
+    if (auth !== `Bearer ${secretEsperado}`) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
   }
 
   const resultado = await armarYEnviar();

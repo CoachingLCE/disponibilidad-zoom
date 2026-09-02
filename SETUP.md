@@ -59,10 +59,10 @@ Cuando importemos este proyecto a Vercel, en **Settings → Environment Variable
 - `GOOGLE_SHEET_ID` → el ID que sacaste en el paso 3
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` → `carga-clases-bot@carga-clases-ilce.iam.gserviceaccount.com`
 - `GOOGLE_PRIVATE_KEY` → la `private_key` del JSON de la cuenta de servicio (pedime que te ayude a extraerla del JSON cuando la tengas a mano; no la pegues en el chat)
-- `SESSION_SECRET` → cualquier texto largo random (por ejemplo, generalo con `openssl rand -hex 32` en la terminal)
+- `SESSION_SECRET` → cualquier texto largo random (por ejemplo, generalo con `openssl rand -hex 32` en la terminal). **Obligatorio en producción** — sin esta variable, nadie puede iniciar sesión (la app tira un error de configuración en vez de dejar pasar con un secreto por defecto inseguro). Las sesiones duran 10 horas y se invalidan solas si la contraseña de esa persona cambia mientras tanto.
 - `GMAIL_USER` → `coachingeducacionallider@gmail.com` (la misma cuenta que ya usás en tus otras apps para mandar mails)
 - `GMAIL_APP_PASSWORD` → la contraseña de aplicación de esa cuenta de Gmail (la misma que ya tenés generada para tus otras apps — no es la contraseña normal de Gmail, es una "contraseña de aplicación" de 16 caracteres)
-- `CRON_SECRET` → cualquier texto largo random — protege el endpoint del mail semanal para que no lo pueda disparar cualquiera desde afuera (generalo igual que `SESSION_SECRET`)
+- `CRON_SECRET` → cualquier texto largo random — protege el endpoint del mail semanal para que no lo pueda disparar cualquiera desde afuera (generalo igual que `SESSION_SECRET`). **Obligatorio en producción** — sin esta variable, el endpoint del cron devuelve un error de configuración en vez de quedar accesible sin protección.
 
 ## 5. Cargar el primer usuario a mano
 

@@ -35,6 +35,6 @@ export const POST = conManejo(async (request) => {
   await registrarAccion(body.email, usuario.nombre, 'Inició sesión', '');
   return NextResponse.json({
     usuario: { email: usuario.email, nombre: usuario.nombre, roles: usuario.roles, puedeEditarCM: tienePermisoEditarCM(usuario), puedeEditarDocentesCO: tienePermisoEditarDocentesCO(usuario) },
-    token: crearToken(usuario.email)
+    token: crearToken(usuario.email, usuario.passwordHash)
   });
 })
