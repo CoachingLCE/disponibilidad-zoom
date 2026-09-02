@@ -31,6 +31,7 @@ Dejalas creadas con estos encabezados para que estén listas:
 - **ActividadesCronograma**: Fecha, Dia, Tipo, Curso, NombreCurso, Edicion, HoraMin, HoraTxt, Docente, Tematica, Observaciones, **Sala** (nueva columna — agregala en la fila 1 si no la tenías), Id
 - **DocentesCO** (nueva): Edicion, Docente, Staff, FechaAsignacion, Observaciones, Usuario, Id — guarda el historial completo de asignaciones, no solo la actual. Edición: Pau, Sofía (`sofia.salgueiro@institutoilce.com`) y SuperAdmin. El resto solo puede ver.
 - **CredencialesZoom** (nueva): Sala, Usuario, Contrasena — cargá ahí el usuario/contraseña de cada una de las 8 salas. Se ve en un panel colapsable dentro de Salas Zoom, para cualquier usuario logueado. Todavía no se puede editar desde la app, solo desde el Sheet directamente.
+- **InfoTecnica** (nueva, para Clases especiales / Información técnica): Fecha, NombreActividad, LinkZoom, Grabacion, Plataforma, Responsable, Observaciones, Id — armada con una estructura razonable a falta de ver tu Excel real; avisame si necesita otros campos y la ajustamos.
 - **CronogramaCM** (para el módulo Cronograma CM): Fecha, Dia, HoraMin, Tipo, Detalle, Id — solo Jennifer Rebasti (y SuperAdmin) pueden cargar acá.
 - **CampanasCM** (nueva): Titulo, Fecha, Descripcion, Id
 - **EnlacesCM** (nueva): Categoria, Titulo, Url, Id
