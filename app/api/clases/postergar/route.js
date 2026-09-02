@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
-import { tienePermisoEditar } from '../../../../lib/permisos';
+import { tienePermisoEditarCronograma } from '../../../../lib/permisos';
 import { leerClases, agregarClase, actualizarClase, eliminarClasePorId } from '../../../../lib/datosClases';
 import { appendRow } from '../../../../lib/sheets';
 import { registrarAccion } from '../../../../lib/auditoria';
@@ -20,7 +20,7 @@ const MOTIVOS = {
 export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
+  if (!tienePermisoEditarCronograma(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const { id, motivoId, observaciones } = await request.json();
   const clases = await leerClases();

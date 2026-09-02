@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 
-const ROLES_DISPONIBLES = ['Colaborador', 'Admin', 'SuperAdmin'];
+const ROLES_DISPONIBLES = ['Colaborador', 'Admin', 'SuperAdmin', 'Educativo'];
 const ROLES_RESERVADOS = ['Admin', 'SuperAdmin'];
 
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -167,6 +167,32 @@ export default function AccesosPage() {
           ))}
         </div>
       )}
+
+      <div className="bg-surface2 border border-border rounded-2xl p-5 mt-6">
+        <h2 className="text-sm font-semibold mb-3">¿Qué puede hacer cada rol?</h2>
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="font-semibold text-textSec">Colaborador</p>
+            <p className="text-xs text-textMuted">Solo puede ver — Cronograma, Formaciones, Salas Zoom, Incidencias, Análisis. No puede cargar, editar ni postergar nada.</p>
+          </div>
+          <div>
+            <p className="font-semibold text-textSec">Educativo</p>
+            <p className="text-xs text-textMuted">Puede editar cualquier campo ya cargado en Cronograma (docente, temática, observaciones, sala) e informar/postergar clases. No tiene acceso a Accesos ni a gestión de usuarios.</p>
+          </div>
+          <div>
+            <p className="font-semibold text-textSec">Admin</p>
+            <p className="text-xs text-textMuted">Todo lo de Educativo, más: reservar salas, cargar feriados, gestionar Colaboradores/Educativo en Accesos, ver el detalle completo de Análisis.</p>
+          </div>
+          <div>
+            <p className="font-semibold text-textSec">SuperAdmin</p>
+            <p className="text-xs text-textMuted">Todo lo de Admin, más: crear o eliminar otros Admin/SuperAdmin, y respaldo de edición en Cronograma CM.</p>
+          </div>
+          <div>
+            <p className="font-semibold text-textSec">Cronograma CM (permiso aparte)</p>
+            <p className="text-xs text-textMuted">No es un rol — es un permiso específico, por ahora solo para Jennifer Rebasti (y SuperAdmin como respaldo), sin importar qué rol tenga asignado. Es la única que puede cargar/editar/borrar en Cronograma CM; el resto solo puede ver esa pantalla.</p>
+          </div>
+        </div>
+      </div>
 
       {detalleUsuario && <ModalDetalleUsuario u={detalleUsuario} onCerrar={() => setDetalleUsuario(null)} />}
     </div>

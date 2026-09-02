@@ -107,6 +107,17 @@ export default function FormacionesPage() {
         estado,
         pct: estado === 'Finalizó' ? 100 : f.pct
       };
+    }).map((f) => {
+      // Vencimiento del proceso de certificación: 1 mes después de finalizar para
+      // formaciones cortas (16 clases), 4 meses para Coaching Ontológico por defecto —
+      // se puede ajustar puntualmente cargando "MesesCertificacion" en la pestaña
+      // Formaciones del Sheet (por ejemplo, ediciones de CO con 2 meses en vez de 4).
+      if (!f.fechaFinal) return f;
+      const manual = formacionesManual.find((m) => m.codigo === f.codigo && m.edicion === f.numero);
+      const meses = manual?.mesesCertificacion ?? (f.codigo === 'CO' ? 4 : 1);
+      const venc = new Date(f.fechaFinal + 'T00:00:00');
+      venc.setMonth(venc.getMonth() + meses);
+      return { ...f, vencimientoCertificacion: venc.toISOString().slice(0, 10), mesesCertificacion: meses };
     });
   }, [clases, formacionesManual, historicoPorEdicion]);
 
@@ -199,6 +210,9 @@ export default function FormacionesPage() {
                 <div className="text-xs text-textSec space-y-0.5">
                   <p>Inicio: {formatFechaCorta(f.fechaInicio)}</p>
                   <p>Finalización: {formatFechaCorta(f.fechaFinal)}</p>
+                  {f.vencimientoCertificacion && (
+                    <p>Vencimiento certificación: {formatFechaCorta(f.vencimientoCertificacion)} <span className="text-textMuted">({f.mesesCertificacion} {f.mesesCertificacion === 1 ? 'mes' : 'meses'})</span></p>
+                  )}
                   <p className="text-text font-medium">Próxima clase: {f.proximaTxt}</p>
                 </div>
               </div>

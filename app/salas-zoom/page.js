@@ -25,6 +25,7 @@ export default function SalasZoomPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
   const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
+  const puedeEditarCronograma = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin', 'Educativo'].includes(r));
 
   const [clases, setClases] = useState([]);
   const [feriados, setFeriados] = useState([]);
@@ -183,11 +184,11 @@ export default function SalasZoomPage() {
         {cargandoDatos ? (
           <p className="text-textSec text-sm">Cargando…</p>
         ) : vista === 'grilla' ? (
-          <VistaGrilla vista={vistaAgrupada} diaHoy={diaHoy} onClick={puedeEditar ? (c) => setAccion({ clase: c }) : null} />
+          <VistaGrilla vista={vistaAgrupada} diaHoy={diaHoy} onClick={puedeEditarCronograma ? (c) => setAccion({ clase: c }) : null} />
         ) : vista === 'porSala' ? (
           <VistaPorSala vista={vistaAgrupada} diaSala={diaSala} setDiaSala={setDiaSala} />
         ) : (
-          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} onClick={puedeEditar ? (c) => setAccion({ clase: c }) : null} />
+          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} onClick={puedeEditarCronograma ? (c) => setAccion({ clase: c }) : null} />
         )}
       </div>
 
@@ -523,7 +524,25 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
   const [nuevaSala, setNuevaSala] = useState('');
   const [motivoId, setMotivoId] = useState('salud');
   const [obs, setObs] = useState('');
+  const [docenteCampo, setDocenteCampo] = useState(clase.docente || '');
+  const [tematicaCampo, setTematicaCampo] = useState(clase.tematica || '');
+  const [observacionesCampo, setObservacionesCampo] = useState(clase.observaciones || '');
   const [err, setErr] = useState('');
+
+  async function editarCampos() {
+    setErr('');
+    try {
+      const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docente: docenteCampo, tematica: tematicaCampo, observaciones: observacionesCampo })
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error); return; }
+      onCambio(); onCerrar();
+    } catch (err) {
+      setErr('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
+    }
+  }
 
   async function cambiarSala() {
     setErr('');
@@ -575,12 +594,28 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
 
         {paso === 'menu' && (
           <div className="flex flex-col gap-2">
+            <button className={`${btnSecCls} text-left`} onClick={() => setPaso('campos')}>✏️ Editar docente / temática / observaciones</button>
             <button className={`${btnSecCls} text-left`} onClick={() => setPaso('sala')}>🔁 Cambiar sala</button>
             <button className={`${btnSecCls} text-left disabled:opacity-40`} disabled={!clase.fecha} onClick={() => setPaso('postergar')}>
               ⏰ Postergar clase{!clase.fecha ? ' (necesita fecha)' : ''}
             </button>
             <button className={`${btnSecCls} text-left text-dangerText`} onClick={() => setPaso('cancelar')}>🗑️ Cancelar clase</button>
             <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
+          </div>
+        )}
+
+        {paso === 'campos' && (
+          <div>
+            <label className={labelCls}>Docente</label>
+            <input value={docenteCampo} onChange={(e) => setDocenteCampo(e.target.value)} className={`${inputCls} mb-2.5`} />
+            <label className={labelCls}>Temática</label>
+            <input value={tematicaCampo} onChange={(e) => setTematicaCampo(e.target.value)} className={`${inputCls} mb-2.5`} />
+            <label className={labelCls}>Observaciones</label>
+            <input value={observacionesCampo} onChange={(e) => setObservacionesCampo(e.target.value)} className={`${inputCls} mb-3`} />
+            <div className="flex gap-2">
+              <button className={btnSecCls} onClick={() => setPaso('menu')}>Volver</button>
+              <button className={btnCls} onClick={editarCampos}>Guardar cambios</button>
+            </div>
           </div>
         )}
 
