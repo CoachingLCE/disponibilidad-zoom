@@ -13,6 +13,7 @@ const LINKS = [
   { href: '/cronograma', label: 'Cronograma' },
   { href: '/cronograma-cm', label: 'Cronograma CM' },
   { href: '/formaciones', label: 'Formaciones' },
+  { href: '/docentes-co', label: 'Docentes C.O' },
   { href: '/salas-zoom', label: 'Salas Zoom' },
   { href: '/incidencias', label: 'Incidencias' },
   { href: '/analisis', label: 'Análisis' }

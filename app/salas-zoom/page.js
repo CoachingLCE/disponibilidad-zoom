@@ -30,6 +30,8 @@ export default function SalasZoomPage() {
   const [clases, setClases] = useState([]);
   const [feriados, setFeriados] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [credenciales, setCredenciales] = useState([]);
+  const [mostrarCredenciales, setMostrarCredenciales] = useState(false);
   const [errorCarga, setErrorCarga] = useState(null);
   const [vista, setVista] = useState('estado');
   const [diaSala, setDiaSala] = useState('LUNES');
@@ -43,8 +45,18 @@ export default function SalasZoomPage() {
   }, [cargando, usuario, router]);
 
   useEffect(() => {
-    if (usuario) cargarDatos();
+    if (usuario) { cargarDatos(); cargarCredenciales(); }
   }, [usuario]);
+
+  async function cargarCredenciales() {
+    try {
+      const res = await fetchAutenticado('/api/credenciales-zoom');
+      const data = await res.json();
+      if (res.ok) setCredenciales(data.credenciales);
+    } catch {
+      // silencioso: si falla, el panel simplemente queda vacío
+    }
+  }
 
   async function cargarDatos() {
     setCargandoDatos(true);
@@ -150,6 +162,35 @@ export default function SalasZoomPage() {
 
       {errorCarga && (
         <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{errorCarga}</div>
+      )}
+
+      {credenciales.length > 0 && (
+        <div className={boxCls}>
+          <button className="flex items-center justify-between w-full text-left" onClick={() => setMostrarCredenciales((v) => !v)}>
+            <h2 className="text-sm font-semibold">🔑 Usuarios y contraseñas de las salas de Zoom</h2>
+            <span className="text-textMuted text-xs">{mostrarCredenciales ? 'Ocultar ▲' : 'Mostrar ▼'}</span>
+          </button>
+          {mostrarCredenciales && (
+            <div className="overflow-x-auto mt-3">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-textSec text-left">
+                    <th className="p-1.5">Sala</th><th className="p-1.5">Usuario</th><th className="p-1.5">Contraseña</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {credenciales.map((c) => (
+                    <tr key={c.sala} className="border-b border-border">
+                      <td className="p-1.5 font-semibold">{c.sala}</td>
+                      <td className="p-1.5">{c.usuario}</td>
+                      <td className="p-1.5 font-mono">{c.contrasena}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {puedeEditar && (
@@ -375,6 +416,7 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
   const [docente, setDocente] = useState('');
   const [tematica, setTematica] = useState('');
   const [obs, setObs] = useState('');
+  const [salaEspecial, setSalaEspecial] = useState('');
   const [resultado, setResultado] = useState(null);
   const [msg, setMsg] = useState(null);
 
@@ -416,12 +458,12 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
     try {
       const res = await fetchAutenticado('/api/actividades', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, tipo, curso: codigo, edicion, horaTxt, docente, tematica, observaciones: obs })
+        body: JSON.stringify({ fecha, tipo, curso: codigo, edicion, horaTxt, docente, tematica, observaciones: obs, sala: salaEspecial })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({ tipo: 'ok', texto: `"${tipo}" agregado al cronograma.` });
-      setTematica(''); setObs('');
+      setTematica(''); setObs(''); setSalaEspecial('');
       onReservado();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -469,6 +511,14 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
           </>
         )}
         <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
+        {!esFormacion && (
+          <div><label className={labelCls}>Sala (opcional)</label>
+            <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
+              <option value="">Sin sala asignada</option>
+              {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        )}
       </div>
       <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))' }}>
         <div><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>

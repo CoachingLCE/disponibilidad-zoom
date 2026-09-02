@@ -4,7 +4,7 @@ import { findUsuario } from '../../../../lib/auth';
 import { verifyPassword } from '../../../../lib/passwords';
 import { registrarAccion } from '../../../../lib/auditoria';
 import { crearToken } from '../../../../lib/sessionToken';
-import { tienePermisoEditarCM } from '../../../../lib/permisos';
+import { tienePermisoEditarCM, tienePermisoEditarDocentesCO } from '../../../../lib/permisos';
 
 // POST /api/auth/login -> { email, password }
 export const POST = conManejo(async (request) => {
@@ -34,7 +34,7 @@ export const POST = conManejo(async (request) => {
 
   await registrarAccion(body.email, usuario.nombre, 'Inició sesión', '');
   return NextResponse.json({
-    usuario: { email: usuario.email, nombre: usuario.nombre, roles: usuario.roles, puedeEditarCM: tienePermisoEditarCM(usuario) },
+    usuario: { email: usuario.email, nombre: usuario.nombre, roles: usuario.roles, puedeEditarCM: tienePermisoEditarCM(usuario), puedeEditarDocentesCO: tienePermisoEditarDocentesCO(usuario) },
     token: crearToken(usuario.email)
   });
 })
