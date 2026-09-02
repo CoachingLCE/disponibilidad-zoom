@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { TIPOS_CM, colorCM } from '../../lib/coloresCM';
+import { CAMPANAS_DEFAULT, ENLACES_DEFAULT } from '../../lib/cmDefaults';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -12,7 +13,7 @@ const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg p
 
 const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'];
 const DIAS_LABEL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-const HORAS = Array.from({ length: 9 }, (_, i) => 9 + i); // 9 a 17
+const HORAS = Array.from({ length: 11 }, (_, i) => 9 + i); // 9 a 19
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 function toISO(d) {
@@ -52,8 +53,84 @@ export default function CronogramaCMPage() {
   const [guardando, setGuardando] = useState(false);
   const [seleccionada, setSeleccionada] = useState(null);
 
+  const [campanas, setCampanas] = useState([]);
+  const [enlaces, setEnlaces] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [nuevaCampana, setNuevaCampana] = useState({ titulo: '', fecha: '', descripcion: '' });
+  const [nuevoEnlace, setNuevoEnlace] = useState({ categoria: '', titulo: '', url: '' });
+  const [nuevaNota, setNuevaNota] = useState('');
+  const [colorNota, setColorNota] = useState('amarillo');
+
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
-  useEffect(() => { if (usuario) cargar(); }, [usuario]);
+  useEffect(() => { if (usuario) { cargar(); cargarExtras(); } }, [usuario]);
+
+  async function cargarExtras() {
+    try {
+      const [rc, re] = await Promise.all([fetchAutenticado('/api/cronograma-cm/campanas'), fetchAutenticado('/api/cronograma-cm/enlaces')]);
+      const [dc, de] = await Promise.all([rc.json(), re.json()]);
+      if (rc.ok) {
+        setCampanas(dc.campanas);
+        if (dc.campanas.length < CAMPANAS_DEFAULT.length && puedeEditarCM) {
+          await fetchAutenticado('/api/cronograma-cm/campanas', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: CAMPANAS_DEFAULT })
+          });
+          const rc2 = await fetchAutenticado('/api/cronograma-cm/campanas');
+          const dc2 = await rc2.json();
+          if (rc2.ok) setCampanas(dc2.campanas);
+        }
+      }
+      if (re.ok) {
+        setEnlaces(de.enlaces);
+        if (de.enlaces.length < ENLACES_DEFAULT.length && puedeEditarCM) {
+          await fetchAutenticado('/api/cronograma-cm/enlaces', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: ENLACES_DEFAULT })
+          });
+          const re2 = await fetchAutenticado('/api/cronograma-cm/enlaces');
+          const de2 = await re2.json();
+          if (re2.ok) setEnlaces(de2.enlaces);
+        }
+      }
+      const rn = await fetchAutenticado('/api/cronograma-cm/notas');
+      const dn = await rn.json();
+      if (rn.ok) setNotas(dn.notas);
+    } catch {
+      // silencioso: si falla, esas secciones quedan vacías hasta el próximo intento
+    }
+  }
+
+  async function agregarCampana() {
+    if (!nuevaCampana.titulo.trim()) return;
+    const res = await fetchAutenticado('/api/cronograma-cm/campanas', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevaCampana)
+    });
+    if (res.ok) { setNuevaCampana({ titulo: '', fecha: '', descripcion: '' }); cargarExtras(); }
+  }
+  async function eliminarCampana(id) {
+    const res = await fetchAutenticado(`/api/cronograma-cm/campanas/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) cargarExtras();
+  }
+  async function agregarEnlace() {
+    if (!nuevoEnlace.titulo.trim()) return;
+    const res = await fetchAutenticado('/api/cronograma-cm/enlaces', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevoEnlace)
+    });
+    if (res.ok) { setNuevoEnlace({ categoria: '', titulo: '', url: '' }); cargarExtras(); }
+  }
+  async function eliminarEnlace(id) {
+    const res = await fetchAutenticado(`/api/cronograma-cm/enlaces/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) cargarExtras();
+  }
+  async function agregarNota() {
+    if (!nuevaNota.trim()) return;
+    const res = await fetchAutenticado('/api/cronograma-cm/notas', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: nuevaNota, color: colorNota })
+    });
+    if (res.ok) { setNuevaNota(''); cargarExtras(); }
+  }
+  async function eliminarNota(id) {
+    const res = await fetchAutenticado(`/api/cronograma-cm/notas/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) cargarExtras();
+  }
 
   async function cargar() {
     setCargandoDatos(true);
@@ -210,6 +287,101 @@ export default function CronogramaCMPage() {
             </span>
           ))}
         </div>
+      </div>
+
+      <div className={boxCls}>
+        <h2 className="text-sm font-semibold mb-3">📅 Campañas 2026</h2>
+        {campanas.length === 0 ? <p className="text-textSec text-sm mb-3">Sin campañas cargadas.</p> : (
+          <div className="flex flex-col gap-2 mb-3">
+            {campanas.map((c) => (
+              <div key={c.id} className="bg-bg border border-border rounded-lg px-3 py-2 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">{c.titulo}{c.fecha && <span className="text-textMuted font-normal"> — {c.fecha.split('-').reverse().slice(0, 2).join('/')}</span>}</p>
+                  {c.descripcion && <p className="text-xs text-textSec mt-0.5">{c.descripcion}</p>}
+                </div>
+                {puedeEditarCM && <button className={btnSecCls} onClick={() => eliminarCampana(c.id)}>Eliminar</button>}
+              </div>
+            ))}
+          </div>
+        )}
+        {puedeEditarCM && (
+          <div className="border-t border-border pt-3">
+            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+              <input placeholder="Título" value={nuevaCampana.titulo} onChange={(e) => setNuevaCampana((p) => ({ ...p, titulo: e.target.value }))} className={inputCls} />
+              <input type="date" value={nuevaCampana.fecha} onChange={(e) => setNuevaCampana((p) => ({ ...p, fecha: e.target.value }))} className={inputCls} />
+              <input placeholder="Descripción (opcional)" value={nuevaCampana.descripcion} onChange={(e) => setNuevaCampana((p) => ({ ...p, descripcion: e.target.value }))} className={inputCls} />
+            </div>
+            <button className={btnSecCls} onClick={agregarCampana}>+ Agregar campaña</button>
+          </div>
+        )}
+      </div>
+
+      <div className={boxCls}>
+        <h2 className="text-sm font-semibold mb-3">🔗 Enlaces y recursos útiles</h2>
+        {[...new Set(enlaces.map((e) => e.categoria))].map((cat) => (
+          <div key={cat} className="mb-3">
+            <p className="text-xs font-semibold text-textSec mb-1.5">{cat}</p>
+            <div className="flex flex-col gap-1">
+              {enlaces.filter((e) => e.categoria === cat).map((e) => (
+                <div key={e.id} className="flex items-center justify-between gap-2 text-xs">
+                  {e.url ? (
+                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-infoText hover:underline truncate">{e.titulo}</a>
+                  ) : (
+                    <span className="text-textMuted truncate">{e.titulo}</span>
+                  )}
+                  {puedeEditarCM && <button className="text-textMuted shrink-0" onClick={() => eliminarEnlace(e.id)}>✕</button>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {puedeEditarCM && (
+          <div className="border-t border-border pt-3">
+            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+              <input placeholder="Categoría" value={nuevoEnlace.categoria} onChange={(e) => setNuevoEnlace((p) => ({ ...p, categoria: e.target.value }))} className={inputCls} />
+              <input placeholder="Título" value={nuevoEnlace.titulo} onChange={(e) => setNuevoEnlace((p) => ({ ...p, titulo: e.target.value }))} className={inputCls} />
+              <input placeholder="URL" value={nuevoEnlace.url} onChange={(e) => setNuevoEnlace((p) => ({ ...p, url: e.target.value }))} className={inputCls} />
+            </div>
+            <button className={btnSecCls} onClick={agregarEnlace}>+ Agregar enlace</button>
+          </div>
+        )}
+      </div>
+
+      <div className={boxCls}>
+        <h2 className="text-sm font-semibold mb-3">📝 Notas</h2>
+        <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px,1fr))' }}>
+          {notas.map((n) => {
+            const coloresNota = {
+              amarillo: 'bg-yellow-300/15 border-yellow-300/40 text-yellow-100',
+              rosa: 'bg-pink-300/15 border-pink-300/40 text-pink-100',
+              celeste: 'bg-cyan-300/15 border-cyan-300/40 text-cyan-100',
+              verde: 'bg-lime-300/15 border-lime-300/40 text-lime-100'
+            };
+            return (
+              <div key={n.id} className={`border rounded-lg p-3 ${coloresNota[n.color] || coloresNota.amarillo}`}>
+                <p className="text-sm whitespace-pre-wrap">{n.texto}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[10px] opacity-70">{n.autor}</span>
+                  {puedeEditarCM && <button className="text-[10px] opacity-70" onClick={() => eliminarNota(n.id)}>Eliminar</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {puedeEditarCM && (
+          <div className="border-t border-border pt-3">
+            <textarea rows={2} placeholder="Escribí una nota…" value={nuevaNota} onChange={(e) => setNuevaNota(e.target.value)} className={`${inputCls} mb-2`} />
+            <div className="flex items-center gap-2">
+              <select value={colorNota} onChange={(e) => setColorNota(e.target.value)} className={`${inputCls} w-auto`}>
+                <option value="amarillo">Amarillo</option>
+                <option value="rosa">Rosa</option>
+                <option value="celeste">Celeste</option>
+                <option value="verde">Verde</option>
+              </select>
+              <button className={btnSecCls} onClick={agregarNota}>+ Agregar nota</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {seleccionada && (

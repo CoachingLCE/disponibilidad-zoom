@@ -16,6 +16,14 @@ const chipCls = (activo) => `text-xs font-semibold px-2.5 py-1 rounded-full bord
 const tabCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-lg border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
 const DIAS_SEMANA = DIAS.slice(0, 6); // Lunes a Sábado
+const MESES_LARGO = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+function esMesActual(fechaISO) {
+  if (!fechaISO) return false;
+  const hoy = new Date();
+  const f = new Date(fechaISO + 'T00:00:00');
+  return f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth();
+}
 
 function toISO(d) {
   const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
@@ -190,6 +198,7 @@ export default function CronogramaPage() {
           <h2 className="text-sm font-semibold">Todo el cronograma</h2>
           <div className="flex gap-1.5">
             <button className={tabCls(vista === 'calendario')} onClick={() => setVista('calendario')}>Calendario</button>
+            <button className={tabCls(vista === 'mes')} onClick={() => setVista('mes')}>Ver mes completo</button>
             <button className={tabCls(vista === 'lista')} onClick={() => setVista('lista')}>Lista</button>
           </div>
         </div>
@@ -269,7 +278,7 @@ export default function CronogramaPage() {
                                     onClick={() => setSeleccionado(a)}
                                     className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 cursor-pointer border-l-2 ${
                                       color ? `${color.bg} ${color.text} ${color.border}` : 'bg-infoBg text-infoText border-infoText/40'
-                                    } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${a.pasada ? 'opacity-45' : ''}`}
+                                    } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${a.pasada ? 'opacity-60' : ''} ${esMesActual(a.fecha) && !a.pasada ? 'ring-1 ring-warningText/60' : ''}`}
                                   >
                                     {conChoque && <span className="text-dangerText">⚠ </span>}
                                     {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
@@ -287,6 +296,8 @@ export default function CronogramaPage() {
               </div>
             )}
           </>
+        ) : vista === 'mes' ? (
+          <VistaMes todas={todas} onClick={(a) => setSeleccionado(a)} />
         ) : todas.length === 0 ? (
           <p className="text-textSec text-sm">No hay actividades que coincidan.</p>
         ) : (
@@ -303,7 +314,7 @@ export default function CronogramaPage() {
                 {todas.map((a, i) => {
                   const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
                   return (
-                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${a.pasada ? 'opacity-45 line-through' : ''}`}>
+                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${a.pasada ? 'text-textMuted' : ''} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
                       <td className="p-1.5">{formatFechaCorta(a.fecha)}</td>
                       <td className="p-1.5">
                         <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
@@ -333,6 +344,74 @@ export default function CronogramaPage() {
       </div>
 
       {seleccionado && <ModalDetalle item={seleccionado} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} />}
+    </div>
+  );
+}
+
+function VistaMes({ todas, onClick }) {
+  const hoy = new Date();
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [mes, setMes] = useState(hoy.getMonth());
+
+  const primerDiaMes = new Date(anio, mes, 1);
+  const ultimoDiaMes = new Date(anio, mes + 1, 0);
+
+  function irAMes(deltaMeses) {
+    const destino = new Date(anio, mes + deltaMeses, 1);
+    setAnio(destino.getFullYear());
+    setMes(destino.getMonth());
+  }
+
+  // Arrancar en el lunes de la semana que contiene el día 1, terminar en el domingo
+  // de la semana que contiene el último día.
+  const diaSemanaPrimero = primerDiaMes.getDay();
+  const offsetInicio = diaSemanaPrimero === 0 ? -6 : 1 - diaSemanaPrimero;
+  const inicio = new Date(primerDiaMes); inicio.setDate(primerDiaMes.getDate() + offsetInicio);
+
+  const dias = [];
+  let cursor = new Date(inicio);
+  while (cursor <= ultimoDiaMes || cursor.getDay() !== 1) {
+    dias.push(toISO(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+    if (dias.length > 42) break; // salvavidas, nunca debería hacer falta
+  }
+
+  const hoyISO = toISO(new Date());
+  const porDia = {};
+  todas.forEach((a) => { if (a.fecha) (porDia[a.fecha] = porDia[a.fecha] || []).push(a); });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <button className={btnSecCls} onClick={() => irAMes(-1)}>← Mes anterior</button>
+        <span className="text-sm font-semibold">{MESES_LARGO[mes]} {anio}</span>
+        <button className={btnSecCls} onClick={() => irAMes(1)}>Mes siguiente →</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => (
+          <div key={d} className="text-[10.5px] text-textMuted text-center font-semibold pb-1">{d}</div>
+        ))}
+        {dias.map((f) => {
+          const esDelMes = new Date(f + 'T00:00:00').getMonth() === mes;
+          const items = porDia[f] || [];
+          return (
+            <div key={f} className={`border border-border rounded-lg p-1.5 min-h-[70px] ${esDelMes ? '' : 'opacity-30'} ${f === hoyISO ? 'ring-1 ring-accentTeal' : ''}`}>
+              <p className="text-[10.5px] text-textMuted mb-1">{new Date(f + 'T00:00:00').getDate()}</p>
+              <div className="flex flex-col gap-0.5">
+                {items.slice(0, 3).map((a, i) => {
+                  const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
+                  return (
+                    <div key={i} onClick={() => onClick(a)} className={`text-[9.5px] px-1 py-0.5 rounded truncate cursor-pointer ${color ? `${color.bg} ${color.text}` : 'bg-infoBg text-infoText'}`}>
+                      {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
+                    </div>
+                  );
+                })}
+                {items.length > 3 && <p className="text-[9.5px] text-textMuted">+{items.length - 3} más</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
