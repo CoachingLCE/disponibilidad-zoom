@@ -41,7 +41,7 @@ export default function FormacionesPage() {
   // confiable de todas para saber cuándo arrancó y cuántas clases lleva cada edición puntual.
   const historicoPorEdicion = useMemo(() => {
     const grupos = {};
-    CRONOGRAMA_HISTORICO.filter((h) => h.tipo === 'Formación' && h.edicion).forEach((h) => {
+    CRONOGRAMA_HISTORICO.filter((h) => h.tipo === 'Formación' && h.edicion && h.fecha).forEach((h) => {
       const key = `${h.curso}|${h.edicion}`;
       (grupos[key] = grupos[key] || []).push(h);
     });

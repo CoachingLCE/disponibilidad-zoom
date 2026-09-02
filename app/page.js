@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS
+  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS, calcularEdicionesFinalizadas
 } from '../lib/salasLogic';
+import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 
 const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
@@ -64,6 +65,11 @@ export default function InicioPage() {
   });
   const libresAhora = SALAS.length - ocupadasAhora;
 
+  // Se calcula una sola vez (no depende de nada que cambie) — mismas ediciones que
+  // Formaciones ya detecta como "Finalizó" a partir del histórico real, para que las dos
+  // pantallas digan lo mismo y una clase de un curso ya terminado no siga apareciendo acá.
+  const edicionesFinalizadas = useMemo(() => calcularEdicionesFinalizadas(CRONOGRAMA_HISTORICO), []);
+
   const actividadesTodas = useMemo(() => {
     function toISO(d) {
       const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
@@ -82,13 +88,15 @@ export default function InicioPage() {
       return toISO(d);
     }
 
-    const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => ({
+    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
+
+    const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => ({
       fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
     // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
-    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => ({
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => ({
       fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
     })).filter((c) => c.fecha);
@@ -99,7 +107,7 @@ export default function InicioPage() {
       edicion: '', numero: '', horaMin: a.horaMin, sala: '', esFormacion: false
     }));
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
-  }, [clases, actividades]);
+  }, [clases, actividades, edicionesFinalizadas]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
   const proximas = actividadesTodas
