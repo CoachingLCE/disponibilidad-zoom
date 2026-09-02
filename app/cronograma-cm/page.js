@@ -43,6 +43,7 @@ export default function CronogramaCMPage() {
   const [actividades, setActividades] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
+  const [errorExtras, setErrorExtras] = useState(null);
   const [semanaOffset, setSemanaOffset] = useState(0);
 
   const [fecha, setFecha] = useState('');
@@ -65,38 +66,45 @@ export default function CronogramaCMPage() {
   useEffect(() => { if (usuario) { cargar(); cargarExtras(); } }, [usuario]);
 
   async function cargarExtras() {
+    setErrorExtras(null);
     try {
-      const [rc, re] = await Promise.all([fetchAutenticado('/api/cronograma-cm/campanas'), fetchAutenticado('/api/cronograma-cm/enlaces')]);
-      const [dc, de] = await Promise.all([rc.json(), re.json()]);
-      if (rc.ok) {
-        setCampanas(dc.campanas);
-        if (dc.campanas.length < CAMPANAS_DEFAULT.length && puedeEditarCM) {
-          await fetchAutenticado('/api/cronograma-cm/campanas', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: CAMPANAS_DEFAULT })
-          });
-          const rc2 = await fetchAutenticado('/api/cronograma-cm/campanas');
-          const dc2 = await rc2.json();
-          if (rc2.ok) setCampanas(dc2.campanas);
-        }
-      }
-      if (re.ok) {
-        setEnlaces(de.enlaces);
-        if (de.enlaces.length < ENLACES_DEFAULT.length && puedeEditarCM) {
-          await fetchAutenticado('/api/cronograma-cm/enlaces', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: ENLACES_DEFAULT })
-          });
-          const re2 = await fetchAutenticado('/api/cronograma-cm/enlaces');
-          const de2 = await re2.json();
-          if (re2.ok) setEnlaces(de2.enlaces);
-        }
-      }
+      const rc = await fetchAutenticado('/api/cronograma-cm/campanas');
+      const dc = await rc.json();
+      if (rc.ok) setCampanas(dc.campanas); else setErrorExtras((p) => (p ? p + ' | ' : '') + 'Campañas: ' + dc.error);
+    } catch (e) {
+      setErrorExtras((p) => (p ? p + ' | ' : '') + 'Campañas: error de conexión (' + e.message + ')');
+    }
+
+    try {
+      const re = await fetchAutenticado('/api/cronograma-cm/enlaces');
+      const de = await re.json();
+      if (re.ok) setEnlaces(de.enlaces); else setErrorExtras((p) => (p ? p + ' | ' : '') + 'Enlaces: ' + de.error);
+    } catch (e) {
+      setErrorExtras((p) => (p ? p + ' | ' : '') + 'Enlaces: error de conexión (' + e.message + ')');
+    }
+
+    try {
       const rn = await fetchAutenticado('/api/cronograma-cm/notas');
       const dn = await rn.json();
-      if (rn.ok) setNotas(dn.notas);
-    } catch {
-      // silencioso: si falla, esas secciones quedan vacías hasta el próximo intento
+      if (rn.ok) setNotas(dn.notas); else setErrorExtras((p) => (p ? p + ' | ' : '') + 'Notas: ' + dn.error);
+    } catch (e) {
+      setErrorExtras((p) => (p ? p + ' | ' : '') + 'Notas: error de conexión (' + e.message + ')');
     }
   }
+
+  // Las campañas y enlaces que Diego pasó están siempre disponibles acá en el código —
+  // ya no dependen de que se hayan importado bien al Sheet. Lo que se agregue desde la
+  // app (formulario de abajo) se suma sin duplicar lo fijo.
+  const campanasCombinadas = useMemo(() => {
+    const titulosSheet = new Set(campanas.map((c) => c.titulo));
+    const fijas = CAMPANAS_DEFAULT.filter((c) => !titulosSheet.has(c.titulo)).map((c, i) => ({ ...c, id: `fijo-camp-${i}`, esFijo: true }));
+    return [...fijas, ...campanas];
+  }, [campanas]);
+  const enlacesCombinados = useMemo(() => {
+    const titulosSheet = new Set(enlaces.map((e) => e.titulo));
+    const fijos = ENLACES_DEFAULT.filter((e) => !titulosSheet.has(e.titulo)).map((e, i) => ({ ...e, id: `fijo-link-${i}`, esFijo: true }));
+    return [...fijos, ...enlaces];
+  }, [enlaces]);
 
   async function agregarCampana() {
     if (!nuevaCampana.titulo.trim()) return;
@@ -198,6 +206,7 @@ export default function CronogramaCMPage() {
         {!puedeEditarCM && ' Solo podés ver — la edición está reservada.'}
       </p>
       {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
+      {errorExtras && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{errorExtras}</div>}
 
       {puedeEditarCM && (
         <div className={boxCls}>
@@ -291,15 +300,15 @@ export default function CronogramaCMPage() {
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">📅 Campañas 2026</h2>
-        {campanas.length === 0 ? <p className="text-textSec text-sm mb-3">Sin campañas cargadas.</p> : (
+        {campanasCombinadas.length === 0 ? <p className="text-textSec text-sm mb-3">Sin campañas cargadas.</p> : (
           <div className="flex flex-col gap-2 mb-3">
-            {campanas.map((c) => (
+            {campanasCombinadas.map((c) => (
               <div key={c.id} className="bg-bg border border-border rounded-lg px-3 py-2 flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">{c.titulo}{c.fecha && <span className="text-textMuted font-normal"> — {c.fecha.split('-').reverse().slice(0, 2).join('/')}</span>}</p>
                   {c.descripcion && <p className="text-xs text-textSec mt-0.5">{c.descripcion}</p>}
                 </div>
-                {puedeEditarCM && <button className={btnSecCls} onClick={() => eliminarCampana(c.id)}>Eliminar</button>}
+                {puedeEditarCM && !c.esFijo && <button className={btnSecCls} onClick={() => eliminarCampana(c.id)}>Eliminar</button>}
               </div>
             ))}
           </div>
@@ -318,18 +327,18 @@ export default function CronogramaCMPage() {
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">🔗 Enlaces y recursos útiles</h2>
-        {[...new Set(enlaces.map((e) => e.categoria))].map((cat) => (
+        {[...new Set(enlacesCombinados.map((e) => e.categoria))].map((cat) => (
           <div key={cat} className="mb-3">
             <p className="text-xs font-semibold text-textSec mb-1.5">{cat}</p>
             <div className="flex flex-col gap-1">
-              {enlaces.filter((e) => e.categoria === cat).map((e) => (
+              {enlacesCombinados.filter((e) => e.categoria === cat).map((e) => (
                 <div key={e.id} className="flex items-center justify-between gap-2 text-xs">
                   {e.url ? (
                     <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-infoText hover:underline truncate">{e.titulo}</a>
                   ) : (
                     <span className="text-textMuted truncate">{e.titulo}</span>
                   )}
-                  {puedeEditarCM && <button className="text-textMuted shrink-0" onClick={() => eliminarEnlace(e.id)}>✕</button>}
+                  {puedeEditarCM && !e.esFijo && <button className="text-textMuted shrink-0" onClick={() => eliminarEnlace(e.id)}>✕</button>}
                 </div>
               ))}
             </div>
