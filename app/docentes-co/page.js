@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { formatFechaCorta } from '../../lib/salasLogic';
+import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -67,18 +68,30 @@ export default function DocentesCOPage() {
     }
   }
 
+  // Los 170 períodos que Diego pasó (edición 1 a 58) están siempre disponibles acá en
+  // el código — no dependen de que se hayan importado bien al Sheet. Lo que se agregue
+  // desde la app se suma aparte, sin duplicar lo fijo (mismo criterio que Campañas/
+  // Enlaces de Cronograma CM e Info. técnica).
+  const asignacionesCombinadas = useMemo(() => {
+    const clavesSheet = new Set(asignaciones.map((a) => `${a.edicion}|${a.desde}|${a.hasta}|${a.docente}`));
+    const fijos = DOCENTES_CO_DEFAULT
+      .filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}|${a.hasta}|${a.docente}`))
+      .map((a, idx) => ({ ...a, id: `fijo-doc-${idx}`, esFijo: true }));
+    return [...fijos, ...asignaciones];
+  }, [asignaciones]);
+
   // Período vigente de cada edición = el que tiene la fecha "Desde" más reciente.
   const vigentesPorEdicion = useMemo(() => {
     const porEdicion = {};
-    asignaciones.forEach((a) => {
+    asignacionesCombinadas.forEach((a) => {
       if (!porEdicion[a.edicion] || a.desde > porEdicion[a.edicion].desde) {
         porEdicion[a.edicion] = a;
       }
     });
     return Object.values(porEdicion).sort((a, b) => parseInt(a.edicion, 10) - parseInt(b.edicion, 10));
-  }, [asignaciones]);
+  }, [asignacionesCombinadas]);
 
-  const historialOrdenado = [...asignaciones].sort((a, b) => parseInt(b.edicion, 10) - parseInt(a.edicion, 10) || (b.desde || '').localeCompare(a.desde || ''));
+  const historialOrdenado = [...asignacionesCombinadas].sort((a, b) => parseInt(b.edicion, 10) - parseInt(a.edicion, 10) || (b.desde || '').localeCompare(a.desde || ''));
 
   if (cargando || !usuario) return null;
 

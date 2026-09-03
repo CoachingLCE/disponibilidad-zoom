@@ -15,6 +15,7 @@ const LINKS = [
   { href: '/formaciones', label: 'Formaciones' },
   { href: '/docentes-co', label: 'Docentes C.O' },
   { href: '/salas-zoom', label: 'Salas Zoom' },
+  { href: '/credenciales-zoom', label: 'Credenciales Zoom' },
   { href: '/info-tecnica', label: 'Info. técnica' },
   { href: '/incidencias', label: 'Incidencias' },
   { href: '/analisis', label: 'Análisis' },
