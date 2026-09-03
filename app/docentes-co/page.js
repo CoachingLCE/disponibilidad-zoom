@@ -19,9 +19,12 @@ export default function DocentesCOPage() {
   const [error, setError] = useState(null);
 
   const [edicion, setEdicion] = useState('');
+  const [dia, setDia] = useState('');
+  const [horario, setHorario] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [docente, setDocente] = useState('');
   const [staff, setStaff] = useState('');
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [obs, setObs] = useState('');
   const [msg, setMsg] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -50,12 +53,12 @@ export default function DocentesCOPage() {
     try {
       const res = await fetchAutenticado('/api/docentes-co', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ edicion: edicion.trim(), docente, staff, fechaAsignacion: fecha, observaciones: obs })
+        body: JSON.stringify({ edicion: edicion.trim(), dia, horario, desde, hasta, docente, staff, observaciones: obs })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: 'Asignación guardada.' });
-      setDocente(''); setStaff(''); setObs('');
+      setMsg({ tipo: 'ok', texto: 'Período guardado.' });
+      setDocente(''); setStaff(''); setObs(''); setDesde(''); setHasta('');
       cargar();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -64,57 +67,63 @@ export default function DocentesCOPage() {
     }
   }
 
-  // Asignación vigente de cada edición = la más reciente por fecha.
+  // Período vigente de cada edición = el que tiene la fecha "Desde" más reciente.
   const vigentesPorEdicion = useMemo(() => {
     const porEdicion = {};
     asignaciones.forEach((a) => {
-      if (!porEdicion[a.edicion] || a.fechaAsignacion > porEdicion[a.edicion].fechaAsignacion) {
+      if (!porEdicion[a.edicion] || a.desde > porEdicion[a.edicion].desde) {
         porEdicion[a.edicion] = a;
       }
     });
     return Object.values(porEdicion).sort((a, b) => parseInt(a.edicion, 10) - parseInt(b.edicion, 10));
   }, [asignaciones]);
 
-  const historialOrdenado = [...asignaciones].sort((a, b) => b.fechaAsignacion.localeCompare(a.fechaAsignacion));
+  const historialOrdenado = [...asignaciones].sort((a, b) => parseInt(b.edicion, 10) - parseInt(a.edicion, 10) || (b.desde || '').localeCompare(a.desde || ''));
 
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[1300px] mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">Docentes y Staff de C.O</h1>
       <p className="text-textSec text-sm mb-4">
-        Quién da clase y quién hace staff en cada edición de Coaching Ontológico.
+        Quién da clase y quién hace staff en cada edición de Coaching Ontológico, y en qué período.
         {!puedeEditar && ' Solo podés ver — la edición está reservada.'}
       </p>
       {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
 
       {puedeEditar && (
         <div className={boxCls}>
-          <h2 className="text-sm font-semibold mb-3">Nueva asignación</h2>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+          <h2 className="text-sm font-semibold mb-3">Nuevo período</h2>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
             <div><label className={labelCls}>Edición</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} placeholder="ej: 45" className={inputCls} /></div>
+            <div><label className={labelCls}>Día</label><input value={dia} onChange={(e) => setDia(e.target.value)} placeholder="Martes" className={inputCls} /></div>
+            <div><label className={labelCls}>Horario</label><input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="19:00 a 21:00" className={inputCls} /></div>
+          </div>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
+            <div><label className={labelCls}>Desde</label><input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Hasta</label><input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={inputCls} /></div>
             <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
             <div><label className={labelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
           </div>
           <div className="mb-3"><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
-          <button className={btnCls} disabled={guardando} onClick={agregar}>{guardando ? 'Guardando…' : 'Guardar asignación'}</button>
+          <button className={btnCls} disabled={guardando} onClick={agregar}>{guardando ? 'Guardando…' : 'Guardar período'}</button>
           {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
         </div>
       )}
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">Asignación vigente por edición</h2>
+        <h2 className="text-sm font-semibold mb-3">Período vigente por edición</h2>
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : vigentesPorEdicion.length === 0 ? (
-          <p className="text-textSec text-sm">Todavía no hay asignaciones cargadas.</p>
+          <p className="text-textSec text-sm">Todavía no hay nada cargado.</p>
         ) : (
           <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))' }}>
             {vigentesPorEdicion.map((a) => (
               <div key={a.edicion} className="bg-bg border border-border rounded-lg p-3">
-                <p className="text-sm font-semibold">Edición {a.edicion}</p>
+                <p className="text-sm font-semibold">Edición {a.edicion}°</p>
+                <p className="text-xs text-textMuted">{a.dia} · {a.horario}</p>
                 <p className="text-xs text-textSec mt-1">Docente: {a.docente || '—'}</p>
                 <p className="text-xs text-textSec">Staff: {a.staff || '—'}</p>
-                <p className="text-[11px] text-textMuted mt-1">Desde {formatFechaCorta(a.fechaAsignacion)}</p>
+                <p className="text-[11px] text-textMuted mt-1">{formatFechaCorta(a.desde)} – {formatFechaCorta(a.hasta) || 'en curso'}</p>
               </div>
             ))}
           </div>
@@ -122,25 +131,28 @@ export default function DocentesCOPage() {
       </div>
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">Historial completo de asignaciones</h2>
+        <h2 className="text-sm font-semibold mb-3">Historial completo (todos los períodos)</h2>
         {historialOrdenado.length === 0 ? <p className="text-textSec text-sm">Sin historial todavía.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
-                  <th className="p-1.5">Edición</th><th className="p-1.5">Docente</th><th className="p-1.5">Staff</th>
-                  <th className="p-1.5">Fecha</th><th className="p-1.5">Observaciones</th><th className="p-1.5">Cargado por</th>
+                  <th className="p-1.5">Edición</th><th className="p-1.5">Día</th><th className="p-1.5">Horario</th>
+                  <th className="p-1.5">Desde</th><th className="p-1.5">Hasta</th>
+                  <th className="p-1.5">Docente</th><th className="p-1.5">Staff</th><th className="p-1.5">Observaciones</th>
                 </tr>
               </thead>
               <tbody>
                 {historialOrdenado.map((a, i) => (
                   <tr key={i} className="border-b border-border">
-                    <td className="p-1.5">{a.edicion}</td>
+                    <td className="p-1.5">{a.edicion}°</td>
+                    <td className="p-1.5">{a.dia}</td>
+                    <td className="p-1.5">{a.horario}</td>
+                    <td className="p-1.5">{formatFechaCorta(a.desde)}</td>
+                    <td className="p-1.5">{formatFechaCorta(a.hasta)}</td>
                     <td className="p-1.5">{a.docente || '—'}</td>
                     <td className="p-1.5">{a.staff || '—'}</td>
-                    <td className="p-1.5">{formatFechaCorta(a.fechaAsignacion)}</td>
                     <td className="p-1.5">{a.observaciones || '—'}</td>
-                    <td className="p-1.5">{a.usuario}</td>
                   </tr>
                 ))}
               </tbody>
