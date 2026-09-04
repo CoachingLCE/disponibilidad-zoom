@@ -56,11 +56,22 @@ export const POST = conManejo(async (request) => {
     }
   }
 
+  let avisoDocente = null;
+  if (docente && docente.trim()) {
+    const inicioProp = horaMin - BUFFER_MIN, finProp = horaMin + duracion;
+    const clases = await leerClases();
+    const choque = clases.find((c) =>
+      c.dia === dia && (c.docente || '').trim().toLowerCase() === docente.trim().toLowerCase() &&
+      inicioProp < (c.horaMin + c.duracion) && (c.horaMin - BUFFER_MIN) < finProp
+    );
+    if (choque) avisoDocente = `${docente} ya tiene "${choque.label}" en ${choque.sala} a esa hora — revisá que no se pise.`;
+  }
+
   await agregarActividad({
     fecha, dia, tipo, curso: curso || '', nombreCurso: nombreCurso(curso),
     edicion: edicion || '', horaMin, horaTxt, docente, tematica, observaciones, sala: sala || ''
   });
   await registrarAccion(usuario.email, usuario.nombre, 'Agregó al cronograma', `${tipo}${curso ? ' — ' + nombreCurso(curso) : ''}${sala ? ' — ' + sala : ''}`);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, avisoDocente });
 })

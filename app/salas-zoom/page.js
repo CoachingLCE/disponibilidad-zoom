@@ -412,8 +412,9 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
   const [codigo, setCodigo] = useState('CO');
   const [edicion, setEdicion] = useState('1');
   const [numero, setNumero] = useState('');
-  const [cantidad, setCantidad] = useState(1);
+  const [cantidad, setCantidad] = useState(TOTALES.CO || 1);
   const [docente, setDocente] = useState('');
+  const [staff, setStaff] = useState('');
   const [tematica, setTematica] = useState('');
   const [obs, setObs] = useState('');
   const [salaEspecial, setSalaEspecial] = useState('');
@@ -440,12 +441,12 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
     try {
       const res = await fetchAutenticado('/api/clases/reservar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala, docente, tematica, observaciones: obs })
+        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala, docente, staff, tematica, observaciones: obs })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({ tipo: 'ok', texto: `Reservado en ${sala} (${data.agregadas} clase(s)).${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
-      setResultado(null); setDocente(''); setTematica(''); setObs('');
+      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs('');
       onReservado();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -462,7 +463,10 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: `"${tipo}" agregado al cronograma.` });
+      setMsg({
+        tipo: data.avisoDocente ? 'aviso' : 'ok',
+        texto: data.avisoDocente ? `"${tipo}" agregado. ⚠️ ${data.avisoDocente}` : `"${tipo}" agregado al cronograma.`
+      });
       setTematica(''); setObs(''); setSalaEspecial('');
       onReservado();
     } catch (err) {
@@ -494,7 +498,11 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
         </div>
         <div><label className={labelCls}>{esFormacion ? 'Curso' : 'Curso/Materia'}</label>
           {esFormacion ? (
-            <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={inputCls}>
+            <select
+              value={codigo}
+              onChange={(e) => { setCodigo(e.target.value); setCantidad(TOTALES[e.target.value] || 1); }}
+              className={inputCls}
+            >
               {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
             </select>
           ) : (
@@ -511,6 +519,9 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
           </>
         )}
         <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
+        {esFormacion && (
+          <div><label className={labelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
+        )}
         {!esFormacion && (
           <div><label className={labelCls}>Sala (opcional)</label>
             <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
@@ -530,10 +541,15 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
       ) : (
         <button className={btnCls} onClick={agregarActividadNoFormacion}>Agregar al cronograma</button>
       )}
-      {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
+      {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : msg.tipo === 'aviso' ? 'text-warningText' : 'text-successText'}`}>{msg.texto}</p>}
 
       {resultado && (
         <div className="mt-3.5">
+          {resultado.conflictoDocente && (
+            <div className="px-3.5 py-2.5 rounded-lg mb-3 font-semibold text-sm bg-warningBg text-warningText">
+              ⚠️ {resultado.conflictoDocente}
+            </div>
+          )}
           <div className={`px-3.5 py-2.5 rounded-lg mb-3 font-semibold text-sm ${resultado.libres.length ? 'bg-successBg text-successText' : 'bg-dangerBg text-dangerText'}`}>
             {resultado.libres.length ? `Sí hay lugar — ${resultado.libres.length} sala(s) libre(s)` : 'No hay lugar — las 8 salas están ocupadas'}
           </div>

@@ -5,7 +5,7 @@ import { tienePermisoEditar } from '../../../../lib/permisos';
 import { leerClases, agregarClases, leerFeriados, feriadoEnFecha } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 import {
-  DURACIONES, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad
+  DURACIONES, BUFFER_MIN, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad
 } from '../../../../lib/salasLogic';
 
 // POST /api/clases/reservar
@@ -24,7 +24,7 @@ export const POST = conManejo(async (request) => {
   if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const body = await request.json();
-  const { fecha, horaTxt, codigo, edicion, numero, cantidad = 1, sala, docente, tematica, observaciones } = body;
+  const { fecha, horaTxt, codigo, edicion, numero, cantidad = 1, sala, docente, staff, tematica, observaciones } = body;
 
   if (!fecha || !horaTxt || !codigo || !DURACIONES[codigo]) {
     return NextResponse.json({ error: 'Faltan datos (fecha, hora o curso no reconocido).' }, { status: 400 });
@@ -51,7 +51,22 @@ export const POST = conManejo(async (request) => {
     const detalleOcupadas = Object.entries(ocupadas).map(([s, c]) => ({
       sala: s, label: c.label, libera: c.horaMin + c.duracion
     }));
-    return NextResponse.json({ libres, ocupadas: detalleOcupadas, dia });
+
+    // Choque de docente: mismo día/horario, sin importar la sala — un docente no puede
+    // dar dos clases en simultáneo aunque sean en salas distintas.
+    let conflictoDocente = null;
+    if (docente && docente.trim()) {
+      const inicioProp = horaMin - BUFFER_MIN, finProp = horaMin + duracion;
+      const choque = clases.find((c) =>
+        c.dia === dia && (c.docente || '').trim().toLowerCase() === docente.trim().toLowerCase() &&
+        inicioProp < (c.horaMin + c.duracion) && (c.horaMin - BUFFER_MIN) < finProp
+      );
+      if (choque) {
+        conflictoDocente = `${docente} ya tiene "${choque.label}" en ${choque.sala} a esa hora — revisá antes de reservar.`;
+      }
+    }
+
+    return NextResponse.json({ libres, ocupadas: detalleOcupadas, dia, conflictoDocente });
   }
 
   if (!libres.includes(sala)) {
@@ -84,7 +99,7 @@ export const POST = conManejo(async (request) => {
 
     nuevasClases.push({
       dia, horaMin, codigo, edicion: edicion || '1', numero: numeroI, sala, label: labelI, duracion,
-      fecha: fechaStr, docente: docente || '', tematica: tematica || '', observaciones: observaciones || '',
+      fecha: fechaStr, docente: docente || '', staff: staff || '', tematica: tematica || '', observaciones: observaciones || '',
       id: `${codigo}-${edicion || '1'}-${numeroI || 'x'}-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`
     });
   }

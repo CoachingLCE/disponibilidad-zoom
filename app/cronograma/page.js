@@ -59,6 +59,7 @@ export default function CronogramaPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
   const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
+  const puedePostergar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin', 'Educativo'].includes(r));
 
   const [clases, setClases] = useState([]);
   const [actividades, setActividades] = useState([]);
@@ -200,14 +201,23 @@ export default function CronogramaPage() {
           <h1 className="text-xl mb-1">Cronograma</h1>
           <p className="text-textSec text-sm">Todo lo que sucede en ILCE: Formaciones, BLOG, Masterclass, Reuniones, Capacitaciones, Jornadas y más.</p>
         </div>
-        {puedeEditar && (
-          <a href="/salas-zoom" className={btnCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
-            Agregar actividad →
-          </a>
-        )}
+        <div className="flex flex-col gap-2 items-end">
+          {puedeEditar && (
+            <a href="/salas-zoom" className={btnCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
+              Agregar actividad →
+            </a>
+          )}
+          {puedePostergar && (
+            <a href="/salas-zoom" className={btnSecCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
+              Postergar clases →
+            </a>
+          )}
+        </div>
       </div>
       <p className="text-textMuted text-xs mb-5">
-        {puedeEditar && 'Se carga desde Salas Zoom (un solo lugar, con búsqueda de sala disponible incluida).'}
+        {puedeEditar
+          ? 'Se carga desde Salas Zoom (un solo lugar, con búsqueda de sala disponible incluida).'
+          : puedePostergar && 'Para postergar una clase, entrá a Salas Zoom y hacé clic en ella.'}
       </p>
 
       <div className={boxCls}>
