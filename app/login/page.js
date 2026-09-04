@@ -1,9 +1,17 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContenido />
+    </Suspense>
+  );
+}
+
+function LoginContenido() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [verPassword, setVerPassword] = useState(false);
@@ -12,6 +20,8 @@ export default function LoginPage() {
   const [cargando, setCargando] = useState(false);
   const { login } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sesionVencida = searchParams.get('vencida') === '1';
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -42,6 +52,11 @@ export default function LoginPage() {
       <div className="w-80 bg-surface2 border border-border rounded-2xl p-7 h-fit">
         <h2 className="text-center text-lg font-semibold mb-1">Cronograma ILCE</h2>
         <p className="text-center text-textSec text-sm mb-5">Ingresá con tu usuario y contraseña</p>
+        {sesionVencida && (
+          <div className="bg-infoBg text-infoText rounded-lg px-3 py-2.5 text-xs mb-4 text-center">
+            Tu sesión venció (por seguridad, duran 10 horas) — volvé a entrar.
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <label className="text-xs text-textSec block mb-1">Email</label>
           <input
