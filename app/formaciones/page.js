@@ -63,7 +63,7 @@ export default function FormacionesPage() {
   const formaciones = useMemo(() => {
     const base = calcularFormaciones(clases);
     const hoyISO = new Date().toISOString().slice(0, 10);
-    return base.map((f) => {
+    const enriquecidas = base.map((f) => {
       const historico = historicoPorEdicion[`${f.codigo}|${f.numero}`];
       const manual = formacionesManual.find((m) => m.codigo === f.codigo && m.edicion === f.numero);
 
@@ -107,7 +107,40 @@ export default function FormacionesPage() {
         estado,
         pct: estado === 'Finalizó' ? 100 : f.pct
       };
-    }).map((f) => {
+    });
+
+    // Las de arriba son las que TODAVÍA ocupan una sala en el horario en vivo. Pero una
+    // edición que ya terminó hace tiempo generalmente deja de tener sala asignada — y
+    // sin embargo el histórico SÍ la tiene registrada. Sin este paso, esas ediciones
+    // nunca aparecían como tarjeta (ni "Finalizó" ni ninguna otra), aunque el dato
+    // exista. Acá se agregan como tarjetas propias, calculadas 100% desde el histórico.
+    const presentes = new Set(enriquecidas.map((f) => `${f.codigo}|${f.numero}`));
+    const soloHistoricas = Object.entries(historicoPorEdicion)
+      .filter(([key]) => !presentes.has(key))
+      .map(([key, historico]) => {
+        const [codigo, numero] = key.split('|');
+        const total = historico.total || null;
+        if (!total) return null; // sin total no se puede estimar nada con confianza
+        const inicio = new Date(historico.fechaInicio + 'T00:00:00');
+        const finEstimado = new Date(inicio); finEstimado.setDate(inicio.getDate() + (total - 1) * 7);
+        const fechaFinalEstimada = finEstimado.toISOString().slice(0, 10);
+        const semanasPasadas = Math.floor((new Date(hoyISO) - inicio) / (7 * 24 * 60 * 60 * 1000));
+        const cargadasEstimadas = Math.max(historico.cargadas, Math.min(total, semanasPasadas + 1));
+        const finalPasado = fechaFinalEstimada < hoyISO;
+        const completo = cargadasEstimadas >= total;
+        const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
+        const pct = Math.min(100, Math.round((cargadasEstimadas / total) * 100));
+        return {
+          codigo, numero, edicion: numero,
+          fechaInicio: historico.fechaInicio, fechaFinal: fechaFinalEstimada,
+          cargadas: Math.min(cargadasEstimadas, total), total, estado, pct,
+          proximaTxt: estado === 'Finalizó' ? '—' : 'Sin sala asignada actualmente',
+          cuatrimestre: null
+        };
+      })
+      .filter(Boolean);
+
+    return [...enriquecidas, ...soloHistoricas].map((f) => {
       // Vencimiento del proceso de certificación: 1 mes después de finalizar para
       // formaciones cortas (16 clases), 4 meses para Coaching Ontológico por defecto —
       // se puede ajustar puntualmente cargando "MesesCertificacion" en la pestaña
