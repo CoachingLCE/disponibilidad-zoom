@@ -15,7 +15,7 @@ export const GET = conManejo(async (request) => {
   try {
     const filas = await readSheet('CredencialesZoom');
     credenciales = filas.filter((f) => f.Sala).map((f) => ({
-      sala: f.Sala, usuario: f.Usuario || '', contrasena: f.Contrasena || ''
+      sala: f.Sala, usuario: f.Usuario || '', contrasena: f.Contrasena || '', idReunion: f.IdReunion || ''
     }));
   } catch {
     // La pestaña todavía no existe en el Sheet — no es un error para el usuario,

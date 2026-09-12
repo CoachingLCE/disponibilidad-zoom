@@ -53,7 +53,7 @@ export default function CredencialesZoomPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
-                  <th className="p-2">Sala</th><th className="p-2">Usuario</th><th className="p-2">Contraseña</th>
+                  <th className="p-2">Sala</th><th className="p-2">Usuario</th><th className="p-2">Contraseña</th><th className="p-2">ID de reunión</th>
                 </tr>
               </thead>
               <tbody>
@@ -62,6 +62,7 @@ export default function CredencialesZoomPage() {
                     <td className="p-2 font-semibold">{c.sala}</td>
                     <td className="p-2">{c.usuario}</td>
                     <td className="p-2 font-mono">{c.contrasena}</td>
+                    <td className="p-2 font-mono">{c.idReunion || '—'}</td>
                   </tr>
                 ))}
               </tbody>

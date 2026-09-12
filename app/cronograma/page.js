@@ -6,6 +6,7 @@ import {
   SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, ESTADOS
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
+import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -119,18 +120,35 @@ export default function CronogramaPage() {
   }
 
   const { todas, totalSinFiltro } = useMemo(() => {
+    // El "número" que guarda cada clase (c.numero) identifica la EDICIÓN (ej: "CV 5"),
+    // no qué sesión semanal es dentro de esa edición — antes se mostraban como si fueran
+    // lo mismo ("Clase 5 de 16" para la edición 5, aunque en realidad sea la 2ª sesión).
+    // Acá se calcula la posición real: entre todas las clases con fecha de la misma
+    // edición, ordenadas cronológicamente, qué lugar ocupa cada una.
+    const sesionPorId = {};
+    const gruposPorEdicion = {};
+    clases.filter((c) => c.fecha).forEach((c) => {
+      const clave = `${c.codigo}|${c.numero}`;
+      (gruposPorEdicion[clave] = gruposPorEdicion[clave] || []).push(c);
+    });
+    Object.values(gruposPorEdicion).forEach((grupo) => {
+      const ordenado = [...grupo].sort((a, b) => a.fecha.localeCompare(b.fecha));
+      ordenado.forEach((c, idx) => { sesionPorId[c.id] = idx + 1; });
+    });
+
     const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => ({
       id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
+      edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
       total: TOTALES[c.codigo], tematica: c.tematica,
       observaciones: c.observaciones, pasada: esPasada(c.fecha)
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía): se
     // incluyen igual, con fecha vacía — el calendario las proyecta sobre la semana que se
-    // esté mirando (más abajo), y en la vista Lista aparecen con fecha "—".
+    // esté mirando (más abajo), y en la vista Lista aparecen con fecha "—". Sin fecha
+    // puntual no hay forma de saber qué sesión es, así que no se le asigna número.
     const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => ({
       id: c.id, fecha: '', dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
+      edicion: c.numero, numeroSesion: null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
       total: TOTALES[c.codigo], tematica: c.tematica,
       observaciones: c.observaciones, pasada: false, recurrente: true
     }));
@@ -447,6 +465,7 @@ function VistaMes({ todas, onClick }) {
 
 function ModalDetalle({ item, onCerrar, puedeEditar }) {
   const esFormacion = item.tipo === 'Formación';
+  const idReunion = CREDENCIALES_ZOOM_DEFAULT.find((c) => c.sala === item.sala)?.idReunion;
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
@@ -461,8 +480,9 @@ function ModalDetalle({ item, onCerrar, puedeEditar }) {
             label="Sala"
             valor={item.sala ? <a href="/credenciales-zoom" className="text-infoText underline">{item.sala}</a> : '—'}
           />
-          {esFormacion && item.numero && item.total && (
-            <Fila label="Clase" valor={`${item.numero} de ${item.total}`} />
+          {idReunion && <Fila label="ID de reunión" valor={idReunion} />}
+          {esFormacion && item.numeroSesion && item.total && (
+            <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
           )}
           <Fila label="Docente" valor={item.docente || '—'} />
           {esFormacion && <Fila label="Staff" valor={item.staff || '—'} />}

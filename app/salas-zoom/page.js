@@ -7,6 +7,7 @@ import {
   minutosAHora, formatFechaCorta, agruparParaVista, colorFormacion
 } from '../../lib/salasLogic';
 import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
+import { interpretarTexto } from '../../lib/lecturaInteligente';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -417,6 +418,23 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
   const [staff, setStaff] = useState('');
   const [tematica, setTematica] = useState('');
   const [obs, setObs] = useState('');
+
+  // Vuelca lo que detectó la Lectura Inteligente en los campos normales del formulario —
+  // el operador siempre puede revisar/corregir antes de guardar, nunca se guarda solo.
+  function aplicarLectura(r) {
+    if (r.curso) {
+      setTipo('Formación');
+      setCodigo(r.curso.codigo);
+      setCantidad(r.cantidad || TOTALES[r.curso.codigo] || 1);
+    } else if (r.cantidad) {
+      setCantidad(r.cantidad);
+    }
+    if (r.edicion) setEdicion(r.edicion);
+    if (r.horaTxt) setHoraTxt(r.horaTxt);
+    if (r.fechaSugerida) setFecha(r.fechaSugerida);
+    if (r.docente) setDocente(r.docente);
+    if (r.staff) setStaff(r.staff);
+  }
   const [salaEspecial, setSalaEspecial] = useState('');
   const [resultado, setResultado] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -482,10 +500,11 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
       <p className="text-xs text-textSec mb-3">
         Un solo lugar para cargar todo — Formaciones buscan sala disponible; el resto de los tipos se agrega directo al cronograma.
       </p>
+      <LecturaInteligente onAplicar={aplicarLectura} />
       <div className="mb-3">
         <label className={labelCls}>Tipo</label>
         <select value={tipo} onChange={(e) => { setTipo(e.target.value); setResultado(null); setMsg(null); }} className={`${inputCls} max-w-xs`}>
-          {TIPOS.map((t) => <option key={t}>{t}</option>)}
+          {TIPOS.map((t) => <option key={t} value={t}>{t === 'Formación' ? 'Formación / Curso' : t}</option>)}
         </select>
       </div>
 
@@ -586,6 +605,102 @@ const MOTIVOS = [
   { id: 'feriado_extra', label: '📅 Feriado extraordinario' },
   { id: 'otro', label: '✏️ Otro' }
 ];
+
+function LecturaInteligente({ onAplicar }) {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [resultado, setResultado] = useState(null);
+  const [cursoElegidoIdx, setCursoElegidoIdx] = useState(0);
+  const [aplicado, setAplicado] = useState(false);
+
+  function interpretar() {
+    const r = interpretarTexto(texto);
+    setResultado(r);
+    setCursoElegidoIdx(0);
+    setAplicado(false);
+  }
+
+  function aplicar() {
+    const curso = resultado.candidatosCurso?.[cursoElegidoIdx] || resultado.curso;
+    onAplicar({ ...resultado, curso });
+    setAplicado(true);
+  }
+
+  function limpiar() {
+    setTexto(''); setResultado(null); setAplicado(false);
+  }
+
+  const cursoFinal = resultado?.candidatosCurso?.[cursoElegidoIdx] || null;
+  const hayAlgoDetectado = resultado && (resultado.curso || resultado.edicion || resultado.cantidad || resultado.horaTxt || resultado.diaDetectado || resultado.docente || resultado.staff);
+
+  return (
+    <div className="bg-gradient-to-br from-accentPurple/10 to-accentMagenta/10 border border-accentPurple/30 rounded-xl p-4 mb-4">
+      <button className="flex items-center justify-between w-full text-left" onClick={() => setAbierto((v) => !v)}>
+        <span className="text-sm font-semibold text-accentPurple">✨ Lectura inteligente</span>
+        <span className="text-textMuted text-xs">{abierto ? 'Ocultar ▲' : 'Usar ▼'}</span>
+      </button>
+      {abierto && (
+        <div className="mt-3">
+          <label className={labelCls}>Pegá la información del curso como la recibiste</label>
+          <textarea
+            value={texto} onChange={(e) => setTexto(e.target.value)} rows={2}
+            placeholder="ej: coaching ontologico 22 viernes 18 hs 48 alumnos profe Diego"
+            className={`${inputCls} mb-2`}
+          />
+          <div className="flex gap-2 mb-3">
+            <button className={btnCls} disabled={!texto.trim()} onClick={interpretar}>Interpretar</button>
+            {(texto || resultado) && <button className={btnSecCls} onClick={limpiar}>Limpiar</button>}
+          </div>
+
+          {resultado && !hayAlgoDetectado && (
+            <p className="text-xs text-textMuted">No pude identificar nada en ese texto — completá el formulario a mano.</p>
+          )}
+
+          {resultado && hayAlgoDetectado && (
+            <div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {cursoFinal ? (
+                  <ChipDetectado ok={cursoFinal.exacta} texto={`Curso: ${cursoFinal.nombre}`} />
+                ) : (
+                  <ChipDetectado ok={false} vacio texto="Curso: no identificado" />
+                )}
+                {resultado.edicion && <ChipDetectado ok texto={`Edición: ${resultado.edicion}`} />}
+                {resultado.cantidad != null && <ChipDetectado ok texto={`Cantidad: ${resultado.cantidad}`} />}
+                {resultado.horaTxt && <ChipDetectado ok texto={`Hora: ${resultado.horaTxt}`} />}
+                {resultado.diaDetectado && (
+                  <ChipDetectado ok={false} texto={`Día: ${resultado.diaDetectado} (fecha sugerida ${formatFechaCorta(resultado.fechaSugerida)}, revisá)`} />
+                )}
+                {resultado.docente && <ChipDetectado ok texto={`Docente: ${resultado.docente}`} />}
+                {resultado.staff && <ChipDetectado ok texto={`Staff: ${resultado.staff}`} />}
+              </div>
+
+              {resultado.candidatosCurso && resultado.candidatosCurso.length > 1 && (
+                <div className="mb-2">
+                  <label className={labelCls}>Encontré varias coincidencias — elegí la correcta</label>
+                  <select value={cursoElegidoIdx} onChange={(e) => setCursoElegidoIdx(parseInt(e.target.value, 10))} className={`${inputCls} max-w-xs`}>
+                    {resultado.candidatosCurso.map((c, i) => <option key={c.codigo} value={i}>{c.nombre}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <button className={btnCls} onClick={aplicar}>Aplicar al formulario</button>
+              {aplicado && <span className="text-xs text-successText ml-2">✓ Aplicado — revisá los campos de abajo antes de guardar.</span>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChipDetectado({ ok, vacio, texto }) {
+  if (vacio) return <span className="text-xs px-2.5 py-1 rounded-full bg-surface2 text-textMuted border border-border">— {texto}</span>;
+  return (
+    <span className={`text-xs px-2.5 py-1 rounded-full border ${ok ? 'bg-successBg text-successText border-successText/30' : 'bg-warningBg text-warningText border-warningText/30'}`}>
+      {ok ? '✓' : '⚠'} {texto}
+    </span>
+  );
+}
 
 function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
   const [paso, setPaso] = useState('menu');
