@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, minutosAHora, formatFechaCorta, esPasada, colorFormacion, ESTADOS
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, ESTADOS
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 
@@ -121,7 +121,8 @@ export default function CronogramaPage() {
   const { todas, totalSinFiltro } = useMemo(() => {
     const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => ({
       id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, tematica: c.tematica,
+      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
+      total: TOTALES[c.codigo], tematica: c.tematica,
       observaciones: c.observaciones, pasada: esPasada(c.fecha)
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía): se
@@ -129,7 +130,8 @@ export default function CronogramaPage() {
     // esté mirando (más abajo), y en la vista Lista aparecen con fecha "—".
     const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => ({
       id: c.id, fecha: '', dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, tematica: c.tematica,
+      edicion: c.numero, numero: c.numero, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
+      total: TOTALES[c.codigo], tematica: c.tematica,
       observaciones: c.observaciones, pasada: false, recurrente: true
     }));
     // Importante: las entradas históricas de tipo "Formación" quedan afuera acá — esas
@@ -444,22 +446,30 @@ function VistaMes({ todas, onClick }) {
 }
 
 function ModalDetalle({ item, onCerrar, puedeEditar }) {
+  const esFormacion = item.tipo === 'Formación';
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold mb-1">
-          {item.tipo === 'Formación' ? `${item.curso} ${item.edicion || ''}` : item.tipo}
+          {esFormacion ? `${item.curso} ${item.edicion || ''}` : item.tipo}
         </h3>
         <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>
         <div className="space-y-1.5 text-sm mb-4">
           <Fila label="Fecha" valor={formatFechaCorta(item.fecha)} />
           <Fila label="Horario" valor={item.horaMin != null ? minutosAHora(item.horaMin) : '—'} />
-          <Fila label="Sala" valor={item.sala || '—'} />
+          <Fila
+            label="Sala"
+            valor={item.sala ? <a href="/credenciales-zoom" className="text-infoText underline">{item.sala}</a> : '—'}
+          />
+          {esFormacion && item.numero && item.total && (
+            <Fila label="Clase" valor={`${item.numero} de ${item.total}`} />
+          )}
           <Fila label="Docente" valor={item.docente || '—'} />
-          <Fila label="Temática" valor={item.tematica || '—'} />
+          {esFormacion && <Fila label="Staff" valor={item.staff || '—'} />}
+          {!esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
           <Fila label="Observaciones" valor={item.observaciones || '—'} />
         </div>
-        {item.tipo === 'Formación' && puedeEditar && (
+        {esFormacion && puedeEditar && (
           <p className="text-xs text-textMuted mb-3">Para cambiar sala, postergar o cancelar esta clase, andá al módulo Salas Zoom.</p>
         )}
         <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>

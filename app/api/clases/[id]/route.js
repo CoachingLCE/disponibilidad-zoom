@@ -16,7 +16,7 @@ export const PATCH = conManejo(async (request, { params }) => {
   if (!tienePermisoEditarCronograma(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const id = decodeURIComponent(params.id);
-  const { nuevaSala, docente, tematica, observaciones } = await request.json();
+  const { nuevaSala, docente, staff, tematica, observaciones } = await request.json();
 
   const clases = await leerClases();
   const clase = clases.find((c) => c.id === id);
@@ -38,6 +38,7 @@ export const PATCH = conManejo(async (request, { params }) => {
     detalleAccion += `Sala: ${clase.sala} → ${nuevaSala}. `;
   }
   if (docente !== undefined) { patch.Docente = docente; detalleAccion += 'Docente actualizado. '; }
+  if (staff !== undefined) { patch.Staff = staff; detalleAccion += 'Staff actualizado. '; }
   if (tematica !== undefined) { patch.Tematica = tematica; detalleAccion += 'Temática actualizada. '; }
   if (observaciones !== undefined) { patch.Observaciones = observaciones; detalleAccion += 'Observaciones actualizadas. '; }
 

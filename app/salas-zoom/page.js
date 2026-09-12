@@ -532,7 +532,9 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
         )}
       </div>
       <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))' }}>
-        <div><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>
+        {!esFormacion && (
+          <div><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>
+        )}
         <div><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
       </div>
 
@@ -591,7 +593,7 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
   const [motivoId, setMotivoId] = useState('salud');
   const [obs, setObs] = useState('');
   const [docenteCampo, setDocenteCampo] = useState(clase.docente || '');
-  const [tematicaCampo, setTematicaCampo] = useState(clase.tematica || '');
+  const [staffCampo, setStaffCampo] = useState(clase.staff || '');
   const [observacionesCampo, setObservacionesCampo] = useState(clase.observaciones || '');
   const [err, setErr] = useState('');
 
@@ -600,7 +602,7 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
     try {
       const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ docente: docenteCampo, tematica: tematicaCampo, observaciones: observacionesCampo })
+        body: JSON.stringify({ docente: docenteCampo, staff: staffCampo, observaciones: observacionesCampo })
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error); return; }
@@ -674,8 +676,8 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
           <div>
             <label className={labelCls}>Docente</label>
             <input value={docenteCampo} onChange={(e) => setDocenteCampo(e.target.value)} className={`${inputCls} mb-2.5`} />
-            <label className={labelCls}>Temática</label>
-            <input value={tematicaCampo} onChange={(e) => setTematicaCampo(e.target.value)} className={`${inputCls} mb-2.5`} />
+            <label className={labelCls}>Staff</label>
+            <input value={staffCampo} onChange={(e) => setStaffCampo(e.target.value)} className={`${inputCls} mb-2.5`} />
             <label className={labelCls}>Observaciones</label>
             <input value={observacionesCampo} onChange={(e) => setObservacionesCampo(e.target.value)} className={`${inputCls} mb-3`} />
             <div className="flex gap-2">
