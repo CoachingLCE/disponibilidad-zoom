@@ -7,6 +7,7 @@ import { useSession } from '../lib/useSession';
 import ThemeSelector from './ThemeSelector';
 import AccionesRapidas from './AccionesRapidas';
 import CambiarPasswordModal from './CambiarPasswordModal';
+import Logo from './Logo';
 
 const LINKS = [
   { href: '/', label: 'Inicio' },
@@ -51,7 +52,10 @@ export default function Nav() {
   return (
     <div className="max-w-[1440px] mx-auto px-6 pt-4 no-print">
       <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-        <Link href="/" className="text-sm font-bold shrink-0">Cronograma ILCE</Link>
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <Logo height={28} />
+          <span className="text-sm font-bold text-textMuted">Cronograma</span>
+        </Link>
 
         <div className="flex items-center gap-2 shrink-0">
           <ThemeSelector />

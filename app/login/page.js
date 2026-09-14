@@ -2,6 +2,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
+import Logo from '../../components/Logo';
 
 export default function LoginPage() {
   return (
@@ -50,7 +51,7 @@ function LoginContenido() {
   return (
     <div className="flex justify-center pt-24 px-6 min-h-screen">
       <div className="w-80 bg-surface2 border border-border rounded-2xl p-7 h-fit">
-        <h2 className="text-center text-lg font-semibold mb-1">Cronograma ILCE</h2>
+        <div className="flex justify-center mb-3"><Logo height={44} /></div>
         <p className="text-center text-textSec text-sm mb-5">Ingresá con tu usuario y contraseña</p>
         {sesionVencida && (
           <div className="bg-infoBg text-infoText rounded-lg px-3 py-2.5 text-xs mb-4 text-center">
