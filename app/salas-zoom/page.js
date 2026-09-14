@@ -607,18 +607,22 @@ const MOTIVOS = [
 ];
 
 function LecturaInteligente({ onAplicar }) {
-  const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState('');
   const [resultado, setResultado] = useState(null);
   const [cursoElegidoIdx, setCursoElegidoIdx] = useState(0);
   const [aplicado, setAplicado] = useState(false);
 
-  function interpretar() {
-    const r = interpretarTexto(texto);
-    setResultado(r);
-    setCursoElegidoIdx(0);
-    setAplicado(false);
-  }
+  // Se interpreta solo, medio segundo después de que la persona deja de tipear/pegar — sin
+  // botón "Interpretar" de por medio, que era un paso extra que no aportaba nada.
+  useEffect(() => {
+    if (!texto.trim()) { setResultado(null); return; }
+    const id = setTimeout(() => {
+      setResultado(interpretarTexto(texto));
+      setCursoElegidoIdx(0);
+      setAplicado(false);
+    }, 500);
+    return () => clearTimeout(id);
+  }, [texto]);
 
   function aplicar() {
     const curso = resultado.candidatosCurso?.[cursoElegidoIdx] || resultado.curso;
@@ -634,59 +638,59 @@ function LecturaInteligente({ onAplicar }) {
   const hayAlgoDetectado = resultado && (resultado.curso || resultado.edicion || resultado.cantidad || resultado.horaTxt || resultado.diaDetectado || resultado.docente || resultado.staff);
 
   return (
-    <div className="bg-gradient-to-br from-accentPurple/10 to-accentMagenta/10 border border-accentPurple/30 rounded-xl p-4 mb-4">
-      <button className="flex items-center justify-between w-full text-left" onClick={() => setAbierto((v) => !v)}>
-        <span className="text-sm font-semibold text-accentPurple">✨ Lectura inteligente</span>
-        <span className="text-textMuted text-xs">{abierto ? 'Ocultar ▲' : 'Usar ▼'}</span>
-      </button>
-      {abierto && (
-        <div className="mt-3">
-          <label className={labelCls}>Pegá la información del curso como la recibiste</label>
-          <textarea
-            value={texto} onChange={(e) => setTexto(e.target.value)} rows={2}
-            placeholder="ej: coaching ontologico 22 viernes 18 hs 48 alumnos profe Diego"
-            className={`${inputCls} mb-2`}
-          />
-          <div className="flex gap-2 mb-3">
-            <button className={btnCls} disabled={!texto.trim()} onClick={interpretar}>Interpretar</button>
-            {(texto || resultado) && <button className={btnSecCls} onClick={limpiar}>Limpiar</button>}
+    <div className="bg-surface2 border border-border rounded-2xl p-4 mb-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-accentPurple text-base">✨</span>
+        <span className="text-sm font-semibold">Lectura inteligente</span>
+      </div>
+      <p className="text-textMuted text-xs mb-3">Pegá el texto tal cual te lo pasaron — completamos los campos solos, abajo los podés revisar y ajustar.</p>
+
+      <textarea
+        value={texto} onChange={(e) => setTexto(e.target.value)} rows={3}
+        placeholder={'Ej: coaching ontologico 22 viernes 18 hs 48 alumnos profe Diego'}
+        className={`${inputCls} mb-3`}
+      />
+
+      {texto.trim() && !resultado && (
+        <p className="text-textMuted text-xs mb-1">Analizando…</p>
+      )}
+
+      {resultado && !hayAlgoDetectado && (
+        <p className="text-xs text-textMuted">No pude identificar nada en ese texto — completá el formulario a mano.</p>
+      )}
+
+      {resultado && hayAlgoDetectado && (
+        <div>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {cursoFinal ? (
+              <ChipDetectado ok={cursoFinal.exacta} texto={`Curso: ${cursoFinal.nombre}`} />
+            ) : (
+              <ChipDetectado ok={false} vacio texto="Curso: no identificado" />
+            )}
+            {resultado.edicion && <ChipDetectado ok texto={`Edición: ${resultado.edicion}`} />}
+            {resultado.cantidad != null && <ChipDetectado ok texto={`Cantidad: ${resultado.cantidad}`} />}
+            {resultado.horaTxt && <ChipDetectado ok texto={`Hora: ${resultado.horaTxt}`} />}
+            {resultado.diaDetectado && (
+              <ChipDetectado ok={false} texto={`Día: ${resultado.diaDetectado} (fecha sugerida ${formatFechaCorta(resultado.fechaSugerida)}, revisá)`} />
+            )}
+            {resultado.docente && <ChipDetectado ok texto={`Docente: ${resultado.docente}`} />}
+            {resultado.staff && <ChipDetectado ok texto={`Staff: ${resultado.staff}`} />}
           </div>
 
-          {resultado && !hayAlgoDetectado && (
-            <p className="text-xs text-textMuted">No pude identificar nada en ese texto — completá el formulario a mano.</p>
-          )}
-
-          {resultado && hayAlgoDetectado && (
-            <div>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {cursoFinal ? (
-                  <ChipDetectado ok={cursoFinal.exacta} texto={`Curso: ${cursoFinal.nombre}`} />
-                ) : (
-                  <ChipDetectado ok={false} vacio texto="Curso: no identificado" />
-                )}
-                {resultado.edicion && <ChipDetectado ok texto={`Edición: ${resultado.edicion}`} />}
-                {resultado.cantidad != null && <ChipDetectado ok texto={`Cantidad: ${resultado.cantidad}`} />}
-                {resultado.horaTxt && <ChipDetectado ok texto={`Hora: ${resultado.horaTxt}`} />}
-                {resultado.diaDetectado && (
-                  <ChipDetectado ok={false} texto={`Día: ${resultado.diaDetectado} (fecha sugerida ${formatFechaCorta(resultado.fechaSugerida)}, revisá)`} />
-                )}
-                {resultado.docente && <ChipDetectado ok texto={`Docente: ${resultado.docente}`} />}
-                {resultado.staff && <ChipDetectado ok texto={`Staff: ${resultado.staff}`} />}
-              </div>
-
-              {resultado.candidatosCurso && resultado.candidatosCurso.length > 1 && (
-                <div className="mb-2">
-                  <label className={labelCls}>Encontré varias coincidencias — elegí la correcta</label>
-                  <select value={cursoElegidoIdx} onChange={(e) => setCursoElegidoIdx(parseInt(e.target.value, 10))} className={`${inputCls} max-w-xs`}>
-                    {resultado.candidatosCurso.map((c, i) => <option key={c.codigo} value={i}>{c.nombre}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <button className={btnCls} onClick={aplicar}>Aplicar al formulario</button>
-              {aplicado && <span className="text-xs text-successText ml-2">✓ Aplicado — revisá los campos de abajo antes de guardar.</span>}
+          {resultado.candidatosCurso && resultado.candidatosCurso.length > 1 && (
+            <div className="mb-3">
+              <label className={labelCls}>Encontré varias coincidencias — elegí la correcta</label>
+              <select value={cursoElegidoIdx} onChange={(e) => setCursoElegidoIdx(parseInt(e.target.value, 10))} className={`${inputCls} max-w-xs`}>
+                {resultado.candidatosCurso.map((c, i) => <option key={c.codigo} value={i}>{c.nombre}</option>)}
+              </select>
             </div>
           )}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button className={btnCls} onClick={aplicar}>Aplicar al formulario</button>
+            <button className={btnSecCls} onClick={limpiar}>Limpiar</button>
+            {aplicado && <span className="text-xs text-successText">✓ Aplicado — revisá los campos de abajo antes de guardar.</span>}
+          </div>
         </div>
       )}
     </div>
