@@ -1,12 +1,14 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, ESTADOS
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, ESTADOS, fechaToDia
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
+import { FECHAS_INICIO_REALES } from '../../lib/fechasInicioReales';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -150,13 +152,18 @@ export default function CronogramaPage() {
       id: c.id, fecha: '', dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.numero, numeroSesion: null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
       total: TOTALES[c.codigo], tematica: c.tematica,
+      // Sin fecha puntual todavía (horario semanal fijo) — como referencia se guarda la
+      // fecha de inicio real de la edición (confirmada a mano en fechasInicioReales.js),
+      // así la vista Lista puede mostrar algo útil en vez de "—" y ordenar razonablemente.
+      fechaInicioEdicion: FECHAS_INICIO_REALES[`${c.codigo}|${c.numero}`] || null,
       observaciones: c.observaciones, pasada: false, recurrente: true
     }));
     // Importante: las entradas históricas de tipo "Formación" quedan afuera acá — esas
     // clases YA están representadas en `deClasesConFecha`/`deClasesRecurrentes` (la fuente
     // real, con sala asignada). Si las mezclamos, la misma edición aparece dos veces.
     const deOtras = actividades.filter((a) => a.tipo !== 'Formación').map((a) => ({ ...a, duracion: 90, pasada: esPasada(a.fecha) }));
-    const completo = deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.horaMin || 0) - (a.horaMin || 0));
+    const claveOrden = (a) => a.fecha || a.fechaInicioEdicion || '';
+    const completo = deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)) || (b.horaMin || 0) - (a.horaMin || 0));
     let out = completo;
     if (filtroTipo) out = out.filter((a) => a.tipo === filtroTipo);
     if (filtroCurso) out = out.filter((a) => a.curso === filtroCurso);
@@ -223,14 +230,14 @@ export default function CronogramaPage() {
         </div>
         <div className="flex flex-col gap-2 items-end">
           {puedeEditar && (
-            <a href="/salas-zoom" className={btnCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
+            <Link href="/salas-zoom" className={btnCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
               Agregar actividad →
-            </a>
+            </Link>
           )}
           {puedePostergar && (
-            <a href="/salas-zoom" className={btnSecCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
+            <Link href="/salas-zoom" className={btnSecCls} style={{ textDecoration: 'none', display: 'inline-block' }}>
               Postergar clases →
-            </a>
+            </Link>
           )}
         </div>
       </div>
@@ -352,7 +359,7 @@ export default function CronogramaPage() {
             <table className="w-full min-w-[820px] text-xs border-collapse">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
-                  <th className="p-1.5">Fecha</th><th className="p-1.5">Tipo</th><th className="p-1.5">Curso/Edición</th>
+                  <th className="p-1.5">Fecha</th><th className="p-1.5">Tipo</th><th className="p-1.5">Curso</th><th className="p-1.5">Edición</th>
                   <th className="p-1.5">Horario</th><th className="p-1.5">Sala</th><th className="p-1.5">Docente</th>
                   <th className="p-1.5">Temática</th><th className="p-1.5">Observaciones</th>
                 </tr>
@@ -362,7 +369,13 @@ export default function CronogramaPage() {
                   const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
                   return (
                     <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha)]} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
-                      <td className="p-1.5">{formatFechaCorta(a.fecha)}</td>
+                      <td className="p-1.5">
+                        {a.fecha ? formatFechaCorta(a.fecha) : a.fechaInicioEdicion ? (
+                          <span title="Fecha de inicio de la edición (horario semanal fijo, sin clase puntual todavía)">
+                            {formatFechaCorta(a.fechaInicioEdicion)} <span className="text-textMuted text-[10px]">(inicio)</span>
+                          </span>
+                        ) : '—'}
+                      </td>
                       <td className="p-1.5">
                         <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
                           a.tipo === 'Formación' ? 'bg-successBg text-successText' : a.curso ? 'bg-infoBg text-infoText' : 'bg-surface2 text-textMuted'
@@ -373,9 +386,10 @@ export default function CronogramaPage() {
                       <td className="p-1.5">
                         <span className="flex items-center gap-1.5">
                           {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
-                          <span className={color ? color.text : ''}>{a.nombreCurso || '—'}{a.edicion ? ' · ' + a.edicion : ''}</span>
+                          <span className={color ? color.text : ''}>{a.nombreCurso || '—'}</span>
                         </span>
                       </td>
+                      <td className="p-1.5">{a.edicion || '—'}</td>
                       <td className="p-1.5">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
                       <td className="p-1.5">{a.sala || '—'}</td>
                       <td className="p-1.5">{a.docente || '—'}</td>
@@ -426,6 +440,18 @@ function VistaMes({ todas, onClick }) {
   const hoyISO = toISO(new Date());
   const porDia = {};
   todas.forEach((a) => { if (a.fecha) (porDia[a.fecha] = porDia[a.fecha] || []).push(a); });
+  // Las clases recurrentes (horario semanal fijo, sin fecha puntual todavía) no tienen
+  // filas por día en `todas` — hay que proyectarlas sobre cada día del mes que coincida
+  // con su día de semana, igual que ya se hace en la vista Calendario (semanal).
+  const recurrentes = todas.filter((a) => a.recurrente);
+  if (recurrentes.length) {
+    dias.forEach((f) => {
+      const diaSemana = fechaToDia(f);
+      recurrentes.filter((a) => a.dia === diaSemana).forEach((a) => {
+        (porDia[f] = porDia[f] || []).push({ ...a, fecha: f, pasada: f < hoyISO });
+      });
+    });
+  }
 
   return (
     <div>
@@ -478,7 +504,7 @@ function ModalDetalle({ item, onCerrar, puedeEditar }) {
           <Fila label="Horario" valor={item.horaMin != null ? minutosAHora(item.horaMin) : '—'} />
           <Fila
             label="Sala"
-            valor={item.sala ? <a href="/credenciales-zoom" className="text-infoText underline">{item.sala}</a> : '—'}
+            valor={item.sala ? <Link href="/credenciales-zoom" className="text-infoText underline">{item.sala}</Link> : '—'}
           />
           {idReunion && <Fila label="ID de reunión" valor={idReunion} />}
           {esFormacion && item.numeroSesion && item.total && (

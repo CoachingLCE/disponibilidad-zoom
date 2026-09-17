@@ -4,12 +4,7 @@ import { leerHistorialCompleto } from '../../../../lib/datosClases';
 import { enviarMail } from '../../../../lib/mailer';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoAccesos } from '../../../../lib/permisos';
-
-export const DESTINATARIOS_RESUMEN = [
-  { nombre: 'Sofía Salgueiro', email: 'sofia.salgueiro@institutoilce.com' },
-  { nombre: 'Jennifer Rebasti', email: 'jennifer.rebasti@institutoilce.com' },
-  { nombre: 'Macarena Zoe Juncos Abello', email: 'Macarena.Juncos@institutoilce.com' }
-];
+import { DESTINATARIOS_RESUMEN } from '../../../../lib/destinatariosResumen';
 
 const ACCIONES_RELEVANTES = ['Reservó', 'Postergó clase', 'Cambió sala', 'Canceló clase'];
 

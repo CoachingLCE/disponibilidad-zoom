@@ -8,6 +8,7 @@ import ThemeSelector from './ThemeSelector';
 import AccionesRapidas from './AccionesRapidas';
 import CambiarPasswordModal from './CambiarPasswordModal';
 import Logo from './Logo';
+import TourGuiado from './TourGuiado';
 
 const LINKS = [
   { href: '/', label: 'Inicio' },
@@ -21,6 +22,7 @@ const LINKS = [
   { href: '/info-tecnica', label: 'Info. técnica' },
   { href: '/incidencias', label: 'Incidencias' },
   { href: '/analisis', label: 'Análisis' },
+  { href: '/emails', label: 'Emails' },
   { href: '/accesos', label: 'Accesos', soloAdmin: true }
 ];
 
@@ -95,6 +97,7 @@ export default function Nav() {
       <AccionesRapidas />
 
       {cambiandoPassword && <CambiarPasswordModal onCerrar={() => setCambiandoPassword(false)} />}
+      <TourGuiado />
     </div>
   );
 }

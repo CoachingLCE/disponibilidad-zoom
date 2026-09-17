@@ -139,7 +139,7 @@ export default function InicioPage() {
         <p className="text-textSec text-sm">Cargando…</p>
       ) : (
         <>
-          <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+          <div data-tour="inicio-panel" className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
             <Metrica valor={agendaHoy.length} label="Clases hoy" />
             <Metrica
               valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
@@ -152,13 +152,13 @@ export default function InicioPage() {
             <Metrica valor={formacionesEnCurso} label="Formaciones activas" />
           </div>
 
-          <div className={sectionCls}>
+          <div data-tour="agenda-hoy" className={sectionCls}>
             <h2 className="text-sm font-semibold mb-1">Agenda de hoy</h2>
             <p className="text-xs text-textMuted mb-3">{formatFechaCorta(hoyISO)}</p>
             {agendaHoy.length === 0 ? (
               <p className="text-textSec text-sm py-2">Sin actividades cargadas para hoy.</p>
             ) : (
-              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
+              <div data-tour="tarjetas-clases" className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
                 {agendaHoy.map((a, i) => {
                   const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + 90;
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;

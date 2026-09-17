@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, ICONOS, NOMBRES, BUFFER_MIN, TOTALES,
@@ -59,8 +60,6 @@ export default function AnalisisPage() {
   const [feriados, setFeriados] = useState([]);
   const [postergaciones, setPostergaciones] = useState([]);
   const [historial, setHistorial] = useState([]);
-  const [enviandoResumen, setEnviandoResumen] = useState(false);
-  const [msgResumen, setMsgResumen] = useState(null);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
 
@@ -75,25 +74,6 @@ export default function AnalisisPage() {
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
 
-  const puedeAdmin = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
-
-  async function enviarResumenAhora() {
-    setEnviandoResumen(true);
-    setMsgResumen(null);
-    try {
-      const res = await fetchAutenticado('/api/cron/resumen-semanal', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) { setMsgResumen({ tipo: 'error', texto: data.error }); return; }
-      setMsgResumen({
-        tipo: data.enviado ? 'ok' : 'info',
-        texto: data.enviado ? `Mail enviado con ${data.cantidad} movimiento(s).` : data.motivo
-      });
-    } catch (err) {
-      setMsgResumen({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
-    } finally {
-      setEnviandoResumen(false);
-    }
-  }
 
   async function cargarDatos() {
     setCargandoDatos(true);
@@ -510,26 +490,14 @@ export default function AnalisisPage() {
             <p className="text-xs text-textSec mb-2">
               Cada lunes se manda un resumen automático con las clases creadas, postergadas, con cambio de sala o eliminadas de la semana, a:
             </p>
-            <ul className="text-xs text-textSec list-disc list-inside mb-3 space-y-0.5">
+            <ul className="text-xs text-textSec list-disc list-inside mb-1 space-y-0.5">
               <li>Sofía Salgueiro (sofia.salgueiro@institutoilce.com)</li>
               <li>Jennifer Rebasti (jennifer.rebasti@institutoilce.com)</li>
               <li>Macarena Zoe Juncos Abello (Macarena.Juncos@institutoilce.com)</li>
             </ul>
-            {puedeAdmin && (
-              <>
-                <button
-                  className="bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40"
-                  onClick={enviarResumenAhora} disabled={enviandoResumen}
-                >
-                  {enviandoResumen ? 'Enviando…' : 'Enviar resumen ahora (prueba)'}
-                </button>
-                {msgResumen && (
-                  <p className={`text-xs mt-2 ${msgResumen.tipo === 'error' ? 'text-dangerText' : msgResumen.tipo === 'ok' ? 'text-successText' : 'text-textSec'}`}>
-                    {msgResumen.texto}
-                  </p>
-                )}
-              </>
-            )}
+            <p className="text-[10.5px] text-textMuted">
+              Ver el detalle de todos los mails automáticos de la app en <Link href="/emails" className="underline">Emails</Link>.
+            </p>
           </div>
 
           <div className={boxCls}>

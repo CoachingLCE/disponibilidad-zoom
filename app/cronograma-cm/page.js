@@ -3,13 +3,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { TIPOS_CM, colorCM } from '../../lib/coloresCM';
-import { CAMPANAS_DEFAULT, ENLACES_DEFAULT } from '../../lib/cmDefaults';
+import { CAMPANAS_DEFAULT, ENLACES_DEFAULT, CATEGORIAS_RECURSOS, normalizarCategoria, labelCategoria } from '../../lib/cmDefaults';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
 const labelCls = 'text-xs text-textSec block mb-1 font-semibold';
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
+const chipToggleCls = (activo) => `text-[11px] font-semibold px-2.5 py-1 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
 const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'];
 const DIAS_LABEL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -58,9 +59,40 @@ export default function CronogramaCMPage() {
   const [enlaces, setEnlaces] = useState([]);
   const [notas, setNotas] = useState([]);
   const [nuevaCampana, setNuevaCampana] = useState({ titulo: '', fecha: '', descripcion: '' });
-  const [nuevoEnlace, setNuevoEnlace] = useState({ categoria: '', titulo: '', url: '' });
+  const [nuevoEnlace, setNuevoEnlace] = useState({ categoria: CATEGORIAS_RECURSOS[0].id, titulo: '', url: '', descripcion: '' });
+  const [mostrarFormRecurso, setMostrarFormRecurso] = useState(false);
+  const [editandoEnlace, setEditandoEnlace] = useState(null);
+  const [busquedaRecursos, setBusquedaRecursos] = useState('');
+  const [categoriaRecursos, setCategoriaRecursos] = useState('');
+  const [clicsRecursos, setClicsRecursos] = useState({});
+  const [copiadoId, setCopiadoId] = useState(null);
   const [nuevaNota, setNuevaNota] = useState('');
   const [colorNota, setColorNota] = useState('amarillo');
+  const [verCampanasPasadas, setVerCampanasPasadas] = useState(false);
+
+  // Cuántas veces se clickeó "Abrir" cada recurso, guardado en este navegador — sirve
+  // para armar "Más utilizados" con datos reales de uso (no es un contador compartido
+  // entre todo el equipo, solo de quien está mirando esta pantalla).
+  useEffect(() => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem('ilce_recursos_clics') || '{}');
+      setClicsRecursos(guardado);
+    } catch { /* localStorage no disponible — se sigue sin contador */ }
+  }, []);
+  function registrarClicRecurso(titulo) {
+    setClicsRecursos((prev) => {
+      const next = { ...prev, [titulo]: (prev[titulo] || 0) + 1 };
+      try { localStorage.setItem('ilce_recursos_clics', JSON.stringify(next)); } catch { /* ignorar */ }
+      return next;
+    });
+  }
+  async function copiarEnlace(url, id) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiadoId(id);
+      setTimeout(() => setCopiadoId((p) => (p === id ? null : p)), 1500);
+    } catch { /* portapapeles no disponible */ }
+  }
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) { cargar(); cargarExtras(); } }, [usuario]);
@@ -96,15 +128,39 @@ export default function CronogramaCMPage() {
   // ya no dependen de que se hayan importado bien al Sheet. Lo que se agregue desde la
   // app (formulario de abajo) se suma sin duplicar lo fijo.
   const campanasCombinadas = useMemo(() => {
+    const hoyISO = new Date().toISOString().slice(0, 10);
     const titulosSheet = new Set(campanas.map((c) => c.titulo));
     const fijas = CAMPANAS_DEFAULT.filter((c) => !titulosSheet.has(c.titulo)).map((c, i) => ({ ...c, id: `fijo-camp-${i}`, esFijo: true }));
-    return [...fijas, ...campanas];
+    return [...fijas, ...campanas].map((c) => ({ ...c, pasada: !!c.fecha && c.fecha < hoyISO }));
   }, [campanas]);
+  const campanasVisibles = useMemo(
+    () => verCampanasPasadas ? campanasCombinadas : campanasCombinadas.filter((c) => !c.pasada),
+    [campanasCombinadas, verCampanasPasadas]
+  );
+  const cantidadPasadas = campanasCombinadas.filter((c) => c.pasada).length;
   const enlacesCombinados = useMemo(() => {
     const titulosSheet = new Set(enlaces.map((e) => e.titulo));
     const fijos = ENLACES_DEFAULT.filter((e) => !titulosSheet.has(e.titulo)).map((e, i) => ({ ...e, id: `fijo-link-${i}`, esFijo: true }));
-    return [...fijos, ...enlaces];
+    return [...fijos, ...enlaces].map((e) => ({ ...e, categoriaId: normalizarCategoria(e.categoria) }));
   }, [enlaces]);
+  const enlacesFiltrados = useMemo(() => {
+    const q = busquedaRecursos.trim().toLowerCase();
+    return enlacesCombinados.filter((e) => {
+      if (categoriaRecursos && e.categoriaId !== categoriaRecursos) return false;
+      if (!q) return true;
+      return e.titulo.toLowerCase().includes(q) || labelCategoria(e.categoriaId).toLowerCase().includes(q);
+    });
+  }, [enlacesCombinados, busquedaRecursos, categoriaRecursos]);
+  // "Más utilizados": primero los que ya tienen clics reales registrados en este navegador
+  // (ordenados por cantidad), y si todavía no hay ninguno, arrancan los marcados como
+  // destacados a mano — así la sección nunca aparece vacía el primer día.
+  const masUtilizados = useMemo(() => {
+    const conClics = enlacesCombinados.filter((e) => clicsRecursos[e.titulo] > 0)
+      .sort((a, b) => (clicsRecursos[b.titulo] || 0) - (clicsRecursos[a.titulo] || 0));
+    if (conClics.length >= 4) return conClics.slice(0, 6);
+    const destacados = enlacesCombinados.filter((e) => e.destacado && !conClics.includes(e));
+    return [...conClics, ...destacados].slice(0, 6);
+  }, [enlacesCombinados, clicsRecursos]);
 
   async function agregarCampana() {
     if (!nuevaCampana.titulo.trim()) return;
@@ -122,7 +178,22 @@ export default function CronogramaCMPage() {
     const res = await fetchAutenticado('/api/cronograma-cm/enlaces', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevoEnlace)
     });
-    if (res.ok) { setNuevoEnlace({ categoria: '', titulo: '', url: '' }); cargarExtras(); }
+    if (res.ok) {
+      setNuevoEnlace({ categoria: CATEGORIAS_RECURSOS[0].id, titulo: '', url: '', descripcion: '' });
+      setMostrarFormRecurso(false);
+      cargarExtras();
+    }
+  }
+  async function guardarEdicionEnlace() {
+    if (!editandoEnlace || !editandoEnlace.titulo.trim()) return;
+    const res = await fetchAutenticado(`/api/cronograma-cm/enlaces/${encodeURIComponent(editandoEnlace.id)}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        categoria: editandoEnlace.categoria, titulo: editandoEnlace.titulo,
+        url: editandoEnlace.url, descripcion: editandoEnlace.descripcion
+      })
+    });
+    if (res.ok) { setEditandoEnlace(null); cargarExtras(); }
   }
   async function eliminarEnlace(id) {
     const res = await fetchAutenticado(`/api/cronograma-cm/enlaces/${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -299,13 +370,23 @@ export default function CronogramaCMPage() {
       </div>
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">📅 Campañas 2026</h2>
-        {campanasCombinadas.length === 0 ? <p className="text-textSec text-sm mb-3">Sin campañas cargadas.</p> : (
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <h2 className="text-sm font-semibold">📅 Campañas 2026</h2>
+          <div className="flex gap-1.5">
+            <button className={chipToggleCls(!verCampanasPasadas)} onClick={() => setVerCampanasPasadas(false)}>Vigentes</button>
+            <button className={chipToggleCls(verCampanasPasadas)} onClick={() => setVerCampanasPasadas(true)}>Todas{cantidadPasadas > 0 ? ` (+${cantidadPasadas} pasadas)` : ''}</button>
+          </div>
+        </div>
+        {campanasVisibles.length === 0 ? <p className="text-textSec text-sm mb-3">{verCampanasPasadas ? 'Sin campañas cargadas.' : 'No hay campañas vigentes — mirá "Todas" para ver las que ya pasaron.'}</p> : (
           <div className="flex flex-col gap-2 mb-3">
-            {campanasCombinadas.map((c) => (
-              <div key={c.id} className="bg-bg border border-border rounded-lg px-3 py-2 flex items-start justify-between gap-3">
+            {campanasVisibles.map((c) => (
+              <div key={c.id} className={`bg-bg border border-border rounded-lg px-3 py-2 flex items-start justify-between gap-3 ${c.pasada ? 'opacity-60' : ''}`}>
                 <div>
-                  <p className="text-sm font-semibold">{c.titulo}{c.fecha && <span className="text-textMuted font-normal"> — {c.fecha.split('-').reverse().slice(0, 2).join('/')}</span>}</p>
+                  <p className="text-sm font-semibold flex items-center gap-2 flex-wrap">
+                    {c.titulo}
+                    {c.fecha && <span className="text-textMuted font-normal"> — {c.fecha.split('-').reverse().slice(0, 2).join('/')}</span>}
+                    {c.pasada && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface2 text-textMuted border border-border">Ya pasó</span>}
+                  </p>
                   {c.descripcion && <p className="text-xs text-textSec mt-0.5">{c.descripcion}</p>}
                 </div>
                 {puedeEditarCM && !c.esFijo && <button className={btnSecCls} onClick={() => eliminarCampana(c.id)}>Eliminar</button>}
@@ -326,35 +407,103 @@ export default function CronogramaCMPage() {
       </div>
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">🔗 Enlaces y recursos útiles</h2>
-        {[...new Set(enlacesCombinados.map((e) => e.categoria))].map((cat) => (
-          <div key={cat} className="mb-3">
-            <p className="text-xs font-semibold text-textSec mb-1.5">{cat}</p>
-            <div className="flex flex-col gap-1">
-              {enlacesCombinados.filter((e) => e.categoria === cat).map((e) => (
-                <div key={e.id} className="flex items-center justify-between gap-2 text-xs">
-                  {e.url ? (
-                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-infoText hover:underline truncate">{e.titulo}</a>
-                  ) : (
-                    <span className="text-textMuted truncate">{e.titulo}</span>
-                  )}
-                  {puedeEditarCM && !e.esFijo && <button className="text-textMuted shrink-0" onClick={() => eliminarEnlace(e.id)}>✕</button>}
-                </div>
-              ))}
-            </div>
+        <div className="flex items-start justify-between flex-wrap gap-3 mb-1">
+          <div>
+            <h2 className="text-base font-semibold">Centro de recursos</h2>
+            <p className="text-xs text-textSec mt-0.5">Encontrá, compartí y gestioná los recursos de ILCE.</p>
           </div>
-        ))}
-        {puedeEditarCM && (
-          <div className="border-t border-border pt-3">
-            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
-              <input placeholder="Categoría" value={nuevoEnlace.categoria} onChange={(e) => setNuevoEnlace((p) => ({ ...p, categoria: e.target.value }))} className={inputCls} />
+          {puedeEditarCM && (
+            <button className={btnCls} onClick={() => setMostrarFormRecurso((v) => !v)}>+ Agregar recurso</button>
+          )}
+        </div>
+
+        <div className="relative my-3">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted text-sm">🔎</span>
+          <input
+            placeholder="Buscar recurso..."
+            value={busquedaRecursos}
+            onChange={(e) => setBusquedaRecursos(e.target.value)}
+            className={`${inputCls} pl-8`}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          <button className={chipToggleCls(categoriaRecursos === '')} onClick={() => setCategoriaRecursos('')}>Todas</button>
+          {CATEGORIAS_RECURSOS.map((c) => (
+            <button key={c.id} className={chipToggleCls(categoriaRecursos === c.id)} onClick={() => setCategoriaRecursos(c.id)}>{c.label}</button>
+          ))}
+        </div>
+
+        {puedeEditarCM && mostrarFormRecurso && (
+          <div className="bg-bg border border-border rounded-xl p-3 mb-4">
+            <p className="text-xs font-semibold mb-2">Nuevo recurso</p>
+            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+              <select value={nuevoEnlace.categoria} onChange={(e) => setNuevoEnlace((p) => ({ ...p, categoria: e.target.value }))} className={inputCls}>
+                {CATEGORIAS_RECURSOS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
               <input placeholder="Título" value={nuevoEnlace.titulo} onChange={(e) => setNuevoEnlace((p) => ({ ...p, titulo: e.target.value }))} className={inputCls} />
               <input placeholder="URL" value={nuevoEnlace.url} onChange={(e) => setNuevoEnlace((p) => ({ ...p, url: e.target.value }))} className={inputCls} />
             </div>
-            <button className={btnSecCls} onClick={agregarEnlace}>+ Agregar enlace</button>
+            <input placeholder="Descripción (opcional)" value={nuevoEnlace.descripcion} onChange={(e) => setNuevoEnlace((p) => ({ ...p, descripcion: e.target.value }))} className={`${inputCls} mb-2`} />
+            <div className="flex gap-2">
+              <button className={btnSecCls} onClick={() => setMostrarFormRecurso(false)}>Cancelar</button>
+              <button className={btnCls} onClick={agregarEnlace}>Guardar recurso</button>
+            </div>
+          </div>
+        )}
+
+        {!busquedaRecursos && masUtilizados.length > 0 && (
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-textSec mb-2">⭐ Más utilizados</p>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))' }}>
+              {masUtilizados.map((e) => (
+                <TarjetaRecurso
+                  key={'destacado-' + e.id} e={e} puedeEditarCM={puedeEditarCM} copiadoId={copiadoId}
+                  onAbrir={() => registrarClicRecurso(e.titulo)} onCopiar={() => copiarEnlace(e.url, 'destacado-' + e.id)}
+                  onEditar={() => setEditandoEnlace(e)} onEliminar={() => eliminarEnlace(e.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {enlacesFiltrados.length === 0 ? (
+          <p className="text-textSec text-sm">Ningún recurso coincide con la búsqueda.</p>
+        ) : (
+          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))' }}>
+            {enlacesFiltrados.map((e) => (
+              <TarjetaRecurso
+                key={e.id} e={e} puedeEditarCM={puedeEditarCM} copiadoId={copiadoId}
+                onAbrir={() => registrarClicRecurso(e.titulo)} onCopiar={() => copiarEnlace(e.url, e.id)}
+                onEditar={() => setEditandoEnlace(e)} onEliminar={() => eliminarEnlace(e.id)}
+              />
+            ))}
           </div>
         )}
       </div>
+
+      {editandoEnlace && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setEditandoEnlace(null)}>
+          <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-3">Editar recurso</h3>
+            <div className="flex flex-col gap-2.5 mb-3">
+              <div>
+                <label className={labelCls}>Categoría</label>
+                <select value={editandoEnlace.categoria} onChange={(e) => setEditandoEnlace((p) => ({ ...p, categoria: e.target.value }))} className={inputCls}>
+                  {CATEGORIAS_RECURSOS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+              </div>
+              <div><label className={labelCls}>Título</label><input value={editandoEnlace.titulo} onChange={(e) => setEditandoEnlace((p) => ({ ...p, titulo: e.target.value }))} className={inputCls} /></div>
+              <div><label className={labelCls}>URL</label><input value={editandoEnlace.url} onChange={(e) => setEditandoEnlace((p) => ({ ...p, url: e.target.value }))} className={inputCls} /></div>
+              <div><label className={labelCls}>Descripción (opcional)</label><input value={editandoEnlace.descripcion || ''} onChange={(e) => setEditandoEnlace((p) => ({ ...p, descripcion: e.target.value }))} className={inputCls} /></div>
+            </div>
+            <div className="flex gap-2">
+              <button className={btnSecCls} onClick={() => setEditandoEnlace(null)}>Cancelar</button>
+              <button className={btnCls} onClick={guardarEdicionEnlace}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">📝 Notas</h2>
@@ -401,6 +550,37 @@ export default function CronogramaCMPage() {
           onCambio={cargar}
         />
       )}
+    </div>
+  );
+}
+
+function TarjetaRecurso({ e, puedeEditarCM, copiadoId, onAbrir, onCopiar, onEditar, onEliminar }) {
+  const copiado = copiadoId != null;
+  return (
+    <div className="group relative bg-bg border border-border rounded-xl p-3 flex flex-col gap-1.5">
+      <span className="text-[10px] font-semibold text-textMuted">{labelCategoria(e.categoriaId)}</span>
+      <p className="text-sm font-semibold truncate" title={e.titulo}>{e.titulo}</p>
+      {e.descripcion && <p className="text-[11px] text-textSec line-clamp-2">{e.descripcion}</p>}
+      <div className="flex items-center justify-between gap-2 mt-1.5">
+        {e.url ? (
+          <a href={e.url} target="_blank" rel="noopener noreferrer" onClick={onAbrir} className="text-infoText text-xs font-semibold hover:underline">
+            Abrir →
+          </a>
+        ) : <span className="text-textMuted text-xs">Sin URL</span>}
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {puedeEditarCM && !e.esFijo && (
+            <button title="Editar" className="text-textMuted hover:text-text text-xs" onClick={onEditar}>✎</button>
+          )}
+          {e.url && (
+            <button title="Copiar enlace" className="text-textMuted hover:text-text text-xs" onClick={onCopiar}>
+              {copiado ? '✓' : '⧉'}
+            </button>
+          )}
+          {puedeEditarCM && !e.esFijo && (
+            <button title="Eliminar" className="text-textMuted hover:text-dangerText text-xs" onClick={onEliminar}>✕</button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

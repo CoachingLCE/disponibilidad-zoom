@@ -15,7 +15,7 @@ export default function FormacionesPage() {
   const [formacionesManual, setFormacionesManual] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
-  const [filtro, setFiltro] = useState('todas');
+  const [filtro, setFiltro] = useState('enCurso');
   const [filtroCurso, setFiltroCurso] = useState('');
   const [filtroCuatrimestre, setFiltroCuatrimestre] = useState('');
 
