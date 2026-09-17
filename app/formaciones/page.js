@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { ICONOS, NOMBRES, formatFechaCorta, calcularFormaciones, colorFormacion, ESTADOS, calcularFechaFinCurso, claseActualPorFecha } from '../../lib/salasLogic';
+import { ICONOS, NOMBRES, TOTALES, formatFechaCorta, calcularFormaciones, colorFormacion, ESTADOS, calcularFechaFinCurso, claseActualPorFecha } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { FECHAS_INICIO_REALES } from '../../lib/fechasInicioReales';
 
@@ -126,7 +126,10 @@ export default function FormacionesPage() {
       .filter(([key]) => !presentes.has(key))
       .map(([key, historico]) => {
         const [codigo, numero] = key.split('|');
-        const total = historico.total || null;
+        // Si el histórico no trae total (típico de una edición que todavía no arrancó y
+        // por eso nunca se cargó ninguna clase suya), se usa el total fijo del curso — antes
+        // esto hacía que la tarjeta se descartara entera y la edición nunca apareciera.
+        const total = historico.total || TOTALES[codigo] || null;
         if (!total) return null; // sin total no se puede estimar nada con confianza
         const fechaFinalEstimada = calcularFechaFinCurso(codigo, historico.fechaInicio, total);
         const cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(codigo, historico.fechaInicio, total, hoyISO) || 0);
@@ -145,6 +148,12 @@ export default function FormacionesPage() {
       .filter(Boolean);
 
     return [...enriquecidas, ...soloHistoricas].map((f) => {
+      // Una edición con fecha de inicio confirmada pero que todavía no arrancó (fecha en
+      // el futuro) es "Próximamente" — antes se la mostraba como "En proceso" con progreso
+      // en 0% (o directamente no aparecía, ver el fallback de total más arriba).
+      if (f.estado !== 'Finalizó' && f.fechaInicio && f.fechaInicio > hoyISO) {
+        f = { ...f, estado: 'Próximamente', cargadas: 0, pct: 0, proximaTxt: `Comienza ${formatFechaCorta(f.fechaInicio)}` };
+      }
       // Vencimiento del proceso de certificación: 1 mes después de finalizar para
       // formaciones cortas (16 clases). Para Coaching Ontológico son 4 meses hasta la
       // edición 29 y 2 meses desde la edición 30 en adelante (cambio de política real,
@@ -164,6 +173,7 @@ export default function FormacionesPage() {
     let out = formaciones;
     if (filtro === 'enCurso') out = out.filter((f) => f.estado === 'En proceso');
     else if (filtro === 'porFinalizar') out = out.filter((f) => f.estado === 'En proceso' && f.pct != null && f.pct >= 85);
+    else if (filtro === 'proximamente') out = out.filter((f) => f.estado === 'Próximamente');
     else if (filtro === 'finalizadas') out = out.filter((f) => f.estado === 'Finalizó');
     if (filtroCurso) out = out.filter((f) => f.codigo === filtroCurso);
     if (filtroCuatrimestre) out = out.filter((f) => f.cuatrimestre === parseInt(filtroCuatrimestre, 10));
@@ -185,6 +195,7 @@ export default function FormacionesPage() {
         <button className={chipCls(filtro === 'todas')} onClick={() => setFiltro('todas')}>Todas</button>
         <button className={chipCls(filtro === 'enCurso')} onClick={() => setFiltro('enCurso')}>En curso</button>
         <button className={chipCls(filtro === 'porFinalizar')} onClick={() => setFiltro('porFinalizar')}>Próximas a finalizar</button>
+        <button className={chipCls(filtro === 'proximamente')} onClick={() => setFiltro('proximamente')}>Próximamente</button>
         <button className={chipCls(filtro === 'finalizadas')} onClick={() => setFiltro('finalizadas')}>Finalizadas</button>
       </div>
       <div className="flex flex-wrap gap-1.5 mb-5">
@@ -212,7 +223,7 @@ export default function FormacionesPage() {
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))' }}>
           {filtradas.map((f) => {
             const color = colorFormacion(f.codigo);
-            const estado = f.estado === 'Finalizó' ? ESTADOS.finalizada : ESTADOS.normal;
+            const estado = f.estado === 'Finalizó' ? ESTADOS.finalizada : f.estado === 'Próximamente' ? ESTADOS.proximamente : ESTADOS.normal;
             return (
               <div key={f.codigo + f.edicion} className={`bg-surface2 border-l-4 ${color.border} border-t border-r border-b border-border rounded-xl p-4`}>
                 <div className="flex items-center justify-between mb-1">

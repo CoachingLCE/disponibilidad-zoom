@@ -515,8 +515,23 @@ function ModalDetalle({ item, onCerrar, puedeEditar }) {
           {!esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
           <Fila label="Observaciones" valor={item.observaciones || '—'} />
         </div>
-        {esFormacion && puedeEditar && (
-          <p className="text-xs text-textMuted mb-3">Para cambiar sala, postergar o cancelar esta clase, andá al módulo Salas Zoom.</p>
+        {puedeEditar && (
+          <div className="flex flex-col gap-2 mb-3">
+            {esFormacion && (
+              <Link
+                href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
+                className={`${btnSecCls} text-center`}
+              >
+                🔁 Cambiar sala, postergar o cancelar esta clase →
+              </Link>
+            )}
+            <Link
+              href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
+              className={`${btnCls} text-center`}
+            >
+              + Agregar actividad →
+            </Link>
+          </div>
         )}
         <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
       </div>
