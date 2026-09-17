@@ -18,7 +18,7 @@ const ACCESOS_RAPIDOS = [
 
 const RECURSOS_INSTITUCIONALES = [
   { icono: GraduationCap, nombre: 'Campus ILCE', url: 'https://campus.institutoilce.com/' },
-  { icono: DollarSign, nombre: 'Valores de los cursos', url: 'https://www.coachingeducativolider.com/productos-y-valores' },
+  { icono: DollarSign, nombre: 'Valores de los cursos', url: 'https://seguimiento-lead-estudiante.vercel.app/productos-valores' },
   { icono: FileText, nombre: 'Manual académico', url: 'https://www.coachingeducativolider.com/manualacad%C3%A9mico' },
   { icono: Github, nombre: 'Repositorio del proyecto', url: 'https://github.com/CoachingLCE/disponibilidad-zoom' }
 ];

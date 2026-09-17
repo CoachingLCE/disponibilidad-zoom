@@ -8,6 +8,7 @@ import {
   agruparParaVista, calcularAlertas, calcularConflictosDetalle, minutosAHora, colorFormacion
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
+import { tienePermisoAuditoria } from '../../lib/permisos';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border whitespace-nowrap ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
@@ -70,6 +71,8 @@ export default function AnalisisPage() {
   const [filtroSala, setFiltroSala] = useState('');
   const [filtroFormacion, setFiltroFormacion] = useState('');
   const [filtroDocente, setFiltroDocente] = useState('');
+
+  const puedeVerDetalleCompleto = tienePermisoAuditoria(usuario);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -502,7 +505,9 @@ export default function AnalisisPage() {
 
           <div className={boxCls}>
             <h2 className="text-sm font-semibold mb-3">Historial reciente</h2>
-            {historial.length === 0 ? <p className="text-textSec text-sm">Todavía no hay movimientos registrados.</p> : (
+            {!puedeVerDetalleCompleto ? (
+              <p className="text-textMuted text-sm py-2">🔒 El detalle completo del historial de acciones es visible solo para Admin/SuperAdmin. Podés verlo completo (con filtros y exportación) en <Link href="/auditoria" className="underline">Auditoría</Link> si tenés acceso.</p>
+            ) : historial.length === 0 ? <p className="text-textSec text-sm">Todavía no hay movimientos registrados.</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">
                   <thead><tr className="border-b border-border text-textSec text-left"><th className="p-1.5">Cuándo</th><th className="p-1.5">Quién</th><th className="p-1.5">Acción</th><th className="p-1.5">Detalle</th></tr></thead>
@@ -518,6 +523,9 @@ export default function AnalisisPage() {
                   </tbody>
                 </table>
               </div>
+            )}
+            {puedeVerDetalleCompleto && (
+              <p className="text-textMuted text-[10.5px] mt-2">Ver el historial completo, con filtros y exportación, en <Link href="/auditoria" className="underline">Auditoría</Link>.</p>
             )}
           </div>
         </>

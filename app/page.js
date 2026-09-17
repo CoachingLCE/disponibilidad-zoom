@@ -1,16 +1,35 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from '../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS, calcularEdicionesFinalizadas,
-  calcularNumeroSesion
+  calcularNumeroSesion, toISO
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
+import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
 
 const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
+
+/** Lunes y domingo (ISO) de la semana que contiene `fechaBase`. */
+function rangoSemana(fechaBase) {
+  const d = new Date(fechaBase);
+  const diaSemana = d.getDay(); // 0=domingo..6=sábado
+  const diffALunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+  const lunes = new Date(d);
+  lunes.setDate(d.getDate() + diffALunes);
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  return { inicio: toISO(lunes), fin: toISO(domingo) };
+}
+
+function diaCapitalizado(dia) {
+  if (!dia) return '';
+  return dia.charAt(0) + dia.slice(1).toLowerCase();
+}
 
 export default function InicioPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
@@ -21,6 +40,7 @@ export default function InicioPage() {
   const [actividades, setActividades] = useState([]);
   const [postergaciones, setPostergaciones] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [seleccionado, setSeleccionado] = useState(null);
 
   useEffect(() => {
     if (!cargando && !usuario) router.push('/login');
@@ -96,23 +116,29 @@ export default function InicioPage() {
     // no mostrar "Clase 51 de 48" para la edición 51.
     const sesionPorId = calcularNumeroSesion(clases);
 
+    // OJO: el campo Edicion de la clase quedó pisado en "1" desde que se armó el Sheet —
+    // el número de edición real que el staff sí actualiza es el campo Numero (mismo
+    // criterio ya usado en Cronograma). Por eso acá edicion se toma de c.numero.
     const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => ({
-      fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.edicion, numero: c.numero, numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
-      horaMin: c.horaMin, sala: c.sala, esFormacion: true
+      id: c.id, fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
+      edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
+      horaMin: c.horaMin, sala: c.sala, esFormacion: true,
+      docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
     // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
     const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => ({
-      fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.edicion, numero: c.numero, numeroSesion: null, total: TOTALES[c.codigo] || null,
-      horaMin: c.horaMin, sala: c.sala, esFormacion: true
+      id: c.id, fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
+      edicion: c.numero, numeroSesion: null, total: TOTALES[c.codigo] || null,
+      horaMin: c.horaMin, sala: c.sala, esFormacion: true,
+      docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
     })).filter((c) => c.fecha);
     // Mismo criterio que en Cronograma: las Formación históricas se excluyen acá,
     // porque ya están representadas (con sala real) en deClases.
     const deOtras = actividades.filter((a) => a.fecha && a.tipo !== 'Formación').map((a) => ({
-      fecha: a.fecha, dia: a.dia, curso: '', nombreCurso: a.nombreCurso || a.tipo,
-      edicion: '', numero: '', horaMin: a.horaMin, sala: '', esFormacion: false
+      id: a.id, fecha: a.fecha, dia: a.dia, curso: '', nombreCurso: a.nombreCurso || a.tipo, tipo: a.tipo,
+      edicion: '', numero: '', horaMin: a.horaMin, sala: a.sala || '', esFormacion: false,
+      docente: a.docente || '', tematica: a.tematica || '', observaciones: a.observaciones || ''
     }));
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades, edicionesFinalizadas]);
@@ -120,7 +146,19 @@ export default function InicioPage() {
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
   const proximas = actividadesTodas
     .filter((a) => a.fecha > hoyISO || (a.fecha === hoyISO && a.horaMin != null && a.horaMin > horaActual))
-    .slice(0, 8);
+    .slice(0, 20);
+
+  // Ediciones cuya última clase (Nº total) cae dentro de la semana actual (lunes a domingo).
+  const { inicio: inicioSemana, fin: finSemana } = rangoSemana(ahora);
+  const sesionPorIdSemana = calcularNumeroSesion(clases);
+  const formacionesFinalizanSemana = clases
+    .filter((c) => c.fecha && c.fecha >= inicioSemana && c.fecha <= finSemana)
+    .filter((c) => TOTALES[c.codigo] && sesionPorIdSemana[c.id] === TOTALES[c.codigo])
+    .map((c) => ({
+      codigo: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo, edicion: c.numero,
+      total: TOTALES[c.codigo], fecha: c.fecha, dia: c.dia, horaMin: c.horaMin, sala: c.sala
+    }))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   const proximaClase = agendaHoy.find((a) => a.horaMin > horaActual) || proximas[0] || null;
   const formacionesEnCurso = formaciones.filter((f) => f.estado === 'En proceso').length;
 
@@ -163,7 +201,8 @@ export default function InicioPage() {
                   const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + 90;
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;
                   return (
-                    <div key={i} className={`border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3`}>
+                    <button key={i} onClick={() => setSeleccionado(a)}
+                      className={`text-left border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3 transition-colors hover:border-accentTeal/60 hover:bg-bg/40`}>
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <span className="font-mono text-xs text-textSec">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
                         {enCurso && (
@@ -178,16 +217,46 @@ export default function InicioPage() {
                       </div>
                       {a.esFormacion && a.edicion && (
                         <p className="text-xs text-textMuted">
-                          {a.curso} {a.edicion}{a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}
+                          <span className="text-textSec font-semibold">Curso:</span> {a.curso}
+                          <span className="mx-1.5">·</span>
+                          <span className="text-textSec font-semibold">Edición:</span> {a.edicion}
                         </p>
                       )}
+                      {a.esFormacion && a.numeroSesion && a.total && (
+                        <p className="text-xs text-textMuted">Clase {a.numeroSesion} de {a.total}</p>
+                      )}
                       {a.sala && <p className="text-xs text-textMuted">{a.sala}</p>}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             )}
           </div>
+
+          {formacionesFinalizanSemana.length > 0 && (
+            <div className={sectionCls}>
+              <h2 className="text-sm font-semibold mb-1">Formaciones que finalizan esta semana</h2>
+              <p className="text-xs text-textMuted mb-3">{formatFechaCorta(inicioSemana)} al {formatFechaCorta(finSemana)}</p>
+              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
+                {formacionesFinalizanSemana.map((f, i) => {
+                  const color = colorFormacion(f.codigo);
+                  return (
+                    <div key={i} className={`border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3`}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
+                        <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[f.codigo] || ''} {f.nombreCurso}</span>
+                      </div>
+                      <p className="text-xs text-textMuted">
+                        <span className="text-textSec font-semibold">Edición:</span> {f.edicion}
+                      </p>
+                      <p className="text-xs text-textMuted">Clase {f.total} de {f.total}</p>
+                      <p className="text-xs text-textMuted">{diaCapitalizado(f.dia)} {formatFechaCorta(f.fecha)} · {f.horaMin != null ? minutosAHora(f.horaMin) : '—'}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className={sectionCls}>
             <h2 className="text-sm font-semibold mb-2">Alertas activas</h2>
@@ -209,19 +278,24 @@ export default function InicioPage() {
             {proximas.length === 0 ? (
               <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
             ) : (
-              <div>
+              <div className="grid gap-x-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))' }}>
                 {proximas.map((a, i) => {
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;
                   return (
-                    <div key={i} className="flex items-center justify-between gap-3 py-2.5 border-b border-border last:border-0">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-xs text-textMuted w-20 shrink-0">{formatFechaCorta(a.fecha)}</span>
-                        <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
+                    <button key={i} onClick={() => setSeleccionado(a)}
+                      className="flex items-center justify-between gap-2 py-1.5 border-b border-border/60 last:border-0 text-left w-full hover:bg-bg/40 rounded-md px-1 -mx-1 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[11px] text-textMuted w-[72px] shrink-0">{formatFechaCorta(a.fecha)}</span>
+                        <span className="font-mono text-[11px] text-textSec w-9 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
                         {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-sm truncate ${color ? color.text : ''}`}>{a.nombreCurso}{a.esFormacion && a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}</span>
+                        <span className={`text-xs truncate ${color ? color.text : ''}`}>
+                          {a.nombreCurso}
+                          {a.esFormacion && a.edicion ? ` · Ed. ${a.edicion}` : ''}
+                          {a.esFormacion && a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}
+                        </span>
                       </div>
-                      {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
-                    </div>
+                      {a.sala && <span className="text-[11px] text-textMuted shrink-0">{a.sala}</span>}
+                    </button>
                   );
                 })}
               </div>

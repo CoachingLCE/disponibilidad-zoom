@@ -23,6 +23,7 @@ const LINKS = [
   { href: '/incidencias', label: 'Incidencias' },
   { href: '/analisis', label: 'Análisis' },
   { href: '/emails', label: 'Emails' },
+  { href: '/auditoria', label: 'Auditoría' },
   { href: '/accesos', label: 'Accesos', soloAdmin: true }
 ];
 
