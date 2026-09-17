@@ -57,6 +57,7 @@ export const POST = conManejo(async (request) => {
       curso: item.curso || '', nombreCurso: item.nombreCurso || nombreCurso(item.curso),
       edicion: item.edicion || '', horaMin: item.horaMin, horaTxt: item.horaTxt || '',
       docente: item.docente || '', tematica: item.tematica || '', observaciones: item.observaciones || '',
+      sala: item.sala || '',
       id
     });
   }

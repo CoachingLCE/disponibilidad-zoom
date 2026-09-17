@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { ICONOS, NOMBRES, formatFechaCorta, calcularFormaciones, colorFormacion, ESTADOS } from '../../lib/salasLogic';
+import { ICONOS, NOMBRES, formatFechaCorta, calcularFormaciones, colorFormacion, ESTADOS, calcularFechaFinCurso, claseActualPorFecha } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
+import { FECHAS_INICIO_REALES } from '../../lib/fechasInicioReales';
 
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
@@ -54,6 +55,12 @@ export default function FormacionesPage() {
         cargadas: grupo.length, total: parseInt(grupo[0].clasesTotal, 10) || null
       };
     });
+    // Las fechas de inicio confirmadas a mano por Diego (lib/fechasInicioReales.js) son más
+    // confiables que las que salen de mirar qué clases se llegaron a cargar en el horario
+    // — cuando existen, pisan la fecha de inicio de acá (no tocan cargadas/total).
+    Object.keys(FECHAS_INICIO_REALES).forEach((key) => {
+      out[key] = { cargadas: 0, total: null, ...out[key], fechaInicio: FECHAS_INICIO_REALES[key] };
+    });
     return out;
   }, []);
 
@@ -71,13 +78,13 @@ export default function FormacionesPage() {
         const total = historico.total || f.total;
         // El histórico puede tener registrada solo ALGUNA de las clases de esta edición
         // (no necesariamente todas) — por eso la fecha de inicio real SÍ es confiable, pero
-        // "cuántas ya pasaron" se estima mejor por tiempo transcurrido (1 clase por semana)
-        // que por cuántas filas quedaron logueadas en ese Excel puntual.
-        const inicio = new Date(historico.fechaInicio + 'T00:00:00');
-        const finEstimado = new Date(inicio); finEstimado.setDate(inicio.getDate() + (total - 1) * 7);
-        const fechaFinalEstimada = finEstimado.toISOString().slice(0, 10);
-        const semanasPasadas = Math.floor((new Date(hoyISO) - inicio) / (7 * 24 * 60 * 60 * 1000));
-        const cargadasEstimadas = Math.max(historico.cargadas, Math.min(total, semanasPasadas + 1));
+        // "cuántas ya pasaron" se estima mejor por tiempo transcurrido que por cuántas filas
+        // quedaron logueadas en ese Excel puntual. calcularFechaFinCurso/claseActualPorFecha
+        // respetan los 2 recesos de 2 semanas de Ontológico (clase 16→17 y 32→33) — antes
+        // se asumía 1 clase por semana corrida, lo que adelantaba varias semanas la fecha
+        // de fin estimada de cada edición de CO.
+        const fechaFinalEstimada = calcularFechaFinCurso(f.codigo, historico.fechaInicio, total);
+        const cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(f.codigo, historico.fechaInicio, total, hoyISO) || 0);
         const finalPasado = fechaFinalEstimada < hoyISO;
         const completo = total && cargadasEstimadas >= total;
         const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
@@ -121,11 +128,8 @@ export default function FormacionesPage() {
         const [codigo, numero] = key.split('|');
         const total = historico.total || null;
         if (!total) return null; // sin total no se puede estimar nada con confianza
-        const inicio = new Date(historico.fechaInicio + 'T00:00:00');
-        const finEstimado = new Date(inicio); finEstimado.setDate(inicio.getDate() + (total - 1) * 7);
-        const fechaFinalEstimada = finEstimado.toISOString().slice(0, 10);
-        const semanasPasadas = Math.floor((new Date(hoyISO) - inicio) / (7 * 24 * 60 * 60 * 1000));
-        const cargadasEstimadas = Math.max(historico.cargadas, Math.min(total, semanasPasadas + 1));
+        const fechaFinalEstimada = calcularFechaFinCurso(codigo, historico.fechaInicio, total);
+        const cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(codigo, historico.fechaInicio, total, hoyISO) || 0);
         const finalPasado = fechaFinalEstimada < hoyISO;
         const completo = cargadasEstimadas >= total;
         const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
@@ -142,12 +146,14 @@ export default function FormacionesPage() {
 
     return [...enriquecidas, ...soloHistoricas].map((f) => {
       // Vencimiento del proceso de certificación: 1 mes después de finalizar para
-      // formaciones cortas (16 clases), 4 meses para Coaching Ontológico por defecto —
-      // se puede ajustar puntualmente cargando "MesesCertificacion" en la pestaña
-      // Formaciones del Sheet (por ejemplo, ediciones de CO con 2 meses en vez de 4).
+      // formaciones cortas (16 clases). Para Coaching Ontológico son 4 meses hasta la
+      // edición 29 y 2 meses desde la edición 30 en adelante (cambio de política real,
+      // indicado por Diego) — se puede seguir ajustando puntualmente por edición cargando
+      // "MesesCertificacion" en la pestaña Formaciones del Sheet.
       if (!f.fechaFinal) return f;
       const manual = formacionesManual.find((m) => m.codigo === f.codigo && m.edicion === f.numero);
-      const meses = manual?.mesesCertificacion ?? (f.codigo === 'CO' ? 4 : 1);
+      const defaultCO = parseInt(f.numero, 10) >= 30 ? 2 : 4;
+      const meses = manual?.mesesCertificacion ?? (f.codigo === 'CO' ? defaultCO : 1);
       const venc = new Date(f.fechaFinal + 'T00:00:00');
       venc.setMonth(venc.getMonth() + meses);
       return { ...f, vencimientoCertificacion: venc.toISOString().slice(0, 10), mesesCertificacion: meses };

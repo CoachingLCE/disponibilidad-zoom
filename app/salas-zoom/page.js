@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, TOTALES, NOMBRES, ICONOS,
-  minutosAHora, formatFechaCorta, agruparParaVista, colorFormacion
+  minutosAHora, formatFechaCorta, agruparParaVista, colorFormacion, calcularNumeroSesion
 } from '../../lib/salasLogic';
+import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
 import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
 import { interpretarTexto } from '../../lib/lecturaInteligente';
 
@@ -113,7 +114,18 @@ export default function SalasZoomPage() {
   }
 
   const vistaAgrupada = useMemo(() => agruparParaVista(clases), [clases]);
+  // El campo Numero de la clase identifica la EDICIÓN (ej: "CO 51"), no la sesión semanal
+  // — se recalcula la posición real (mismo criterio que Cronograma) para no mostrar
+  // "Clase 51 de 48" en una edición 51 recién arrancada.
+  const sesionPorId = useMemo(() => calcularNumeroSesion(clases), [clases]);
   const diaHoy = DIAS_JS[new Date().getDay()];
+  // Credenciales combinadas: las cargadas en el Sheet pisan a las fijas del código,
+  // igual criterio que la pantalla de Credenciales Zoom.
+  const credencialesCombinadas = useMemo(() => {
+    const salasSheet = new Set(credenciales.map((c) => c.sala));
+    const fijas = CREDENCIALES_ZOOM_DEFAULT.filter((c) => !salasSheet.has(c.sala));
+    return [...credenciales, ...fijas];
+  }, [credenciales]);
 
   async function importar() {
     setMsgImportar(null);
@@ -226,11 +238,11 @@ export default function SalasZoomPage() {
         {cargandoDatos ? (
           <p className="text-textSec text-sm">Cargando…</p>
         ) : vista === 'grilla' ? (
-          <VistaGrilla vista={vistaAgrupada} diaHoy={diaHoy} onClick={puedeEditarCronograma ? (c) => setAccion({ clase: c }) : null} />
+          <VistaGrilla vista={vistaAgrupada} diaHoy={diaHoy} sesionPorId={sesionPorId} onClick={(c) => setAccion({ clase: c })} />
         ) : vista === 'porSala' ? (
           <VistaPorSala vista={vistaAgrupada} diaSala={diaSala} setDiaSala={setDiaSala} />
         ) : (
-          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} onClick={puedeEditarCronograma ? (c) => setAccion({ clase: c }) : null} />
+          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} onClick={(c) => setAccion({ clase: c })} />
         )}
       </div>
 
@@ -239,13 +251,16 @@ export default function SalasZoomPage() {
       )}
 
       {accion && (
-        <ModalAccion clase={accion.clase} onCerrar={() => setAccion(null)} fetchAutenticado={fetchAutenticado} onCambio={cargarDatos} />
+        <ModalAccion
+          clase={accion.clase} onCerrar={() => setAccion(null)} fetchAutenticado={fetchAutenticado} onCambio={cargarDatos}
+          puedeEditarCronograma={puedeEditarCronograma} credenciales={credencialesCombinadas} numeroSesion={sesionPorId[accion.clase.id]}
+        />
       )}
     </div>
   );
 }
 
-function VistaGrilla({ vista, diaHoy, onClick }) {
+function VistaGrilla({ vista, diaHoy, onClick, sesionPorId = {} }) {
   const horas = [...new Set(vista.map((c) => c.horaMin))].sort((a, b) => a - b);
   const diasUsados = DIAS.filter((d) => vista.some((c) => c.dia === d));
   if (horas.length === 0) return <p className="text-textSec text-sm">No hay clases cargadas.</p>;
@@ -281,9 +296,9 @@ function VistaGrilla({ vista, diaHoy, onClick }) {
                         >
                           {ICONOS[c.codigo] || ''} {c.label}
                           <span className="block font-medium text-[10px] opacity-85">{c.sala}</span>
-                          {c.numero && (
+                          {(sesionPorId[c.id] || c.numero) && (
                             <span className="block font-medium text-[9.5px] opacity-80">
-                              Clase {c.serieTotal > 1 ? c.serieIndex : c.numero}{TOTALES[c.codigo] ? ' de ' + TOTALES[c.codigo] : ''}
+                              Clase {sesionPorId[c.id] || (c.serieTotal > 1 ? c.serieIndex : c.numero)}{TOTALES[c.codigo] ? ' de ' + TOTALES[c.codigo] : ''}
                             </span>
                           )}
                         </div>
@@ -412,7 +427,7 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
   const [horaTxt, setHoraTxt] = useState('18:00');
   const [codigo, setCodigo] = useState('CO');
   const [edicion, setEdicion] = useState('1');
-  const [numero, setNumero] = useState('');
+  const [numero, setNumero] = useState('1');
   const [cantidad, setCantidad] = useState(TOTALES.CO || 1);
   const [docente, setDocente] = useState('');
   const [staff, setStaff] = useState('');
@@ -530,10 +545,14 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
             </select>
           )}
         </div>
-        <div><label className={labelCls}>Edición</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
+        <div><label className={labelCls}>Edición{esFormacion ? ' (ej: 51)' : ''}</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
         {esFormacion && (
           <>
-            <div><label className={labelCls}>Número (1ª clase)</label><input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="ej: 1" className={inputCls} /></div>
+            <div>
+              <label className={labelCls}>Nº de esta clase (1, 2, 3…)</label>
+              <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="1" className={inputCls} />
+              <p className="text-[10px] text-textMuted mt-0.5">⚠️ NO el número de edición — si es la 1ª clase de la edición, va "1".</p>
+            </div>
             <div><label className={labelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={inputCls} /></div>
           </>
         )}
@@ -706,8 +725,9 @@ function ChipDetectado({ ok, vacio, texto }) {
   );
 }
 
-function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
+function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarCronograma = true, credenciales = [], numeroSesion }) {
   const [paso, setPaso] = useState('menu');
+  const credencialSala = credenciales.find((c) => c.sala === clase.sala);
   const [nuevaSala, setNuevaSala] = useState('');
   const [motivoId, setMotivoId] = useState('salud');
   const [obs, setObs] = useState('');
@@ -774,19 +794,35 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
         <h3 className="mt-0 mb-1 text-base font-semibold">{clase.label}{clase.edicion ? ' · Edición ' + clase.edicion : ''}</h3>
-        <p className="text-textSec text-xs mb-3.5">
+        <p className="text-textSec text-xs mb-1">
           {clase.dia} {minutosAHora(clase.horaMin)} · {clase.sala}{clase.fecha ? ' · ' + formatFechaCorta(clase.fecha) : ''}
         </p>
+        {numeroSesion && TOTALES[clase.codigo] && (
+          <p className="text-textMuted text-xs mb-2.5">Clase {numeroSesion} de {TOTALES[clase.codigo]}</p>
+        )}
+
+        {paso === 'menu' && credencialSala && (
+          <div className="bg-bg border border-border rounded-lg p-3 mb-3.5 text-xs space-y-1">
+            <p className="font-semibold text-[11px] text-textSec mb-1">🔑 Datos de acceso a {clase.sala}</p>
+            <p><span className="text-textMuted">Usuario:</span> {credencialSala.usuario}</p>
+            <p><span className="text-textMuted">Contraseña:</span> <span className="font-mono">{credencialSala.contrasena}</span></p>
+            {credencialSala.idReunion && <p><span className="text-textMuted">ID de reunión:</span> <span className="font-mono">{credencialSala.idReunion}</span></p>}
+          </div>
+        )}
         {err && <p className="text-dangerText text-xs mb-2.5">{err}</p>}
 
         {paso === 'menu' && (
           <div className="flex flex-col gap-2">
-            <button className={`${btnSecCls} text-left`} onClick={() => setPaso('campos')}>✏️ Editar docente / temática / observaciones</button>
-            <button className={`${btnSecCls} text-left`} onClick={() => setPaso('sala')}>🔁 Cambiar sala</button>
-            <button className={`${btnSecCls} text-left disabled:opacity-40`} disabled={!clase.fecha} onClick={() => setPaso('postergar')}>
-              ⏰ Postergar clase{!clase.fecha ? ' (necesita fecha)' : ''}
-            </button>
-            <button className={`${btnSecCls} text-left text-dangerText`} onClick={() => setPaso('cancelar')}>🗑️ Cancelar clase</button>
+            {puedeEditarCronograma && (
+              <>
+                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('campos')}>✏️ Editar docente / temática / observaciones</button>
+                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('sala')}>🔁 Cambiar sala</button>
+                <button className={`${btnSecCls} text-left disabled:opacity-40`} disabled={!clase.fecha} onClick={() => setPaso('postergar')}>
+                  ⏰ Postergar clase{!clase.fecha ? ' (necesita fecha)' : ''}
+                </button>
+                <button className={`${btnSecCls} text-left text-dangerText`} onClick={() => setPaso('cancelar')}>🗑️ Cancelar clase</button>
+              </>
+            )}
             <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
           </div>
         )}

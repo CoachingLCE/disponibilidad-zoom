@@ -3,8 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../lib/useSession';
 import {
-  SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS, calcularEdicionesFinalizadas
+  SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
+  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS, calcularEdicionesFinalizadas,
+  calcularNumeroSesion
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 
@@ -89,16 +90,23 @@ export default function InicioPage() {
     }
 
     const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
+    // El campo Numero de la clase identifica la EDICIÓN (ej: "CO 51"), no qué sesión
+    // semanal es dentro de ella — calcularNumeroSesion cuenta la posición real entre las
+    // clases con fecha de esa misma edición (mismo criterio que ya usa Cronograma), para
+    // no mostrar "Clase 51 de 48" para la edición 51.
+    const sesionPorId = calcularNumeroSesion(clases);
 
     const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => ({
       fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
+      edicion: c.edicion, numero: c.numero, numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
+      horaMin: c.horaMin, sala: c.sala, esFormacion: true
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
     // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
     const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => ({
       fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
+      edicion: c.edicion, numero: c.numero, numeroSesion: null, total: TOTALES[c.codigo] || null,
+      horaMin: c.horaMin, sala: c.sala, esFormacion: true
     })).filter((c) => c.fecha);
     // Mismo criterio que en Cronograma: las Formación históricas se excluyen acá,
     // porque ya están representadas (con sala real) en deClases.
@@ -168,8 +176,10 @@ export default function InicioPage() {
                         {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
                         <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[a.curso] || ''} {a.nombreCurso}</span>
                       </div>
-                      {a.esFormacion && a.numero && (
-                        <p className="text-xs text-textMuted">{a.curso} {a.numero} · Clase {a.numero}</p>
+                      {a.esFormacion && a.edicion && (
+                        <p className="text-xs text-textMuted">
+                          {a.curso} {a.edicion}{a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}
+                        </p>
                       )}
                       {a.sala && <p className="text-xs text-textMuted">{a.sala}</p>}
                     </div>
@@ -208,7 +218,7 @@ export default function InicioPage() {
                         <span className="text-xs text-textMuted w-20 shrink-0">{formatFechaCorta(a.fecha)}</span>
                         <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
                         {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-sm truncate ${color ? color.text : ''}`}>{a.nombreCurso}{a.esFormacion && a.numero ? ` · Clase ${a.numero}` : ''}</span>
+                        <span className={`text-sm truncate ${color ? color.text : ''}`}>{a.nombreCurso}{a.esFormacion && a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}</span>
                       </div>
                       {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
                     </div>
