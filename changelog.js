@@ -2,6 +2,247 @@
 // Lo más nuevo va primero. Se muestra al hacer clic en el badge de versión.
 export const CHANGELOG = [
   {
+    version: '3.7.0',
+    fecha: '2026-09-17',
+    cambios: [
+      'Nueva pestaña "Masterclasses": historial completo (105 registros, desde 2020) con fecha, día, horario, tema, docente, sala/moderador y tipo (Masterclass, Caja de ideas, Capacitación, etc.), con buscador y filtro por tipo.',
+      'Salas Zoom: al hacer clic en una clase ahora se ven directamente el usuario y contraseña de Zoom de esa sala (antes había que ir a otra pestaña) — visible para cualquier usuario, no solo quien puede editar el cronograma.',
+      'Corregido: en Inicio, Salas Zoom y Formaciones, el cartel "Clase X de Y" mostraba el número de EDICIÓN en vez de la clase real (por ejemplo "CO 51" aparecía como "Clase 51 de 48"). Ahora se calcula la posición real contando las clases con fecha ya cargadas para esa edición.',
+      'Formaciones: la fecha de inicio de cada edición ahora usa, cuando está disponible, la lista de fechas reales confirmadas a mano (más confiable que estimarla desde el horario cargado), y el cálculo de fecha de finalización de Coaching Ontológico ahora respeta los 2 recesos de 2 semanas (entre clase 16→17 y 32→33) en vez de asumir 48 semanas corridas.',
+      'Formaciones: el vencimiento de certificación de Coaching Ontológico pasa a ser de 2 meses (antes 4) para las ediciones 30 en adelante, manteniendo 4 meses para las anteriores — se puede seguir ajustando por edición desde la pestaña Formaciones del Sheet.',
+      'Reservar formación: se aclaró el campo "Número (1ª clase)" — ahora arranca en 1 por defecto y avisa explícitamente que no es el número de edición, para evitar cargarlo mal.'
+    ]
+  },
+  {
+    version: '3.6.0',
+    fecha: '2026-09-14',
+    cambios: [
+      'Nuevo logo: el encabezado y la pantalla de inicio ahora muestran el logo oficial del Instituto ILCE (antes aparecía "Cronograma ILCE" como texto). Cambia solo entre modo claro y oscuro.'
+    ]
+  },
+  {
+    version: '3.5.2',
+    fecha: '2026-09-14',
+    cambios: [
+      'Rediseño de "✨ Lectura inteligente" en Agregar actividad: ahora aparece abierta directamente (antes había que tocar "Usar" para verla), detecta los campos solo medio segundo después de pegar/tipear (se sacó el botón "Interpretar" de en medio), el textarea es más grande, y el color de fondo pasa a integrarse con el resto de la pantalla en vez de destacar como una caja aparte.'
+    ]
+  },
+  {
+    version: '3.5.1',
+    fecha: '2026-09-02',
+    cambios: [
+      'Arreglado bug real en el "Clase X de Y" del detalle de Cronograma: estaba mostrando el número de EDICIÓN (ej: CV 5) como si fuera el número de SESIÓN dentro de esa edición — coincidía justo que "CV 5" mostraba "Clase 5 de 16", pero era el dato equivocado. Ahora calcula la posición real: entre todas las clases con fecha de esa misma edición, ordenadas cronológicamente, qué lugar ocupa cada una. El resultado exacto depende de qué fechas estén realmente cargadas en el Sheet para esa edición — pedimos verificar con un caso real después de desplegar.'
+    ]
+  },
+  {
+    version: '3.5.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Nueva "✨ Lectura inteligente" en Salas Zoom → Agregar actividad: pegá el texto tal como te lo pasaron (aunque venga desordenado, tipo WhatsApp) y detecta curso, edición, cantidad de alumnos, hora, día, docente y staff — con chips ✓ (detectado con confianza) y ⚠ (aproximado, para revisar). Nunca inventa un curso que no coincide razonablemente con los 8 existentes; si hay varias coincidencias, deja elegir. Al aplicar, completa los campos normales del formulario — el operador siempre revisa y confirma antes de guardar, no se guarda solo.',
+      'El selector de Tipo ahora muestra "Formación / Curso" (antes solo "Formación") — es el mismo tipo de siempre, solo cambió la etiqueta visible.'
+    ]
+  },
+  {
+    version: '3.4.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cronograma: el detalle de una clase ahora muestra el "ID de reunión" de Zoom de esa sala (cuando se conoce) — cargados Sala 1 (9991117999) y Sala 5 (87661634105), sacados de los datos de Información técnica que ya tenía. Faltan los de Sala 2, 3, 4, 6, 7 y Comunidad ILCE.',
+      'Credenciales Zoom: nueva columna "ID de reunión" en la tabla, con el mismo criterio de siempre (fijo en el código, una fila del Sheet lo puede pisar).'
+    ]
+  },
+  {
+    version: '3.3.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cronograma: al hacer clic en una clase de Formación, el detalle ahora muestra Staff y "Clase X de Y" (número de clase sobre el total del curso), y la Sala es un link directo a Credenciales Zoom.',
+      'Si la clase es una Formación, ya no aparece el campo "Temática" (no aplica — la define la formación en sí) ni ahí ni en Salas Zoom.',
+      'Salas Zoom: en "Editar campos" de una clase, el campo Temática fue reemplazado por Staff (todas las clases que se gestionan ahí son Formaciones).'
+    ]
+  },
+  {
+    version: '3.2.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Formaciones: arreglado por qué aparecían tan pocas "Finalizadas". La pantalla solo armaba tarjetas para ediciones que TODAVÍA ocupan una sala en el horario en vivo — una edición vieja, al dejar de tener sala asignada, directamente desaparecía sin dejar rastro. Ahora también se agregan como tarjeta propia las ediciones que solo viven en el histórico (104 ediciones distintas disponibles ahí), calculadas 100% con sus fechas reales.'
+    ]
+  },
+  {
+    version: '3.1.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Arreglado bug importante y ya en producción: la función que guardaba un período nuevo en Docentes C.O había vuelto a una versión vieja que ignoraba Día/Horario/Desde/Hasta — el formulario "Nuevo período" los pedía pero se perdían al guardar. Ya está resuelto.',
+      'Docentes C.O: ediciones ordenadas — primero las Activas (las que se usan día a día), después las Futuras, y las Finalizadas al final.',
+      'Nuevos chips de filtro (Activas/Futuras/Finalizadas/Todas) que recuerdan tu última elección en este navegador — la próxima vez que entrás, arranca donde lo dejaste.',
+      'Pau y Sofía (y SuperAdmin) ahora pueden editar y eliminar cualquier período existente, no solo agregar nuevos — clic en cualquier tarjeta o fila del historial abre el editor. Los períodos que vienen precargados en el código también se pueden editar: al guardar un cambio, se crean como registro real y quedan editables de ahí en más.'
+    ]
+  },
+  {
+    version: '3.0.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cronograma: nuevo botón "Postergar clases →" debajo de "Agregar actividad →", visible para Admin/SuperAdmin/Educativo, lleva directo a Salas Zoom.',
+      'Al buscar disponibilidad para una Formación (o cargar cualquier actividad con docente), si ese docente ya tiene otra clase en simultáneo en cualquier sala, ahora aparece un aviso antes de confirmar.',
+      'Nuevo campo "Staff" (opcional) para Formaciones — se guarda en una columna nueva de la pestaña Clases.',
+      'La "Cantidad" de clases se autocompleta según el total real del curso elegido (Ontológico 48, el resto 16) al armar una reserva — se puede cambiar igual si hace falta.',
+      'Confirmado: las 17 filas de Julio-Agosto 2026 que se pasaron ya estaban bien cargadas en el histórico, sin diferencias.'
+    ]
+  },
+  {
+    version: '2.9.2',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cuando la sesión vence (a las 10 horas, por seguridad — por ejemplo si dejaste la pestaña abierta de un día para el otro), la app ya no muestra errores sueltos por toda la pantalla. Ahora detecta el "No autorizado" solo, cierra la sesión, y te manda directo al login con un aviso claro de que hay que volver a entrar.'
+    ]
+  },
+  {
+    version: '2.9.1',
+    fecha: '2026-09-02',
+    cambios: [
+      'Nueva pestaña "Credenciales Zoom", visible para todos: usuario y contraseña de cada una de las 8 salas, siempre cargadas fijas en el código (no dependen del Sheet). El panel que ya existía dentro de Salas Zoom sigue funcionando igual, esta es una pantalla aparte más fácil de encontrar.'
+    ]
+  },
+  {
+    version: '2.9.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Docentes C.O: cargadas las 58 ediciones completas (170 períodos con sus fechas Desde/Hasta, docente y staff reales) que pasaste como texto — siempre disponibles en el código, igual que Campañas/Enlaces de Cronograma CM. Se corrigieron 2 detalles de la fuente original al parsearla: filas duplicadas por un formato de fecha roto en la edición 1, y una nota final "Staff: X" que en realidad era el staff del 3er período (esa columna no existía en el Excel original), no una observación.'
+    ]
+  },
+  {
+    version: '2.8.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Análisis rediseñado como dashboard de decisión: filtros de período (esta semana/mes/mes anterior/últimos 3 meses/personalizado) + sala/formación/docente, que afectan todo lo de abajo.',
+      'Nuevo dashboard de indicadores: total de clases, horas, salas utilizadas, % ocupación, sala más/menos usada, postergaciones del período, conflictos.',
+      'Nueva sección "⚠️ Para revisar": detecta automáticamente salas sobre-utilizadas, horarios con más de 90% de ocupación, aumento de postergaciones vs. mes anterior, formación con muchas postergaciones, horarios con poca utilización, y concentración excesiva en una sala — todo calculado de datos reales, sin inventar nada.',
+      'Nueva "Ocupación de salas" con horas disponibles/ocupadas/% y cantidad de clases, ordenada de mayor a menor.',
+      'Nueva "Horarios críticos": para cada horario, cuántas salas están ocupadas en simultáneo.',
+      'Nueva "Evolución mensual" (clases desde el histórico real importado, postergaciones en vivo) con variación % mes a mes.',
+      'Nuevo "Análisis por formación": clases, horas, salas, docentes y postergaciones de cada curso.',
+      'Nuevo bloque "Postergaciones": total, por formación, por sala (dato real que ya se guardaba pero nunca se leía) y por docente (aproximado, cruzando con el docente actual de la clase).',
+      'Arreglado de paso: la pestaña Postergaciones del Sheet guardaba Sala/Día/Hora/Duración desde siempre, pero la app nunca los leía — ahora sí, lo que habilitó "Postergaciones por sala" con datos reales.',
+      'Aviso importante: los indicadores de horario semanal (clases, horas, ocupación, salas usadas, horarios críticos) reflejan el horario recurrente vigente ahora mismo, no un rango de fechas arbitrario — la mayoría de las clases no tienen una fecha puntual por ocurrencia, así que filtrarlas por período les restaría precisión. Si en algún momento se quiere un "total de clases de Septiembre" 100% exacto, haría falta que cada clase tenga su fecha real (vía Reservar), no solo el horario recurrente.'
+    ]
+  },
+  {
+    version: '2.7.3',
+    fecha: '2026-09-02',
+    cambios: [
+      'Docentes C.O: terminé de actualizar la pantalla y la API para que coincidan con la estructura real (Día, Horario, Desde, Hasta) — antes se había actualizado solo una parte del código y quedaba roto. Ahora se puede cargar cada período de una edición con sus fechas reales, y ver el período vigente + el historial completo por separado.'
+    ]
+  },
+  {
+    version: '2.7.2',
+    fecha: '2026-09-02',
+    cambios: [
+      'Arreglado el error "Quota exceeded" al leer Usuarios: cada llamado a la API (incluso de solo lectura) verifica la sesión leyendo toda la hoja Usuarios, y una sola pantalla dispara varios llamados en paralelo (Cronograma CM, por ejemplo, carga 4 cosas a la vez) — con varias personas usando la app al mismo tiempo, esto superaba el límite de lecturas por minuto de Google. Ahora hay una caché de 5 segundos que evita repetir la misma lectura dentro de esa ventana, y se invalida sola apenas se escribe algo — nunca muestra un dato viejo después de un cambio.'
+    ]
+  },
+  {
+    version: '2.7.1',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cronograma → vista Lista: ahora distingue 3 colores según qué tan vieja es cada fila — lo que ya pasó hace 30 días o más aparece bien apagado, lo que pasó hace menos de 30 días con un tono distinto (amarillo), y lo que todavía no pasó queda con su color normal.'
+    ]
+  },
+  {
+    version: '2.7.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Info. técnica rehecha con la estructura real de tu Excel: Nombre, Formato, Mes, Fecha, Disertante, Horario, Formulario de inscripción, Sala Zoom, Link de acceso, Moderador (antes tenía campos inventados a falta de ver el archivo real).',
+      'Los 9 registros que pasaste (Marzo a Junio 2026) quedaron siempre disponibles en el código, igual que Campañas/Enlaces de Cronograma CM — no dependen de que se hayan importado bien al Sheet.'
+    ]
+  },
+  {
+    version: '2.6.2',
+    fecha: '2026-09-02',
+    cambios: [
+      'Accesos ahora aparece como pestaña en la barra de navegación — visible solo para Admin y SuperAdmin (vos incluido). Para el resto de los roles (Colaborador, Educativo) queda oculta, igual que ya estaba protegida en el servidor.'
+    ]
+  },
+  {
+    version: '2.6.1',
+    fecha: '2026-09-02',
+    cambios: [
+      'Arreglado bug en Accesos: al agregar el rol Educativo, la función que decide qué radio mostrar seleccionado nunca se actualizó — cualquier usuario con rol Educativo se veía (y parecía guardarse) como "Colaborador" en la pantalla, aunque el Sheet sí tenía el valor correcto. El guardado siempre funcionó bien; era solo la pantalla la que mentía.'
+    ]
+  },
+  {
+    version: '2.6.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Seguridad: las sesiones ahora vencen a las 10 horas (antes no vencían nunca del lado del servidor). Al cambiar una contraseña (propia, o reseteada por un Admin), cualquier sesión anterior de esa persona queda invalidada automáticamente.',
+      'Seguridad: sacado el secreto de sesión por defecto inseguro — si falta SESSION_SECRET en producción, la app ahora da un error de configuración claro en vez de firmar sesiones con una clave conocida.',
+      'Seguridad: arreglado el endpoint del mail semanal (/api/cron/resumen-semanal) — si faltaba CRON_SECRET, quedaba completamente sin protección y cualquiera podía dispararlo desde afuera. Ahora, en producción, la ausencia de esa variable es un error, nunca un acceso libre.',
+      'Revisadas las 31 rutas de la API: todas las que requieren sesión cortan correctamente si no hay usuario válido, y todas las de escritura (crear/editar/borrar) chequean el permiso correspondiente además de estar logueado.',
+      'Importante: al desplegar esta versión, todas las sesiones existentes (de todos los roles, incluido SuperAdmin) van a quedar invalidadas — cada persona va a tener que volver a iniciar sesión una vez.'
+    ]
+  },
+  {
+    version: '2.5.1',
+    fecha: '2026-09-02',
+    cambios: [
+      'Paula (paula.arigos@institutoilce.com) sumada al permiso de Docentes C.O — ya puede asignar docente/staff igual que Sofía.',
+      'Sigue pendiente: las fechas correctas de CE 62 y CO 40-54 para la pestaña Formaciones.'
+    ]
+  },
+  {
+    version: '2.5.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Nueva pestaña "Info. técnica" (Clases especiales / Información técnica): Fecha, Actividad, Plataforma, Responsable, Link de Zoom, Link de grabación, Observaciones — con editar y eliminar por registro. Armada con una estructura razonable a falta del Excel de referencia; avisame si necesita otros campos.',
+      'Sigue pendiente: el email de Paula (para el mismo permiso que Sofía en Docentes C.O), y las fechas correctas de CE 62 y CO 40-54 para la pestaña Formaciones.'
+    ]
+  },
+  {
+    version: '2.4.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Nueva pestaña "Docentes C.O": asigná docente y staff a cada edición de Coaching Ontológico, con historial completo de asignaciones (no solo la vigente). Edición: Pau, Sofía y SuperAdmin — el resto del equipo puede consultar.',
+      'Salas Zoom: nuevo panel colapsable "🔑 Usuarios y contraseñas de las salas de Zoom" — se carga desde una pestaña nueva del Sheet (CredencialesZoom).',
+      'Salas Zoom: al agregar un espacio especial (Encuentro Potencia, Laboratorio C.O, Capacitación, etc.), ahora se puede indicar una sala — el sistema chequea que esté libre en ese día y horario puntual antes de guardar, y bloquea solo esa franja específica, nunca de forma permanente.'
+    ]
+  },
+  {
+    version: '2.3.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Nuevo rol "Educativo" (para Sofía y Paula): puede editar cualquier campo ya cargado en una clase (docente, temática, observaciones, sala) e informar/postergar clases directamente desde Salas Zoom — sin darle el resto de los permisos de Admin (gestión de usuarios, feriados, etc.).',
+      'Nueva opción "✏️ Editar docente / temática / observaciones" en el modal de cada clase (Salas Zoom).',
+      'En Accesos, nueva sección "¿Qué puede hacer cada rol?" con la explicación de Colaborador/Educativo/Admin/SuperAdmin/Cronograma CM.',
+      'Formaciones: nueva fecha de "Vencimiento certificación" en cada tarjeta — 1 mes después de finalizar para formaciones cortas, 4 meses para Coaching Ontológico (ajustable por edición puntual con la columna opcional MesesCertificacion en la pestaña Formaciones del Sheet — detalle en SETUP.md).'
+    ]
+  },
+  {
+    version: '2.2.5',
+    fecha: '2026-09-02',
+    cambios: [
+      'Buscador movido a la barra de arriba: ahora es un ícono de lupa junto al selector de tema y la llave de Herramientas (como en Seguimiento LEAD-Estudiante), en vez de un cuadro de texto en el medio de la pantalla. La búsqueda en sí ya tenía historial de búsquedas recientes y resultados en tiempo real mientras escribís — sin cambios ahí, solo cambió dónde entrás.'
+    ]
+  },
+  {
+    version: '2.2.4',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cronograma CM: las 6 campañas y los 22 enlaces/recursos ya no dependen de una importación al Sheet que podía fallar — ahora están siempre garantizados en el código y se muestran sin importar el estado del Sheet. Lo que se agregue desde la app se suma aparte, sin duplicar lo fijo. Las fijas no tienen botón "Eliminar" (viven en el código); las agregadas por el equipo sí se pueden borrar.'
+    ]
+  },
+  {
+    version: '2.2.3',
+    fecha: '2026-09-02',
+    cambios: [
+      'Cronograma CM: si Campañas/Enlaces/Notas no cargan, ahora se ve el error real en pantalla (antes fallaba en silencio y solo se veía "Sin campañas cargadas" sin ninguna pista de por qué).'
+    ]
+  },
+  {
+    version: '2.2.2',
+    fecha: '2026-09-02',
+    cambios: [
+      'Arreglada inconsistencia entre pantallas: Inicio (Agenda de hoy / Próximas clases) mostraba clases de ediciones que Formaciones ya marcaba como "Finalizó" según el histórico real. Ahora las dos pantallas comparten el mismo cálculo — una edición finalizada ya no aparece en la agenda de Inicio.',
+      'De paso, arreglado un bug que podía romper la pantalla (algunas filas del histórico tienen la fecha vacía y hacían fallar el cálculo de fecha de inicio).'
+    ]
+  },
+  {
     version: '2.2.1',
     fecha: '2026-09-02',
     cambios: [

@@ -82,6 +82,60 @@ export function esPasada(fechaStr) {
   return f < hoy;
 }
 
+// Coaching Ontológico son 48 clases en 3 cuatrimestres de 16, con 2 semanas de receso
+// entre el cuatrimestre 1 y el 2 (clase 16 → 17) y entre el 2 y el 3 (clase 32 → 33) —
+// en vez del salto semanal normal de 7 días, ahí el salto es de 14. El resto de las
+// formaciones (16 clases, sin cuatrimestres) no tiene receso.
+const RECESOS_POR_CODIGO = { CO: { 16: 14, 32: 14 } };
+
+/** Fecha real (estimada) de la clase Nº `numero`, contando desde la clase 1 en `fechaInicioISO`,
+ * saltando de a 7 días salvo en los recesos conocidos de la formación. */
+export function fechaDeClaseNumero(codigo, fechaInicioISO, numero) {
+  if (!fechaInicioISO || !numero || numero < 1) return null;
+  const recesos = RECESOS_POR_CODIGO[codigo] || {};
+  const fecha = new Date(fechaInicioISO + 'T00:00:00');
+  for (let n = 1; n < numero; n++) {
+    fecha.setDate(fecha.getDate() + (recesos[n] || 7));
+  }
+  return toISO(fecha);
+}
+
+/** Fecha estimada de la última clase (finalización) de una edición de `total` clases. */
+export function calcularFechaFinCurso(codigo, fechaInicioISO, total) {
+  return fechaDeClaseNumero(codigo, fechaInicioISO, total);
+}
+
+/** Cuántas clases (1..total) ya deberían haber pasado a `hoyISO`, respetando recesos. */
+export function claseActualPorFecha(codigo, fechaInicioISO, total, hoyISO) {
+  if (!fechaInicioISO || !total) return null;
+  hoyISO = hoyISO || toISO(new Date());
+  let cargadas = 1;
+  for (let n = 2; n <= total; n++) {
+    const f = fechaDeClaseNumero(codigo, fechaInicioISO, n);
+    if (!f || f > hoyISO) break;
+    cargadas = n;
+  }
+  return Math.min(cargadas, total);
+}
+
+/** Para cada clase CON fecha, en qué posición (1,2,3…) cae dentro de su edición — contando
+ * cuántas clases con fecha de esa misma edición ya se cargaron, ordenadas cronológicamente.
+ * Es más confiable que el campo Numero (que en la práctica se carga con el Nº de edición,
+ * no con el Nº de sesión) — mismo criterio que ya usa la pantalla de Cronograma. */
+export function calcularNumeroSesion(clases) {
+  const sesionPorId = {};
+  const grupos = {};
+  clases.filter((c) => c.fecha).forEach((c) => {
+    const key = `${c.codigo}|${c.numero}`;
+    (grupos[key] = grupos[key] || []).push(c);
+  });
+  Object.values(grupos).forEach((grupo) => {
+    const ordenado = [...grupo].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    ordenado.forEach((c, idx) => { sesionPorId[c.id] = idx + 1; });
+  });
+  return sesionPorId;
+}
+
 /**
  * Agrupa las clases por (día, hora, sala) — así una serie de 16 clases con la misma
  * franja semanal se muestra como UNA sola (la próxima vigente), no 16 filas repetidas.
@@ -171,6 +225,36 @@ export function parsearLineaHorario(linea) {
 }
 
 /** Resumen por curso+edición: fecha inicio/fin, estado, progreso y próxima clase. */
+/**
+ * A partir del histórico real (fechas verdaderas de clases que ya pasaron), calcula qué
+ * ediciones puntuales (curso+número) ya finalizaron — asumiendo 1 clase por semana desde
+ * la fecha de inicio real hasta completar el total de clases del curso.
+ * Devuelve un Set de claves "CODIGO|NUMERO" para poder chequear rápido `set.has(clave)`.
+ * Se comparte entre Formaciones e Inicio para que las dos pantallas digan lo mismo.
+ */
+export function calcularEdicionesFinalizadas(historico) {
+  const grupos = {};
+  historico.filter((h) => h.tipo === 'Formación' && h.edicion && h.fecha).forEach((h) => {
+    const key = `${h.curso}|${h.edicion}`;
+    (grupos[key] = grupos[key] || []).push(h);
+  });
+
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  const finalizadas = new Set();
+
+  Object.keys(grupos).forEach((key) => {
+    const grupo = grupos[key];
+    const codigo = grupo[0].curso;
+    const total = parseInt(grupo[0].clasesTotal, 10) || TOTALES[codigo] || null;
+    if (!total) return;
+    const fechaInicio = grupo.map((h) => h.fecha).sort()[0];
+    const fin = calcularFechaFinCurso(codigo, fechaInicio, total);
+    if (fin && fin < hoyISO) finalizadas.add(key);
+  });
+
+  return finalizadas;
+}
+
 export function calcularFormaciones(clases) {
   const grupos = {};
   // Se agrupa por curso+número (ej: "CO 45", "CO 48" son DOS cursados distintos de CO
@@ -193,7 +277,10 @@ export function calcularFormaciones(clases) {
     const fechaInicio = fechas[0] || null;
     const fechaFinal = fechas[fechas.length - 1] || null;
     const total = TOTALES[codigo] || null;
-    const cargadas = parseInt(numero, 10) || 0; // el número de la clase actual = cuántas ya pasaron
+    // Cuántas sesiones con fecha ya pasaron para esta edición — más confiable que leer
+    // directamente el campo Numero (que en la práctica se carga con el Nº de edición,
+    // el mismo para todas las filas, no con el Nº de sesión real).
+    const cargadas = conFecha.filter((c) => c.fecha <= hoyISO).length || parseInt(numero, 10) || 0;
     const finalPasado = fechaFinal ? new Date(fechaFinal + 'T00:00:00') < hoy : false;
     const completo = total && cargadas >= total;
     const estado = completo && finalPasado ? 'Finalizó' : 'En proceso';

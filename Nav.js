@@ -1,21 +1,27 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { Wrench } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Wrench, Search } from 'lucide-react';
 import { useSession } from '../lib/useSession';
 import ThemeSelector from './ThemeSelector';
 import AccionesRapidas from './AccionesRapidas';
 import CambiarPasswordModal from './CambiarPasswordModal';
+import Logo from './Logo';
 
 const LINKS = [
   { href: '/', label: 'Inicio' },
   { href: '/cronograma', label: 'Cronograma' },
   { href: '/cronograma-cm', label: 'Cronograma CM' },
   { href: '/formaciones', label: 'Formaciones' },
+  { href: '/masterclasses', label: 'Masterclasses' },
+  { href: '/docentes-co', label: 'Docentes C.O' },
   { href: '/salas-zoom', label: 'Salas Zoom' },
+  { href: '/credenciales-zoom', label: 'Credenciales Zoom' },
+  { href: '/info-tecnica', label: 'Info. técnica' },
   { href: '/incidencias', label: 'Incidencias' },
-  { href: '/analisis', label: 'Análisis' }
+  { href: '/analisis', label: 'Análisis' },
+  { href: '/accesos', label: 'Accesos', soloAdmin: true }
 ];
 
 function itemNav(href, label, pathname) {
@@ -37,32 +43,31 @@ function itemNav(href, label, pathname) {
 export default function Nav() {
   const { usuario, logout } = useSession();
   const pathname = usePathname();
-  const router = useRouter();
-  const [q, setQ] = useState('');
   const [cambiandoPassword, setCambiandoPassword] = useState(false);
 
   if (!usuario || pathname === '/login' || pathname === '/setup-password') return null;
 
-  function buscar(e) {
-    e.preventDefault();
-    if (q.trim()) router.push(`/buscar?q=${encodeURIComponent(q.trim())}`);
-  }
+  const puedeVerAccesos = (usuario.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
+  const links = LINKS.filter((l) => !l.soloAdmin || puedeVerAccesos);
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 pt-4 no-print">
       <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-        <Link href="/" className="text-sm font-bold shrink-0">Cronograma ILCE</Link>
-
-        <form onSubmit={buscar} className="flex-1 min-w-[140px] max-w-xs">
-          <input
-            type="text" value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar…"
-            className="w-full bg-surface2 border border-border rounded-lg h-8 px-3 text-xs"
-          />
-        </form>
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <Logo height={28} />
+          <span className="text-sm font-bold text-textMuted">Cronograma</span>
+        </Link>
 
         <div className="flex items-center gap-2 shrink-0">
           <ThemeSelector />
+          <Link href="/buscar" title="Buscar"
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+              pathname === '/buscar'
+                ? 'bg-accentPurple text-white'
+                : 'bg-surface2 border border-border text-textSec hover:text-text hover:border-accentTeal'
+            }`}>
+            <Search size={15} />
+          </Link>
           <Link href="/herramientas" title="Herramientas"
             className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
               pathname === '/herramientas'
@@ -84,7 +89,7 @@ export default function Nav() {
       </div>
 
       <nav className="mb-5 flex items-center gap-1.5 flex-wrap">
-        {LINKS.map((l) => itemNav(l.href, l.label, pathname))}
+        {links.map((l) => itemNav(l.href, l.label, pathname))}
       </nav>
 
       <AccionesRapidas />

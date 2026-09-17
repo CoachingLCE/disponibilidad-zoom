@@ -1,228 +1,264 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from '../lib/useSession';
-import {
-  SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS
-} from '../lib/salasLogic';
+import { useSession } from '../../lib/useSession';
+import { ICONOS, NOMBRES, formatFechaCorta, calcularFormaciones, colorFormacion, ESTADOS, calcularFechaFinCurso, claseActualPorFecha } from '../../lib/salasLogic';
+import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
+import { FECHAS_INICIO_REALES } from '../../lib/fechasInicioReales';
 
-const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
-const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
+const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
-export default function InicioPage() {
+export default function FormacionesPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
-
   const [clases, setClases] = useState([]);
-  const [feriados, setFeriados] = useState([]);
-  const [actividades, setActividades] = useState([]);
-  const [postergaciones, setPostergaciones] = useState([]);
+  const [formacionesManual, setFormacionesManual] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [error, setError] = useState(null);
+  const [filtro, setFiltro] = useState('todas');
+  const [filtroCurso, setFiltroCurso] = useState('');
+  const [filtroCuatrimestre, setFiltroCuatrimestre] = useState('');
 
-  useEffect(() => {
-    if (!cargando && !usuario) router.push('/login');
-  }, [cargando, usuario, router]);
+  useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
+  useEffect(() => { if (usuario) cargar(); }, [usuario]);
 
-  useEffect(() => {
-    if (usuario) cargarTodo();
-  }, [usuario]);
-
-  async function cargarTodo() {
+  async function cargar() {
     setCargandoDatos(true);
+    setError(null);
     try {
-      const [rc, rf, ra, rp] = await Promise.all([
-        fetchAutenticado('/api/clases'),
-        fetchAutenticado('/api/feriados'),
-        fetchAutenticado('/api/actividades'),
-        fetchAutenticado('/api/postergaciones')
-      ]);
-      const [dc, df, da, dp] = await Promise.all([rc.json(), rf.json(), ra.json(), rp.json()]);
-      if (rc.ok) setClases(dc.clases);
-      if (rf.ok) setFeriados(df.feriados);
-      if (ra.ok) setActividades(da.actividades);
-      if (rp.ok) setPostergaciones(dp.postergaciones);
+      const [rc, rf] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/formaciones')]);
+      const [dc, df] = await Promise.all([rc.json(), rf.json()]);
+      if (rc.ok) setClases(dc.clases); else setError(dc.error);
+      if (rf.ok) setFormacionesManual(df.formaciones);
+    } catch (err) {
+      setError('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
     } finally {
       setCargandoDatos(false);
     }
   }
 
-  const vista = useMemo(() => agruparParaVista(clases), [clases]);
-  const alertas = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
-  const formaciones = useMemo(() => calcularFormaciones(clases), [clases]);
+  // El histórico (mismo Excel que ya se importó como referencia) tiene, para cada clase de
+  // Formación que realmente pasó, su fecha real y a qué Edición pertenece — es la fuente más
+  // confiable de todas para saber cuándo arrancó y cuántas clases lleva cada edición puntual.
+  const historicoPorEdicion = useMemo(() => {
+    const grupos = {};
+    CRONOGRAMA_HISTORICO.filter((h) => h.tipo === 'Formación' && h.edicion && h.fecha).forEach((h) => {
+      const key = `${h.curso}|${h.edicion}`;
+      (grupos[key] = grupos[key] || []).push(h);
+    });
+    const out = {};
+    Object.keys(grupos).forEach((key) => {
+      const grupo = grupos[key];
+      const fechas = grupo.map((h) => h.fecha).sort();
+      out[key] = {
+        fechaInicio: fechas[0], fechaFinal: fechas[fechas.length - 1],
+        cargadas: grupo.length, total: parseInt(grupo[0].clasesTotal, 10) || null
+      };
+    });
+    // Las fechas de inicio confirmadas a mano por Diego (lib/fechasInicioReales.js) son más
+    // confiables que las que salen de mirar qué clases se llegaron a cargar en el horario
+    // — cuando existen, pisan la fecha de inicio de acá (no tocan cargadas/total).
+    Object.keys(FECHAS_INICIO_REALES).forEach((key) => {
+      out[key] = { cargadas: 0, total: null, ...out[key], fechaInicio: FECHAS_INICIO_REALES[key] };
+    });
+    return out;
+  }, []);
 
-  const ahora = new Date();
-  const diaHoy = DIAS_JS[ahora.getDay()];
-  const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
-  const hoyISO = ahora.toISOString().slice(0, 10);
+  // Combina lo calculado automáticamente desde el horario (calcularFormaciones) con, en
+  // orden de confiabilidad: 1) el histórico real (fechas verdaderas de clases que ya
+  // pasaron), 2) las fechas cargadas a mano en la pestaña "Formaciones" del Sheet.
+  const formaciones = useMemo(() => {
+    const base = calcularFormaciones(clases);
+    const hoyISO = new Date().toISOString().slice(0, 10);
+    const enriquecidas = base.map((f) => {
+      const historico = historicoPorEdicion[`${f.codigo}|${f.numero}`];
+      const manual = formacionesManual.find((m) => m.codigo === f.codigo && m.edicion === f.numero);
 
-  let ocupadasAhora = 0;
-  SALAS.forEach((sala) => {
-    const ocupHoy = vista.filter((c) => c.dia === diaHoy && c.sala === sala)
-      .map((c) => ({ inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }));
-    if (ocupHoy.some((o) => horaActual >= o.inicio && horaActual < o.fin)) ocupadasAhora++;
-  });
-  const libresAhora = SALAS.length - ocupadasAhora;
+      if (historico) {
+        const total = historico.total || f.total;
+        // El histórico puede tener registrada solo ALGUNA de las clases de esta edición
+        // (no necesariamente todas) — por eso la fecha de inicio real SÍ es confiable, pero
+        // "cuántas ya pasaron" se estima mejor por tiempo transcurrido que por cuántas filas
+        // quedaron logueadas en ese Excel puntual. calcularFechaFinCurso/claseActualPorFecha
+        // respetan los 2 recesos de 2 semanas de Ontológico (clase 16→17 y 32→33) — antes
+        // se asumía 1 clase por semana corrida, lo que adelantaba varias semanas la fecha
+        // de fin estimada de cada edición de CO.
+        const fechaFinalEstimada = calcularFechaFinCurso(f.codigo, historico.fechaInicio, total);
+        const cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(f.codigo, historico.fechaInicio, total, hoyISO) || 0);
+        const finalPasado = fechaFinalEstimada < hoyISO;
+        const completo = total && cargadasEstimadas >= total;
+        const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
+        const pct = total ? Math.min(100, Math.round((cargadasEstimadas / total) * 100)) : null;
+        return {
+          ...f, fechaInicio: historico.fechaInicio, fechaFinal: fechaFinalEstimada,
+          cargadas: Math.min(cargadasEstimadas, total), total, estado, pct,
+          proximaTxt: estado === 'Finalizó' ? '—' : f.proximaTxt
+        };
+      }
 
-  const actividadesTodas = useMemo(() => {
-    function toISO(d) {
-      const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    }
-    // Para una clase del horario recurrente (sin fecha puntual), calcula la próxima fecha
-    // real en la que cae según su día de la semana — hoy si coincide, si no el próximo.
-    function proximaFechaParaDia(diaClase) {
-      const idxObjetivo = DIAS_JS.indexOf(diaClase);
-      if (idxObjetivo === -1) return null;
-      const idxHoy = ahora.getDay();
-      let diff = idxObjetivo - idxHoy;
-      if (diff < 0) diff += 7;
-      const d = new Date(ahora);
-      d.setDate(ahora.getDate() + diff);
-      return toISO(d);
-    }
+      if (!manual) return f;
 
-    const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => ({
-      fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
-    }));
-    // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
-    // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
-    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => ({
-      fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.edicion, numero: c.numero, horaMin: c.horaMin, sala: c.sala, esFormacion: true
-    })).filter((c) => c.fecha);
-    // Mismo criterio que en Cronograma: las Formación históricas se excluyen acá,
-    // porque ya están representadas (con sala real) en deClases.
-    const deOtras = actividades.filter((a) => a.fecha && a.tipo !== 'Formación').map((a) => ({
-      fecha: a.fecha, dia: a.dia, curso: '', nombreCurso: a.nombreCurso || a.tipo,
-      edicion: '', numero: '', horaMin: a.horaMin, sala: '', esFormacion: false
-    }));
-    return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
-  }, [clases, actividades]);
+      let fechaFinal = manual.fechaFinal || f.fechaFinal;
+      if (!fechaFinal && manual.fechaInicio && f.total) {
+        const est = new Date(manual.fechaInicio + 'T00:00:00');
+        est.setDate(est.getDate() + (f.total - 1) * 7);
+        fechaFinal = est.toISOString().slice(0, 10);
+      }
+      const finalPasado = fechaFinal ? fechaFinal < hoyISO : false;
+      const estado = manual.estado === 'Finalizó' || finalPasado ? 'Finalizó' : f.estado;
 
-  const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
-  const proximas = actividadesTodas
-    .filter((a) => a.fecha > hoyISO || (a.fecha === hoyISO && a.horaMin != null && a.horaMin > horaActual))
-    .slice(0, 8);
-  const proximaClase = agendaHoy.find((a) => a.horaMin > horaActual) || proximas[0] || null;
-  const formacionesEnCurso = formaciones.filter((f) => f.estado === 'En proceso').length;
+      return {
+        ...f,
+        fechaInicio: manual.fechaInicio || f.fechaInicio,
+        fechaFinal: fechaFinal || f.fechaFinal,
+        estado,
+        pct: estado === 'Finalizó' ? 100 : f.pct
+      };
+    });
+
+    // Las de arriba son las que TODAVÍA ocupan una sala en el horario en vivo. Pero una
+    // edición que ya terminó hace tiempo generalmente deja de tener sala asignada — y
+    // sin embargo el histórico SÍ la tiene registrada. Sin este paso, esas ediciones
+    // nunca aparecían como tarjeta (ni "Finalizó" ni ninguna otra), aunque el dato
+    // exista. Acá se agregan como tarjetas propias, calculadas 100% desde el histórico.
+    const presentes = new Set(enriquecidas.map((f) => `${f.codigo}|${f.numero}`));
+    const soloHistoricas = Object.entries(historicoPorEdicion)
+      .filter(([key]) => !presentes.has(key))
+      .map(([key, historico]) => {
+        const [codigo, numero] = key.split('|');
+        const total = historico.total || null;
+        if (!total) return null; // sin total no se puede estimar nada con confianza
+        const fechaFinalEstimada = calcularFechaFinCurso(codigo, historico.fechaInicio, total);
+        const cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(codigo, historico.fechaInicio, total, hoyISO) || 0);
+        const finalPasado = fechaFinalEstimada < hoyISO;
+        const completo = cargadasEstimadas >= total;
+        const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
+        const pct = Math.min(100, Math.round((cargadasEstimadas / total) * 100));
+        return {
+          codigo, numero, edicion: numero,
+          fechaInicio: historico.fechaInicio, fechaFinal: fechaFinalEstimada,
+          cargadas: Math.min(cargadasEstimadas, total), total, estado, pct,
+          proximaTxt: estado === 'Finalizó' ? '—' : 'Sin sala asignada actualmente',
+          cuatrimestre: null
+        };
+      })
+      .filter(Boolean);
+
+    return [...enriquecidas, ...soloHistoricas].map((f) => {
+      // Vencimiento del proceso de certificación: 1 mes después de finalizar para
+      // formaciones cortas (16 clases). Para Coaching Ontológico son 4 meses hasta la
+      // edición 29 y 2 meses desde la edición 30 en adelante (cambio de política real,
+      // indicado por Diego) — se puede seguir ajustando puntualmente por edición cargando
+      // "MesesCertificacion" en la pestaña Formaciones del Sheet.
+      if (!f.fechaFinal) return f;
+      const manual = formacionesManual.find((m) => m.codigo === f.codigo && m.edicion === f.numero);
+      const defaultCO = parseInt(f.numero, 10) >= 30 ? 2 : 4;
+      const meses = manual?.mesesCertificacion ?? (f.codigo === 'CO' ? defaultCO : 1);
+      const venc = new Date(f.fechaFinal + 'T00:00:00');
+      venc.setMonth(venc.getMonth() + meses);
+      return { ...f, vencimientoCertificacion: venc.toISOString().slice(0, 10), mesesCertificacion: meses };
+    });
+  }, [clases, formacionesManual, historicoPorEdicion]);
+
+  const filtradas = useMemo(() => {
+    let out = formaciones;
+    if (filtro === 'enCurso') out = out.filter((f) => f.estado === 'En proceso');
+    else if (filtro === 'porFinalizar') out = out.filter((f) => f.estado === 'En proceso' && f.pct != null && f.pct >= 85);
+    else if (filtro === 'finalizadas') out = out.filter((f) => f.estado === 'Finalizó');
+    if (filtroCurso) out = out.filter((f) => f.codigo === filtroCurso);
+    if (filtroCuatrimestre) out = out.filter((f) => f.cuatrimestre === parseInt(filtroCuatrimestre, 10));
+    return out;
+  }, [formaciones, filtro, filtroCurso, filtroCuatrimestre]);
+
+  const cursosUsados = [...new Set(formaciones.map((f) => f.codigo))].sort();
+  const hayCuatrimestres = formaciones.some((f) => f.cuatrimestre != null && f.cuatrimestre > 1) || formaciones.some((f) => f.total === 48);
 
   if (cargando || !usuario) return null;
 
   return (
-    <div className="max-w-[1440px] mx-auto px-6 pt-6 pb-16">
-      <div className="mb-5">
-        <h1 className="text-lg font-semibold">HOY</h1>
-        <p className="text-textSec text-sm mt-0.5">
-          {agendaHoy.length} clase{agendaHoy.length !== 1 ? 's' : ''} · {ocupadasAhora} sala{ocupadasAhora !== 1 ? 's' : ''} ocupada{ocupadasAhora !== 1 ? 's' : ''} · {libresAhora} disponible{libresAhora !== 1 ? 's' : ''}
-        </p>
+    <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-20">
+      <h1 className="text-xl mb-1">Formaciones</h1>
+      <p className="text-textSec text-sm mb-4">Estado, fechas y progreso de cada edición.</p>
+      {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
+
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        <button className={chipCls(filtro === 'todas')} onClick={() => setFiltro('todas')}>Todas</button>
+        <button className={chipCls(filtro === 'enCurso')} onClick={() => setFiltro('enCurso')}>En curso</button>
+        <button className={chipCls(filtro === 'porFinalizar')} onClick={() => setFiltro('porFinalizar')}>Próximas a finalizar</button>
+        <button className={chipCls(filtro === 'finalizadas')} onClick={() => setFiltro('finalizadas')}>Finalizadas</button>
       </div>
+      <div className="flex flex-wrap gap-1.5 mb-5">
+        <button className={chipCls(filtroCurso === '')} onClick={() => setFiltroCurso('')}>Todas las formaciones</button>
+        {cursosUsados.map((c) => (
+          <button key={c} className={chipCls(filtroCurso === c)} onClick={() => setFiltroCurso(c)}>
+            {ICONOS[c] || ''} {NOMBRES[c] || c}
+          </button>
+        ))}
+      </div>
+      {hayCuatrimestres && (
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          <button className={chipCls(filtroCuatrimestre === '')} onClick={() => setFiltroCuatrimestre('')}>Todos los cuatrimestres</button>
+          <button className={chipCls(filtroCuatrimestre === '1')} onClick={() => setFiltroCuatrimestre('1')}>1er cuatrimestre</button>
+          <button className={chipCls(filtroCuatrimestre === '2')} onClick={() => setFiltroCuatrimestre('2')}>2do cuatrimestre</button>
+          <button className={chipCls(filtroCuatrimestre === '3')} onClick={() => setFiltroCuatrimestre('3')}>3er cuatrimestre</button>
+        </div>
+      )}
 
       {cargandoDatos ? (
         <p className="text-textSec text-sm">Cargando…</p>
+      ) : filtradas.length === 0 ? (
+        <p className="text-textSec text-sm">No hay formaciones que coincidan con este filtro.</p>
       ) : (
-        <>
-          <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
-            <Metrica valor={agendaHoy.length} label="Clases hoy" />
-            <Metrica
-              valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
-              label={proximaClase ? `Próxima: ${proximaClase.nombreCurso}` : 'Próxima clase'}
-              chico
-            />
-            <Metrica valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
-            <Metrica valor={libresAhora} label="Salas disponibles" acento="success" />
-            <Metrica valor={alertas.length} label="Incidencias activas" acento={alertas.length > 0 ? 'danger' : undefined} />
-            <Metrica valor={formacionesEnCurso} label="Formaciones activas" />
-          </div>
-
-          <div className={sectionCls}>
-            <h2 className="text-sm font-semibold mb-1">Agenda de hoy</h2>
-            <p className="text-xs text-textMuted mb-3">{formatFechaCorta(hoyISO)}</p>
-            {agendaHoy.length === 0 ? (
-              <p className="text-textSec text-sm py-2">Sin actividades cargadas para hoy.</p>
-            ) : (
-              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
-                {agendaHoy.map((a, i) => {
-                  const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + 90;
-                  const color = a.esFormacion ? colorFormacion(a.curso) : null;
-                  return (
-                    <div key={i} className={`border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3`}>
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <span className="font-mono text-xs text-textSec">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
-                        {enCurso && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADOS.enCurso.bg} ${ESTADOS.enCurso.text}`}>
-                            {ESTADOS.enCurso.label.toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[a.curso] || ''} {a.nombreCurso}</span>
-                      </div>
-                      {a.esFormacion && a.numero && (
-                        <p className="text-xs text-textMuted">{a.curso} {a.numero} · Clase {a.numero}</p>
-                      )}
-                      {a.sala && <p className="text-xs text-textMuted">{a.sala}</p>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className={sectionCls}>
-            <h2 className="text-sm font-semibold mb-2">Alertas activas</h2>
-            {alertas.length === 0 ? (
-              <p className="text-textSec text-sm py-1">Sin conflictos detectados por ahora.</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {alertas.map((a, i) => (
-                  <div key={i} className={`rounded-lg px-3 py-2 text-xs font-medium ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`}>
-                    {a.texto}
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))' }}>
+          {filtradas.map((f) => {
+            const color = colorFormacion(f.codigo);
+            const estado = f.estado === 'Finalizó' ? ESTADOS.finalizada : ESTADOS.normal;
+            return (
+              <div key={f.codigo + f.edicion} className={`bg-surface2 border-l-4 ${color.border} border-t border-r border-b border-border rounded-xl p-4`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />
+                    <span className={`font-semibold text-sm truncate ${color.text}`}>{ICONOS[f.codigo] || ''} {NOMBRES[f.codigo] || f.codigo} {f.numero}</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${estado.bg} ${estado.text}`}>{estado.label}</span>
+                </div>
 
-          <div className={sectionCls}>
-            <h2 className="text-sm font-semibold mb-2">Próximas clases</h2>
-            {proximas.length === 0 ? (
-              <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
-            ) : (
-              <div>
-                {proximas.map((a, i) => {
-                  const color = a.esFormacion ? colorFormacion(a.curso) : null;
-                  return (
-                    <div key={i} className="flex items-center justify-between gap-3 py-2.5 border-b border-border last:border-0">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-xs text-textMuted w-20 shrink-0">{formatFechaCorta(a.fecha)}</span>
-                        <span className="font-mono text-xs text-textSec w-12 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
-                        {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-sm truncate ${color ? color.text : ''}`}>{a.nombreCurso}{a.esFormacion && a.numero ? ` · Clase ${a.numero}` : ''}</span>
-                      </div>
-                      {a.sala && <span className="text-xs text-textMuted shrink-0">{a.sala}</span>}
+                {f.total === 48 && f.cuatrimestre && (
+                  <p className="text-[11px] text-textMuted mb-1.5">{f.cuatrimestre}º cuatrimestre (clases {(f.cuatrimestre - 1) * 16 + 1}-{f.cuatrimestre * 16})</p>
+                )}
+
+                {f.pct != null ? (
+                  <>
+                    <div className="flex items-center justify-between text-xs text-textSec mb-1">
+                      <span>Clase {Math.min(f.cargadas, f.total)} / {f.total}</span>
+                      <span>{f.pct}%</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+                    <div className="w-full h-2 bg-bg border border-border rounded-full overflow-hidden mb-3">
+                      <div className={`h-full ${color.dot}`} style={{ width: f.pct + '%' }} />
+                    </div>
+                    {f.cargadas > f.total && f.estado !== 'Finalizó' && (
+                      <p className="text-[10.5px] text-warningText mb-2">
+                        El número de esta edición ({f.cargadas}) supera el total de clases del curso ({f.total}) — probablemente ya arrancó otro ciclo. Progreso aproximado.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-textMuted mb-3">Sin datos de progreso</p>
+                )}
 
-function Metrica({ valor, label, acento, chico }) {
-  const color = {
-    success: 'text-successText', warning: 'text-warningText', danger: 'text-dangerText'
-  }[acento] || 'text-text';
-  return (
-    <div className={cardCls}>
-      <div className={`${chico ? 'text-lg' : 'text-2xl'} font-bold ${color}`}>{valor}</div>
-      <div className="text-[11px] text-textSec mt-0.5 truncate">{label}</div>
+                <div className="text-xs text-textSec space-y-0.5">
+                  <p>Inicio: {formatFechaCorta(f.fechaInicio)}</p>
+                  <p>Finalización: {formatFechaCorta(f.fechaFinal)}</p>
+                  {f.vencimientoCertificacion && (
+                    <p>Vencimiento certificación: {formatFechaCorta(f.vencimientoCertificacion)} <span className="text-textMuted">({f.mesesCertificacion} {f.mesesCertificacion === 1 ? 'mes' : 'meses'})</span></p>
+                  )}
+                  <p className="text-text font-medium">Próxima clase: {f.proximaTxt}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
