@@ -13,6 +13,8 @@ import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
 
 const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
+const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
+const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
 
 /** Lunes y domingo (ISO) de la semana que contiene `fechaBase`. */
 function rangoSemana(fechaBase) {
@@ -161,6 +163,7 @@ export default function InicioPage() {
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   const proximaClase = agendaHoy.find((a) => a.horaMin > horaActual) || proximas[0] || null;
   const formacionesEnCurso = formaciones.filter((f) => f.estado === 'En proceso').length;
+  const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
 
   if (cargando || !usuario) return null;
 
@@ -303,6 +306,65 @@ export default function InicioPage() {
           </div>
         </>
       )}
+      {seleccionado && <ModalDetalleInicio item={seleccionado} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} />}
+    </div>
+  );
+}
+
+function ModalDetalleInicio({ item, onCerrar, puedeEditar }) {
+  const idReunion = CREDENCIALES_ZOOM_DEFAULT.find((c) => c.sala === item.sala)?.idReunion;
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
+      <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-semibold mb-1">
+          {item.esFormacion ? `${item.curso} ${item.edicion || ''}` : item.tipo}
+        </h3>
+        <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>
+        <div className="space-y-1.5 text-sm mb-4">
+          <Fila label="Fecha" valor={formatFechaCorta(item.fecha)} />
+          <Fila label="Horario" valor={item.horaMin != null ? minutosAHora(item.horaMin) : '—'} />
+          <Fila
+            label="Sala"
+            valor={item.sala ? <Link href="/credenciales-zoom" className="text-infoText underline">{item.sala}</Link> : '—'}
+          />
+          {idReunion && <Fila label="ID de reunión" valor={idReunion} />}
+          {item.esFormacion && item.numeroSesion && item.total && (
+            <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
+          )}
+          <Fila label="Docente" valor={item.docente || '—'} />
+          {item.esFormacion && <Fila label="Staff" valor={item.staff || '—'} />}
+          {!item.esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
+          <Fila label="Observaciones" valor={item.observaciones || '—'} />
+        </div>
+        {puedeEditar && (
+          <div className="flex flex-col gap-2 mb-3">
+            {item.esFormacion && (
+              <Link
+                href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
+                className={`${btnSecCls} text-center`}
+              >
+                🔁 Cambiar sala, postergar o cancelar esta clase →
+              </Link>
+            )}
+            <Link
+              href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
+              className={`${btnCls} text-center`}
+            >
+              + Agregar actividad →
+            </Link>
+          </div>
+        )}
+        <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
+      </div>
+    </div>
+  );
+}
+
+function Fila({ label, valor }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-textMuted">{label}</span>
+      <span className="text-right">{valor}</span>
     </div>
   );
 }

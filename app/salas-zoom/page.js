@@ -451,6 +451,10 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
     if (r.staff) setStaff(r.staff);
   }
   const [salaEspecial, setSalaEspecial] = useState('');
+  // Sala que la persona elige de entrada para una Formación (opcional): no se reserva sola —
+  // se sigue chequeando contra las salas ya ocupadas — pero permite elegirla en vez de tener
+  // que adivinar cuál tocar en la grilla de resultados.
+  const [salaPreferida, setSalaPreferida] = useState('');
   const [resultado, setResultado] = useState(null);
   const [msg, setMsg] = useState(null);
 
@@ -479,7 +483,7 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({ tipo: 'ok', texto: `Reservado en ${sala} (${data.agregadas} clase(s)).${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
-      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs('');
+      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida('');
       onReservado();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -560,6 +564,15 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
         {esFormacion && (
           <div><label className={labelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
         )}
+        {esFormacion && (
+          <div><label className={labelCls}>Sala preferida (opcional)</label>
+            <select value={salaPreferida} onChange={(e) => setSalaPreferida(e.target.value)} className={inputCls}>
+              <option value="">Elegir al buscar disponibilidad</option>
+              {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <p className="text-[10px] text-textMuted mt-0.5">Si la elegís, te la marcamos abajo si está libre en ese horario.</p>
+          </div>
+        )}
         {!esFormacion && (
           <div><label className={labelCls}>Sala (opcional)</label>
             <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
@@ -593,12 +606,26 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
           <div className={`px-3.5 py-2.5 rounded-lg mb-3 font-semibold text-sm ${resultado.libres.length ? 'bg-successBg text-successText' : 'bg-dangerBg text-dangerText'}`}>
             {resultado.libres.length ? `Sí hay lugar — ${resultado.libres.length} sala(s) libre(s)` : 'No hay lugar — las 8 salas están ocupadas'}
           </div>
+          {salaPreferida && (
+            resultado.ocupadas.find((o) => o.sala === salaPreferida) ? (
+              <div className="px-3.5 py-2.5 rounded-lg mb-3 text-sm bg-warningBg text-warningText">
+                ⚠️ La sala que elegiste ({salaPreferida}) está ocupada en ese horario — elegí otra de las libres abajo.
+              </div>
+            ) : (
+              <div className="px-3.5 py-2.5 rounded-lg mb-3 text-sm bg-successBg text-successText">
+                ✓ {salaPreferida} está libre en ese horario — marcada abajo.
+              </div>
+            )
+          )}
           <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))' }}>
             {SALAS.map((s) => {
               const ocupada = resultado.ocupadas.find((o) => o.sala === s);
+              const esPreferida = salaPreferida === s;
               return (
-                <div key={s} className={`bg-bg border border-border rounded-lg p-3 ${ocupada ? 'opacity-70' : ''}`}>
-                  <div className="font-semibold text-sm">● {s}</div>
+                <div key={s} className={`bg-bg border rounded-lg p-3 ${ocupada ? 'opacity-70 border-border' : esPreferida ? 'border-accentPurple ring-1 ring-accentPurple' : 'border-border'}`}>
+                  <div className="font-semibold text-sm flex items-center gap-1.5">● {s}
+                    {esPreferida && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-accentPurple text-white">Tu elección</span>}
+                  </div>
                   <div className="text-[11.5px] text-textSec mb-2">
                     {ocupada ? `Ocupada por ${ocupada.label} (libera ${minutosAHora(ocupada.libera)})` : 'Libre en ese horario'}
                   </div>
