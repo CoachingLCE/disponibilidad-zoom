@@ -18,6 +18,16 @@ const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white r
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
 const tabCls = (activo) => `rounded-lg px-3.5 py-1.5 text-xs font-semibold border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
+// Estilos propios del panel "Agregar al cronograma" — un poco más "dashboard" que el resto
+// de las cajas de la página (boxCls/inputCls/labelCls), pero sin tocar esos estilos
+// compartidos con otras pantallas/vistas de este mismo archivo.
+const panelCls = 'bg-surface2 border border-border/70 rounded-2xl p-5 sm:p-6 mb-4 shadow-sm';
+const seccionCls = 'bg-bg/60 border border-border/60 rounded-[14px] p-4';
+const seccionTituloCls = 'text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-3';
+const campoCls = 'w-full h-[42px] bg-surface2 border border-border rounded-[12px] px-3 text-sm';
+const campoLabelCls = 'text-[11.5px] text-textSec block mb-1.5 font-medium';
+const btnPrimaryCls = 'inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-[12px] px-5 py-2.5 text-sm font-semibold disabled:opacity-40 shadow-sm shrink-0';
+
 const HORAS_OPCIONES = (() => {
   const out = [];
   for (let m = 8 * 60; m <= 22.5 * 60; m += 30) out.push(minutosAHora(m));
@@ -558,148 +568,181 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
   const esPeriodoDocente = tipo === TIPO_PERIODO_DOCENTE;
 
   return (
-    <div className={boxCls}>
-      <h2 className="text-sm font-semibold mb-3">Agregar actividad</h2>
-      <p className="text-xs text-textSec mb-3">
+    <div className={panelCls}>
+      <div className="flex items-center gap-2.5 mb-1">
+        <span className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-accentPurple to-accentMagenta flex items-center justify-center text-white text-sm shrink-0">📅</span>
+        <h2 className="text-base font-semibold">Agregar al cronograma</h2>
+      </div>
+      <p className="text-xs text-textSec mb-4 sm:ml-[42px] sm:-mt-0.5">
         Un solo lugar para cargar todo — Formaciones buscan sala disponible; el resto de los tipos se agrega directo al cronograma.
       </p>
+
       <LecturaInteligente onAplicar={aplicarLectura} />
-      <div className="mb-3">
-        <label className={labelCls}>Tipo</label>
-        <select value={tipo} onChange={(e) => { setTipo(e.target.value); setResultado(null); setMsg(null); }} className={`${inputCls} max-w-xs`}>
+
+      <div className={`${seccionCls} mb-3`}>
+        <p className={seccionTituloCls}>Tipo de evento</p>
+        <select value={tipo} onChange={(e) => { setTipo(e.target.value); setResultado(null); setMsg(null); }} className={`${campoCls} max-w-sm`}>
           {tiposDisponibles.map((t) => <option key={t} value={t}>{t === 'Formación' ? 'Formación / Curso' : t}</option>)}
         </select>
       </div>
 
       {esPeriodoDocente ? (
-        <>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
-            <div><label className={labelCls}>Edición (ej: 45)</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Día</label><input value={diaPeriodo} onChange={(e) => setDiaPeriodo(e.target.value)} placeholder="Martes" className={inputCls} /></div>
-            <div><label className={labelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="19:00 a 21:00" className={inputCls} /></div>
-          </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
-            <div><label className={labelCls}>Desde</label><input type="date" value={desdePeriodo} onChange={(e) => setDesdePeriodo(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Hasta</label><input type="date" value={hastaPeriodo} onChange={(e) => setHastaPeriodo(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
-          </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
-            <div>
-              <label className={labelCls}>Sala</label>
-              <select value={salaPeriodo} onChange={(e) => setSalaPeriodo(e.target.value)} className={inputCls}>
-                <option value="">Sin definir</option>
-                {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Cuatrimestre</label>
-              <select value={cuatrimestrePeriodo} onChange={(e) => setCuatrimestrePeriodo(e.target.value)} className={inputCls}>
-                <option value="">Sin definir</option>
-                {CUATRIMESTRES_CO.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
+        <div className="grid gap-3 mb-3 lg:grid-cols-2">
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Edición y horario</p>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
+              <div><label className={campoLabelCls}>Edición (ej: 45)</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Día</label><input value={diaPeriodo} onChange={(e) => setDiaPeriodo(e.target.value)} placeholder="Martes" className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="19:00 a 21:00" className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Desde</label><input type="date" value={desdePeriodo} onChange={(e) => setDesdePeriodo(e.target.value)} className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Hasta</label><input type="date" value={hastaPeriodo} onChange={(e) => setHastaPeriodo(e.target.value)} className={campoCls} /></div>
             </div>
           </div>
-          <div className="mb-3"><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
-        </>
-      ) : esMasterclass ? (
-        <>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
-            <div className="lg:col-span-2"><label className={labelCls}>Nombre</label><input value={nombreActividad} onChange={(e) => setNombreActividad(e.target.value)} placeholder="ej: Efecto Florida" className={inputCls} /></div>
-            <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="20:00 a 21:15" className={inputCls} /></div>
-          </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
-            <div><label className={labelCls}>Disertante</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Sala de Zoom</label>
-              <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
-                <option value="">Sin sala asignada</option>
-                {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div><label className={labelCls}>Moderador</label><input value={moderador} onChange={(e) => setModerador(e.target.value)} className={inputCls} /></div>
-          </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
-            <div><label className={labelCls}>Formulario de inscripción</label><input value={formularioInscripcion} onChange={(e) => setFormularioInscripcion(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Link de acceso (Zoom)</label><input value={linkAcceso} onChange={(e) => setLinkAcceso(e.target.value)} className={inputCls} /></div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
-            <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Hora</label>
-              <select value={horaTxt} onChange={(e) => setHoraTxt(e.target.value)} className={inputCls}>
-                {HORAS_OPCIONES.map((h) => <option key={h}>{h}</option>)}
-              </select>
-            </div>
-            <div><label className={labelCls}>{esFormacion ? 'Curso' : 'Curso/Materia'}</label>
-              {esFormacion ? (
-                <select
-                  value={codigo}
-                  onChange={(e) => { setCodigo(e.target.value); setCantidad(TOTALES[e.target.value] || 1); }}
-                  className={inputCls}
-                >
-                  {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
-                </select>
-              ) : (
-                <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={inputCls}>
-                  {CURSOS_MATERIA.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              )}
-            </div>
-            <div><label className={labelCls}>Edición{esFormacion ? ' (ej: 51)' : ''}</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
-            {esFormacion && (
-              <>
-                <div>
-                  <label className={labelCls}>Nº de esta clase (1, 2, 3…)</label>
-                  <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="1" className={inputCls} />
-                  <p className="text-[10px] text-textMuted mt-0.5">⚠️ NO el número de edición — si es la 1ª clase de la edición, va "1".</p>
-                </div>
-                <div><label className={labelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={inputCls} /></div>
-              </>
-            )}
-            <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
-            {esFormacion && (
-              <div><label className={labelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
-            )}
-            {esFormacion && (
-              <div><label className={labelCls}>Sala de Zoom preferida (opcional)</label>
-                <select value={salaPreferida} onChange={(e) => setSalaPreferida(e.target.value)} className={inputCls}>
-                  <option value="">Elegir al buscar disponibilidad</option>
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Docente, staff y sala</p>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
+              <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
+              <div>
+                <label className={campoLabelCls}>Sala</label>
+                <select value={salaPeriodo} onChange={(e) => setSalaPeriodo(e.target.value)} className={campoCls}>
+                  <option value="">Sin definir</option>
                   {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <p className="text-[10px] text-textMuted mt-0.5">Si la elegís, te la marcamos abajo si está libre en ese horario.</p>
               </div>
-            )}
-            {!esFormacion && (
-              <div><label className={labelCls}>Sala de Zoom (opcional)</label>
-                <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
+              <div>
+                <label className={campoLabelCls}>Cuatrimestre</label>
+                <select value={cuatrimestrePeriodo} onChange={(e) => setCuatrimestrePeriodo(e.target.value)} className={campoCls}>
+                  <option value="">Sin definir</option>
+                  {CUATRIMESTRES_CO.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="mt-3"><label className={campoLabelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={campoCls} /></div>
+          </div>
+        </div>
+      ) : esMasterclass ? (
+        <div className="grid gap-3 mb-3">
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Actividad y horario</p>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+              <div className="sm:col-span-2"><label className={campoLabelCls}>Nombre</label><input value={nombreActividad} onChange={(e) => setNombreActividad(e.target.value)} placeholder="ej: Efecto Florida" className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="20:00 a 21:15" className={campoCls} /></div>
+            </div>
+          </div>
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Disertante, sala y moderación</p>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+              <div><label className={campoLabelCls}>Disertante</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Sala de Zoom</label>
+                <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={campoCls}>
                   <option value="">Sin sala asignada</option>
                   {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              <div><label className={campoLabelCls}>Moderador</label><input value={moderador} onChange={(e) => setModerador(e.target.value)} className={campoCls} /></div>
+            </div>
+          </div>
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Inscripción y acceso</p>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
+              <div><label className={campoLabelCls}>Formulario de inscripción</label><input value={formularioInscripcion} onChange={(e) => setFormularioInscripcion(e.target.value)} className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Link de acceso (Zoom)</label><input value={linkAcceso} onChange={(e) => setLinkAcceso(e.target.value)} className={campoCls} /></div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 mb-3">
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Fecha, hora y curso</p>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+              <div><label className={campoLabelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campoCls} /></div>
+              <div><label className={campoLabelCls}>Hora</label>
+                <select value={horaTxt} onChange={(e) => setHoraTxt(e.target.value)} className={campoCls}>
+                  {HORAS_OPCIONES.map((h) => <option key={h}>{h}</option>)}
+                </select>
+              </div>
+              <div><label className={campoLabelCls}>{esFormacion ? 'Curso' : 'Curso/Materia'}</label>
+                {esFormacion ? (
+                  <select
+                    value={codigo}
+                    onChange={(e) => { setCodigo(e.target.value); setCantidad(TOTALES[e.target.value] || 1); }}
+                    className={campoCls}
+                  >
+                    {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
+                  </select>
+                ) : (
+                  <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={campoCls}>
+                    {CURSOS_MATERIA.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Edición, docente y sala</p>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+              <div><label className={campoLabelCls}>Edición{esFormacion ? ' (ej: 51)' : ''}</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={campoCls} /></div>
+              {esFormacion && (
+                <>
+                  <div>
+                    <label className={campoLabelCls}>Nº de esta clase (1, 2, 3…)</label>
+                    <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="1" className={campoCls} />
+                  </div>
+                  <div><label className={campoLabelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={campoCls} /></div>
+                </>
+              )}
+              <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
+              {esFormacion && (
+                <div><label className={campoLabelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
+              )}
+              {esFormacion ? (
+                <div><label className={campoLabelCls}>Sala de Zoom preferida (opcional)</label>
+                  <select value={salaPreferida} onChange={(e) => setSalaPreferida(e.target.value)} className={campoCls}>
+                    <option value="">Elegir al buscar disponibilidad</option>
+                    {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div><label className={campoLabelCls}>Sala de Zoom (opcional)</label>
+                  <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={campoCls}>
+                    <option value="">Sin sala asignada</option>
+                    {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+            {esFormacion && (
+              <p className="text-[10px] text-textMuted mt-2.5">⚠️ En "Nº de esta clase" NO va el número de edición — si es la 1ª clase de la edición, va "1". Si elegís una sala preferida, te la marcamos abajo si está libre en ese horario.</p>
             )}
           </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))' }}>
-            {!esFormacion && (
-              <div><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>
-            )}
-            <div><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
+
+          <div className={seccionCls}>
+            <p className={seccionTituloCls}>Temática y observaciones</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {!esFormacion && (
+                <div><label className={campoLabelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={campoCls} /></div>
+              )}
+              <div className={!esFormacion ? '' : 'sm:col-span-2'}><label className={campoLabelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={campoCls} /></div>
+            </div>
           </div>
-        </>
+        </div>
       )}
 
-      {esFormacion ? (
-        <button className={btnCls} onClick={consultar}>Buscar disponibilidad</button>
-      ) : esMasterclass ? (
-        <button className={btnCls} onClick={agregarMasterclass}>Agregar a Info. técnica</button>
-      ) : esPeriodoDocente ? (
-        <button className={btnCls} onClick={agregarPeriodoDocente}>Guardar período</button>
-      ) : (
-        <button className={btnCls} onClick={agregarActividadNoFormacion}>Agregar al cronograma</button>
-      )}
-      {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : msg.tipo === 'aviso' ? 'text-warningText' : 'text-successText'}`}>{msg.texto}</p>}
+      <div className="flex items-center justify-end gap-3 flex-wrap">
+        {msg && <p className={`text-xs flex-1 min-w-[200px] ${msg.tipo === 'error' ? 'text-dangerText' : msg.tipo === 'aviso' ? 'text-warningText' : 'text-successText'}`}>{msg.texto}</p>}
+        {esFormacion ? (
+          <button className={btnPrimaryCls} onClick={consultar}><span aria-hidden>🔎</span> Buscar disponibilidad</button>
+        ) : esMasterclass ? (
+          <button className={btnPrimaryCls} onClick={agregarMasterclass}><span aria-hidden>+</span> Agregar a Info. técnica</button>
+        ) : esPeriodoDocente ? (
+          <button className={btnPrimaryCls} onClick={agregarPeriodoDocente}><span aria-hidden>+</span> Guardar período</button>
+        ) : (
+          <button className={btnPrimaryCls} onClick={agregarActividadNoFormacion}><span aria-hidden>📅</span> Agregar al cronograma</button>
+        )}
+      </div>
 
       {resultado && (
         <div className="mt-3.5">
