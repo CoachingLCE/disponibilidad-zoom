@@ -9,8 +9,6 @@ import {
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { tienePermisoAuditoria } from '../../lib/permisos';
-import { DESTINATARIOS_RESUMEN } from '../../lib/destinatariosResumen';
-import { DESTINATARIOS_AVISO_FECHAS } from '../../lib/destinatariosAvisoFechas';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border whitespace-nowrap ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
@@ -488,25 +486,6 @@ export default function AnalisisPage() {
                 </table>
               </div>
             )}
-          </div>
-
-          <div className={boxCls}>
-            <h2 className="text-sm font-semibold mb-2">Envío de mail automático</h2>
-            <p className="text-xs text-textSec mb-1">
-              Cada lunes se manda un resumen automático con las clases creadas, postergadas, con cambio de sala o eliminadas de la semana, a:
-            </p>
-            <ul className="text-xs text-textSec list-disc list-inside mb-3 space-y-0.5">
-              {DESTINATARIOS_RESUMEN.map((d) => <li key={d.email}>{d.nombre} ({d.email})</li>)}
-            </ul>
-            <p className="text-xs text-textSec mb-1">
-              El día 20 de cada mes se manda además el cronograma de fechas y feriados próximos, a:
-            </p>
-            <ul className="text-xs text-textSec list-disc list-inside mb-1 space-y-0.5">
-              {DESTINATARIOS_AVISO_FECHAS.map((d) => <li key={d.email}>{d.nombre} ({d.email})</li>)}
-            </ul>
-            <p className="text-[10.5px] text-textMuted">
-              Ver el detalle de todos los mails automáticos de la app en <Link href="/emails" className="underline">Emails</Link>.
-            </p>
           </div>
 
           <div className={boxCls}>

@@ -10,11 +10,27 @@ import {
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
+import { DOCENTES_CO_DEFAULT } from '../lib/docentesCODefaults';
 
 const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
+
+// Para Coaching Ontológico, el docente/staff no vive en la clase en sí — se carga aparte,
+// por período, en Docentes C.O. (mismo criterio que usa esa pantalla: entre los períodos
+// de esa edición, el que tiene la fecha "Desde" más reciente que ya arrancó para la fecha
+// de la clase; si ninguno arrancó todavía, el que tenga la fecha "Desde" más próxima).
+// Así la ficha de Inicio puede mostrar esa info aunque la clase puntual no la tenga cargada.
+function buscarPeriodoCO(asignaciones, edicion, fechaISO) {
+  const deLaEdicion = asignaciones.filter((a) => String(a.edicion) === String(edicion));
+  if (deLaEdicion.length === 0) return null;
+  const yaArrancados = fechaISO
+    ? deLaEdicion.filter((a) => (!a.desde || a.desde <= fechaISO) && (!a.hasta || a.hasta >= fechaISO))
+    : [];
+  const candidatos = yaArrancados.length > 0 ? yaArrancados : deLaEdicion;
+  return candidatos.reduce((mejor, a) => (!mejor || (a.desde || '') > (mejor.desde || '') ? a : mejor), null);
+}
 
 /** Lunes y domingo (ISO) de la semana que contiene `fechaBase`. */
 function rangoSemana(fechaBase) {
@@ -41,6 +57,7 @@ export default function InicioPage() {
   const [feriados, setFeriados] = useState([]);
   const [actividades, setActividades] = useState([]);
   const [postergaciones, setPostergaciones] = useState([]);
+  const [docentesCO, setDocentesCO] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [seleccionado, setSeleccionado] = useState(null);
 
@@ -55,23 +72,33 @@ export default function InicioPage() {
   async function cargarTodo() {
     setCargandoDatos(true);
     try {
-      const [rc, rf, ra, rp] = await Promise.all([
+      const [rc, rf, ra, rp, rd] = await Promise.all([
         fetchAutenticado('/api/clases'),
         fetchAutenticado('/api/feriados'),
         fetchAutenticado('/api/actividades'),
-        fetchAutenticado('/api/postergaciones')
+        fetchAutenticado('/api/postergaciones'),
+        fetchAutenticado('/api/docentes-co')
       ]);
-      const [dc, df, da, dp] = await Promise.all([rc.json(), rf.json(), ra.json(), rp.json()]);
+      const [dc, df, da, dp, dd] = await Promise.all([rc.json(), rf.json(), ra.json(), rp.json(), rd.json()]);
       if (rc.ok) setClases(dc.clases);
       if (rf.ok) setFeriados(df.feriados);
       if (ra.ok) setActividades(da.actividades);
       if (rp.ok) setPostergaciones(dp.postergaciones);
+      if (rd.ok) setDocentesCO(dd.asignaciones);
     } finally {
       setCargandoDatos(false);
     }
   }
 
   const vista = useMemo(() => agruparParaVista(clases), [clases]);
+  // Mismo criterio que la pantalla Docentes C.O.: los períodos fijos del código quedan
+  // disponibles siempre, y si el Sheet ya tiene cargado ese mismo período (edición+desde)
+  // con cambios, el del Sheet pisa al fijo.
+  const asignacionesCODisponibles = useMemo(() => {
+    const clavesSheet = new Set(docentesCO.map((a) => `${a.edicion}|${a.desde}`));
+    const fijos = DOCENTES_CO_DEFAULT.filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}`));
+    return [...fijos, ...docentesCO];
+  }, [docentesCO]);
   const alertasConflictos = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
   const formaciones = useMemo(() => calcularFormaciones(clases), [clases]);
   // Avisa cuando a una edición en curso le quedan exactamente 2 clases para terminar —
@@ -301,13 +328,27 @@ export default function InicioPage() {
           </div>
         </>
       )}
-      {seleccionado && <ModalDetalleInicio item={seleccionado} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} />}
+      {seleccionado && (
+        <ModalDetalleInicio
+          item={seleccionado}
+          onCerrar={() => setSeleccionado(null)}
+          puedeEditar={puedeEditar}
+          asignacionesCO={asignacionesCODisponibles}
+        />
+      )}
     </div>
   );
 }
 
-function ModalDetalleInicio({ item, onCerrar, puedeEditar }) {
+function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO }) {
   const idReunion = CREDENCIALES_ZOOM_DEFAULT.find((c) => c.sala === item.sala)?.idReunion;
+  // En Coaching Ontológico el docente/staff no se carga por clase — se carga por período
+  // en Docentes C.O. Si la clase puntual no tiene el dato, se busca ahí antes de mostrar "—".
+  const periodoCO = item.curso === 'CO' && item.edicion ? buscarPeriodoCO(asignacionesCO || [], item.edicion, item.fecha) : null;
+  const docenteMostrar = item.docente || periodoCO?.docente || '';
+  const staffMostrar = item.staff || periodoCO?.staff || '';
+  const observacionesMostrar = item.observaciones || periodoCO?.observaciones || '';
+  const usoPeriodoCO = !!periodoCO && (!item.docente || !item.staff) && (!!periodoCO.docente || !!periodoCO.staff);
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
@@ -326,11 +367,16 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar }) {
           {item.esFormacion && item.numeroSesion && item.total && (
             <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
           )}
-          <Fila label="Docente" valor={item.docente || '—'} />
-          {item.esFormacion && <Fila label="Staff" valor={item.staff || '—'} />}
+          <Fila label="Docente" valor={docenteMostrar || '—'} />
+          {item.esFormacion && <Fila label="Staff" valor={staffMostrar || '—'} />}
           {!item.esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
-          <Fila label="Observaciones" valor={item.observaciones || '—'} />
+          <Fila label="Observaciones" valor={observacionesMostrar || '—'} />
         </div>
+        {usoPeriodoCO && (
+          <p className="text-[10.5px] text-textMuted mb-3">
+            Docente/staff según el período cargado en <Link href="/docentes-co" className="underline">Docentes C.O.</Link> — esta clase puntual no tiene el dato propio.
+          </p>
+        )}
         {puedeEditar && (
           <div className="flex flex-col gap-2 mb-3">
             {item.esFormacion && (

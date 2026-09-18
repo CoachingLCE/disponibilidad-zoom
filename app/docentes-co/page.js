@@ -2,8 +2,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta } from '../../lib/salasLogic';
+import { formatFechaCorta, SALAS } from '../../lib/salasLogic';
 import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
+
+const CUATRIMESTRES_CO = [
+  { id: '1', label: '1er cuatrimestre (clases 1-16)' },
+  { id: '2', label: '2do cuatrimestre (clases 17-32)' },
+  { id: '3', label: '3er cuatrimestre (clases 33-48)' }
+];
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -82,12 +88,19 @@ export default function DocentesCOPage() {
 
   const hoyISO = toISO(new Date());
 
-  // Período vigente de cada edición = el que tiene la fecha "Desde" más reciente
-  // (con eso se decide qué docente/staff mostrar como "el actual" de esa edición).
+  // Período vigente de cada edición = el que tiene la fecha "Desde" más reciente (y, ante un
+  // empate en "Desde" — pasa con varios períodos viejos que no tienen "Desde" cargado — el
+  // que tiene el "Hasta" más reciente, porque es el que trae la info más actualizada).
+  // Antes se comparaba solo por Desde: con un empate (ej. dos períodos de la Edición 1, ambos
+  // con Desde vacío, uno con Hasta vacío y el otro con Hasta 2023), quedaba el primero que
+  // apareciera en la lista sin importar cuál — a veces el que tenía Hasta vacío, lo que hacía
+  // aparecer como "Activa" una edición finalizada hace años.
   const vigentesPorEdicion = useMemo(() => {
     const porEdicion = {};
     asignacionesCombinadas.forEach((a) => {
-      if (!porEdicion[a.edicion] || a.desde > porEdicion[a.edicion].desde) {
+      const actual = porEdicion[a.edicion];
+      if (!actual || (a.desde || '') > (actual.desde || '') ||
+          ((a.desde || '') === (actual.desde || '') && (a.hasta || '') > (actual.hasta || ''))) {
         porEdicion[a.edicion] = a;
       }
     });
@@ -154,9 +167,14 @@ export default function DocentesCOPage() {
                     {a.estado === 'activa' ? '🟢 Activa' : a.estado === 'futura' ? '🔵 Futura' : '⚪ Finalizada'}
                   </span>
                 </div>
-                <p className="text-xs text-textMuted">{a.dia} · {a.horario}</p>
+                <p className="text-xs text-textMuted">{a.dia} · {a.horario}{a.sala ? ` · ${a.sala}` : ''}</p>
                 <p className="text-xs text-textSec mt-1">Docente: {a.docente || '—'}</p>
                 <p className="text-xs text-textSec">Staff: {a.staff || '—'}</p>
+                {a.cuatrimestre && (
+                  <p className="text-[11px] text-textMuted mt-1">
+                    {CUATRIMESTRES_CO.find((c) => c.id === String(a.cuatrimestre))?.label || `${a.cuatrimestre}° cuatrimestre`}
+                  </p>
+                )}
                 <p className="text-[11px] text-textMuted mt-1">{formatFechaCorta(a.desde)} – {a.hasta ? formatFechaCorta(a.hasta) : 'en curso'}</p>
               </div>
             ))}
@@ -171,7 +189,8 @@ export default function DocentesCOPage() {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
-                  <th className="p-1.5">Edición</th><th className="p-1.5">Día</th><th className="p-1.5">Horario</th>
+                  <th className="p-1.5">Edición</th><th className="p-1.5">Día</th><th className="p-1.5">Horario</th><th className="p-1.5">Sala</th>
+                  <th className="p-1.5">Cuatrimestre</th>
                   <th className="p-1.5">Desde</th><th className="p-1.5">Hasta</th>
                   <th className="p-1.5">Docente</th><th className="p-1.5">Staff</th><th className="p-1.5">Observaciones</th>
                 </tr>
@@ -186,6 +205,8 @@ export default function DocentesCOPage() {
                     <td className="p-1.5">{a.edicion}°</td>
                     <td className="p-1.5">{a.dia}</td>
                     <td className="p-1.5">{a.horario}</td>
+                    <td className="p-1.5">{a.sala || '—'}</td>
+                    <td className="p-1.5">{a.cuatrimestre ? `${a.cuatrimestre}°` : '—'}</td>
                     <td className="p-1.5">{formatFechaCorta(a.desde)}</td>
                     <td className="p-1.5">{formatFechaCorta(a.hasta)}</td>
                     <td className="p-1.5">{a.docente || '—'}</td>
@@ -209,7 +230,8 @@ export default function DocentesCOPage() {
 function ModalEditarPeriodo({ item, onCerrar, fetchAutenticado, onCambio }) {
   const [campos, setCampos] = useState({
     edicion: item.edicion, dia: item.dia, horario: item.horario, desde: item.desde, hasta: item.hasta,
-    docente: item.docente, staff: item.staff, observaciones: item.observaciones
+    docente: item.docente, staff: item.staff, sala: item.sala || '', cuatrimestre: item.cuatrimestre || '',
+    observaciones: item.observaciones
   });
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -273,6 +295,16 @@ function ModalEditarPeriodo({ item, onCerrar, fetchAutenticado, onCambio }) {
             <label className={labelCls}>Hasta</label><input type="date" value={campos.hasta} onChange={(e) => set('hasta', e.target.value)} className={`${inputCls} mb-2.5`} />
             <label className={labelCls}>Docente</label><input value={campos.docente} onChange={(e) => set('docente', e.target.value)} className={`${inputCls} mb-2.5`} />
             <label className={labelCls}>Staff</label><input value={campos.staff} onChange={(e) => set('staff', e.target.value)} className={`${inputCls} mb-2.5`} />
+            <label className={labelCls}>Sala</label>
+            <select value={campos.sala} onChange={(e) => set('sala', e.target.value)} className={`${inputCls} mb-2.5`}>
+              <option value="">Sin definir</option>
+              {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <label className={labelCls}>Cuatrimestre</label>
+            <select value={campos.cuatrimestre} onChange={(e) => set('cuatrimestre', e.target.value)} className={`${inputCls} mb-2.5`}>
+              <option value="">Sin definir</option>
+              {CUATRIMESTRES_CO.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
             <label className={labelCls}>Observaciones</label><input value={campos.observaciones} onChange={(e) => set('observaciones', e.target.value)} className={`${inputCls} mb-3`} />
             <div className="flex gap-2 flex-wrap">
               <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>

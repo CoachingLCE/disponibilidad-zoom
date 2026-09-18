@@ -381,6 +381,11 @@ const TIPOS = ['Formación', 'BLOG', 'Masterclass', 'Reuniones', 'Capacitación'
 // C.O → "Nuevo período"). Se agrega acá para tener un solo lugar de carga, pero solo lo ve
 // quien realmente puede tocar esos datos (ver tienePermisoEditarDocentesCO).
 const TIPO_PERIODO_DOCENTE = 'Período docente C.O.';
+const CUATRIMESTRES_CO = [
+  { id: '1', label: '1er cuatrimestre (clases 1-16)' },
+  { id: '2', label: '2do cuatrimestre (clases 17-32)' },
+  { id: '3', label: '3er cuatrimestre (clases 33-48)' }
+];
 const CURSOS_MATERIA = [
   ['CO', 'Coaching Ontológico'], ['CE', 'Coaching Educativo'], ['CEQUI', 'Coaching de Equipos'],
   ['CDEP', 'Coaching Deportivo'], ['CV', 'Coaching Vocacional'], ['OR', 'Oratoria'], ['IE', 'Inteligencia Emocional'],
@@ -417,6 +422,8 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
   const [diaPeriodo, setDiaPeriodo] = useState('');
   const [desdePeriodo, setDesdePeriodo] = useState('');
   const [hastaPeriodo, setHastaPeriodo] = useState('');
+  const [salaPeriodo, setSalaPeriodo] = useState('');
+  const [cuatrimestrePeriodo, setCuatrimestrePeriodo] = useState('');
 
   // Vuelca lo que detectó la Lectura Inteligente en los campos normales del formulario —
   // el operador siempre puede revisar/corregir antes de guardar, nunca se guarda solo.
@@ -530,12 +537,16 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
     try {
       const res = await fetchAutenticado('/api/docentes-co', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ edicion: edicion.trim(), dia: diaPeriodo, horario: horarioLibre, desde: desdePeriodo, hasta: hastaPeriodo, docente, staff, observaciones: obs })
+        body: JSON.stringify({
+          edicion: edicion.trim(), dia: diaPeriodo, horario: horarioLibre, desde: desdePeriodo, hasta: hastaPeriodo,
+          docente, staff, sala: salaPeriodo, cuatrimestre: cuatrimestrePeriodo, observaciones: obs
+        })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({ tipo: 'ok', texto: `Período de Edición ${edicion} guardado en Docentes C.O.` });
       setDocente(''); setStaff(''); setObs(''); setDesdePeriodo(''); setHastaPeriodo(''); setDiaPeriodo(''); setHorarioLibre('');
+      setSalaPeriodo(''); setCuatrimestrePeriodo('');
       onReservado();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -572,6 +583,22 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
             <div><label className={labelCls}>Hasta</label><input type="date" value={hastaPeriodo} onChange={(e) => setHastaPeriodo(e.target.value)} className={inputCls} /></div>
             <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
             <div><label className={labelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
+          </div>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div>
+              <label className={labelCls}>Sala</label>
+              <select value={salaPeriodo} onChange={(e) => setSalaPeriodo(e.target.value)} className={inputCls}>
+                <option value="">Sin definir</option>
+                {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Cuatrimestre</label>
+              <select value={cuatrimestrePeriodo} onChange={(e) => setCuatrimestrePeriodo(e.target.value)} className={inputCls}>
+                <option value="">Sin definir</option>
+                {CUATRIMESTRES_CO.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
           </div>
           <div className="mb-3"><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
         </>

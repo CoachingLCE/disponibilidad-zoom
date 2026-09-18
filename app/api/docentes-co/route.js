@@ -31,10 +31,10 @@ export const POST = conManejo(async (request) => {
     return NextResponse.json({ ok: true, agregados: items.length });
   }
 
-  const { edicion, dia, horario, desde, hasta, docente, staff, observaciones } = body;
+  const { edicion, dia, horario, desde, hasta, docente, staff, sala, cuatrimestre, observaciones } = body;
   if (!edicion) return NextResponse.json({ error: 'Falta la edición.' }, { status: 400 });
 
-  await agregarDocenteCO({ edicion, dia, horario, desde, hasta, docente, staff, observaciones, usuario: usuario.nombre });
+  await agregarDocenteCO({ edicion, dia, horario, desde, hasta, docente, staff, sala, cuatrimestre, observaciones, usuario: usuario.nombre });
   await registrarAccion(usuario.email, usuario.nombre, 'Asignó docente/staff C.O', `Edición ${edicion} — ${docente || ''} ${staff ? '/ Staff: ' + staff : ''}`);
 
   return NextResponse.json({ ok: true });

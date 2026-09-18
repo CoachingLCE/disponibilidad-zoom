@@ -89,9 +89,14 @@ export default function FormacionesPage() {
         const completo = total && cargadasEstimadas >= total;
         const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
         const pct = total ? Math.min(100, Math.round((cargadasEstimadas / total) * 100)) : null;
+        // El cuatrimestre hay que recalcularlo acá con cargadasEstimadas (la cantidad real,
+        // ajustada por histórico/fecha) — antes se dejaba el que traía `f` de calcularFormaciones,
+        // calculado con la cantidad "cruda" del horario, que no siempre coincide y hacía
+        // aparecer, por ej., una edición en la clase 21/48 (2do cuatrimestre) marcada como 3ro.
+        const cuatrimestre = total === 48 ? Math.min(Math.ceil(cargadasEstimadas / 16), 3) || 1 : null;
         return {
           ...f, fechaInicio: historico.fechaInicio, fechaFinal: fechaFinalEstimada,
-          cargadas: Math.min(cargadasEstimadas, total), total, estado, pct,
+          cargadas: Math.min(cargadasEstimadas, total), total, estado, pct, cuatrimestre,
           proximaTxt: estado === 'Finalizó' ? '—' : f.proximaTxt
         };
       }
