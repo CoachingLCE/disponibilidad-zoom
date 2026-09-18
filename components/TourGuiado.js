@@ -92,13 +92,13 @@ export default function TourGuiado() {
     <>
       <button
         onClick={() => setMenuAbierto((v) => !v)}
-        className="fixed bottom-5 right-5 z-[90] bg-gradient-to-r from-accentPurple to-accentMagenta text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity no-print"
+        className="fixed bottom-16 right-5 z-[90] bg-gradient-to-r from-accentPurple to-accentMagenta text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity no-print"
       >
         ❓ Necesito ayuda
       </button>
 
       {menuAbierto && !activo && (
-        <div className="fixed inset-0 z-[91] flex items-end justify-end p-5" onClick={() => setMenuAbierto(false)}>
+        <div className="fixed inset-0 z-[91] flex items-end justify-end p-5 pb-20" onClick={() => setMenuAbierto(false)}>
           <div className="bg-surface2 border border-border rounded-2xl p-4 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-semibold mb-1">Te mostramos cómo funciona Cronograma ILCE</h3>
             <p className="text-xs text-textSec mb-3">Vamos a recorrer juntos las principales funciones de la aplicación.</p>

@@ -15,10 +15,20 @@ const ETIQUETA_ACCION = {
   'Canceló clase': 'Eliminada'
 };
 
+// Un color distinto por tipo de movimiento, para que se distingan de un vistazo en el mail
+// (mismo criterio de colores que el resto de la app: verde = alta, naranja/celeste = cambio,
+// rojo = baja).
+const COLOR_ACCION = {
+  'Reservó': '#16a34a',
+  'Postergó clase': '#d97706',
+  'Cambió sala': '#2563eb',
+  'Canceló clase': '#dc2626'
+};
+
 function armarHtml(items) {
   const filas = items.map((h) => `
     <tr>
-      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;"><b>${ETIQUETA_ACCION[h.accion] || h.accion}</b></td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;"><b style="color:${COLOR_ACCION[h.accion] || '#1f2937'};">${ETIQUETA_ACCION[h.accion] || h.accion}</b></td>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${h.detalle}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;">${h.usuario || h.email}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;white-space:nowrap;">${new Date(h.fecha).toLocaleDateString('es-AR')}</td>

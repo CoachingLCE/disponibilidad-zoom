@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  MessageSquare, Mail, Calendar, HardDrive, Sheet, Video, Github,
+  MessageSquare, Mail, Calendar, HardDrive, Sheet, Video,
   GraduationCap, FileText, DollarSign
 } from 'lucide-react';
 import { useSession } from '../../lib/useSession';
@@ -19,8 +19,7 @@ const ACCESOS_RAPIDOS = [
 const RECURSOS_INSTITUCIONALES = [
   { icono: GraduationCap, nombre: 'Campus ILCE', url: 'https://campus.institutoilce.com/' },
   { icono: DollarSign, nombre: 'Valores de los cursos', url: 'https://seguimiento-lead-estudiante.vercel.app/productos-valores' },
-  { icono: FileText, nombre: 'Manual académico', url: 'https://www.coachingeducativolider.com/manualacad%C3%A9mico' },
-  { icono: Github, nombre: 'Repositorio del proyecto', url: 'https://github.com/CoachingLCE/disponibilidad-zoom' }
+  { icono: FileText, nombre: 'Manual académico', url: 'https://www.coachingeducativolider.com/manualacad%C3%A9mico' }
 ];
 
 function TarjetaAcceso({ h }) {

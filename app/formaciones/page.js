@@ -137,12 +137,15 @@ export default function FormacionesPage() {
         const completo = cargadasEstimadas >= total;
         const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
         const pct = Math.min(100, Math.round((cargadasEstimadas / total) * 100));
+        // El cuatrimestre solo aplica a Coaching Ontológico (único curso de 48 clases) —
+        // el resto no tiene concepto de cuatrimestre y no debe entrar en ese filtro.
+        const cuatrimestre = total === 48 ? Math.min(Math.ceil(cargadasEstimadas / 16), 3) || 1 : null;
         return {
           codigo, numero, edicion: numero,
           fechaInicio: historico.fechaInicio, fechaFinal: fechaFinalEstimada,
           cargadas: Math.min(cargadasEstimadas, total), total, estado, pct,
           proximaTxt: estado === 'Finalizó' ? '—' : 'Sin sala asignada actualmente',
-          cuatrimestre: null
+          cuatrimestre
         };
       })
       .filter(Boolean);

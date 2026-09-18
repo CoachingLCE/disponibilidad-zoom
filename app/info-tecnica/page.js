@@ -25,9 +25,6 @@ export default function InfoTecnicaPage() {
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
   const [seleccionado, setSeleccionado] = useState(null);
-  const [nuevo, setNuevo] = useState(CAMPOS_VACIOS);
-  const [msg, setMsg] = useState(null);
-  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargar(); }, [usuario]);
@@ -55,26 +52,6 @@ export default function InfoTecnicaPage() {
     return [...fijos, ...items];
   }, [items]);
 
-  async function agregar() {
-    setMsg(null);
-    if (!nuevo.nombre.trim()) { setMsg({ tipo: 'error', texto: 'Escribí el nombre de la actividad.' }); return; }
-    setGuardando(true);
-    try {
-      const res = await fetchAutenticado('/api/info-tecnica', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevo)
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: 'Guardado.' });
-      setNuevo(CAMPOS_VACIOS);
-      cargar();
-    } catch (err) {
-      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
-    } finally {
-      setGuardando(false);
-    }
-  }
-
   const ordenados = [...itemsCombinados].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
 
   if (cargando || !usuario) return null;
@@ -85,32 +62,9 @@ export default function InfoTecnicaPage() {
       <p className="text-textSec text-sm mb-4">
         Masterclass, Auditorio, Caja de ideas y demás — con su disertante, horario, formulario e info de Zoom.
         {!puedeEditar && ' Solo podés ver — la edición está reservada.'}
+        {puedeEditar && ' Para agregar un registro nuevo, andá a Agregar actividad (Salas Zoom) y elegí el tipo correspondiente (ej: Masterclass).'}
       </p>
       {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
-
-      {puedeEditar && (
-        <div className={boxCls}>
-          <h2 className="text-sm font-semibold mb-3">Nuevo registro</h2>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
-            <div className="lg:col-span-2"><label className={labelCls}>Nombre</label><input value={nuevo.nombre} onChange={(e) => setNuevo((p) => ({ ...p, nombre: e.target.value }))} className={inputCls} /></div>
-            <div><label className={labelCls}>Formato</label><input value={nuevo.formato} onChange={(e) => setNuevo((p) => ({ ...p, formato: e.target.value }))} placeholder="Masterclass, Auditorio…" className={inputCls} /></div>
-            <div><label className={labelCls}>Mes</label><input value={nuevo.mes} onChange={(e) => setNuevo((p) => ({ ...p, mes: e.target.value }))} className={inputCls} /></div>
-          </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
-            <div><label className={labelCls}>Fecha</label><input type="date" value={nuevo.fecha} onChange={(e) => setNuevo((p) => ({ ...p, fecha: e.target.value }))} className={inputCls} /></div>
-            <div><label className={labelCls}>Disertante</label><input value={nuevo.disertante} onChange={(e) => setNuevo((p) => ({ ...p, disertante: e.target.value }))} className={inputCls} /></div>
-            <div><label className={labelCls}>Horario</label><input value={nuevo.horario} onChange={(e) => setNuevo((p) => ({ ...p, horario: e.target.value }))} placeholder="20:00 a 21:15" className={inputCls} /></div>
-            <div><label className={labelCls}>Sala Zoom</label><input value={nuevo.salaZoom} onChange={(e) => setNuevo((p) => ({ ...p, salaZoom: e.target.value }))} className={inputCls} /></div>
-          </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
-            <div><label className={labelCls}>Formulario de inscripción</label><input value={nuevo.formularioInscripcion} onChange={(e) => setNuevo((p) => ({ ...p, formularioInscripcion: e.target.value }))} className={inputCls} /></div>
-            <div><label className={labelCls}>Link de acceso (Zoom)</label><input value={nuevo.linkAcceso} onChange={(e) => setNuevo((p) => ({ ...p, linkAcceso: e.target.value }))} className={inputCls} /></div>
-            <div><label className={labelCls}>Moderador</label><input value={nuevo.moderador} onChange={(e) => setNuevo((p) => ({ ...p, moderador: e.target.value }))} className={inputCls} /></div>
-          </div>
-          <button className={btnCls} disabled={guardando} onClick={agregar}>{guardando ? 'Guardando…' : 'Guardar'}</button>
-          {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
-        </div>
-      )}
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">Registros ({ordenados.length})</h2>

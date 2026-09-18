@@ -72,8 +72,20 @@ export default function InicioPage() {
   }
 
   const vista = useMemo(() => agruparParaVista(clases), [clases]);
-  const alertas = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
+  const alertasConflictos = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
   const formaciones = useMemo(() => calcularFormaciones(clases), [clases]);
+  // Avisa cuando a una edición en curso le quedan exactamente 2 clases para terminar —
+  // así el equipo puede empezar a coordinar el cierre (certificación, próxima edición, etc.)
+  // con un poco de anticipación en vez de enterarse el día de la última clase.
+  const alertasPorFinalizar = useMemo(() => (
+    formaciones
+      .filter((f) => f.estado === 'En proceso' && f.total && f.total - f.cargadas === 2)
+      .map((f) => ({
+        tipo: 'aviso',
+        texto: `Finaliza en breve: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} — va por la clase ${f.cargadas} de ${f.total}.`
+      }))
+  ), [formaciones]);
+  const alertas = useMemo(() => [...alertasConflictos, ...alertasPorFinalizar], [alertasConflictos, alertasPorFinalizar]);
 
   const ahora = new Date();
   const diaHoy = DIAS_JS[ahora.getDay()];
@@ -189,7 +201,7 @@ export default function InicioPage() {
             />
             <Metrica valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
             <Metrica valor={libresAhora} label="Salas disponibles" acento="success" />
-            <Metrica valor={alertas.length} label="Incidencias activas" acento={alertas.length > 0 ? 'danger' : undefined} />
+            <Metrica valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} />
             <Metrica valor={formacionesEnCurso} label="Formaciones activas" />
           </div>
 
@@ -281,26 +293,9 @@ export default function InicioPage() {
             {proximas.length === 0 ? (
               <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
             ) : (
-              <div className="grid gap-x-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))' }}>
-                {proximas.map((a, i) => {
-                  const color = a.esFormacion ? colorFormacion(a.curso) : null;
-                  return (
-                    <button key={i} onClick={() => setSeleccionado(a)}
-                      className="flex items-center justify-between gap-2 py-1.5 border-b border-border/60 last:border-0 text-left w-full hover:bg-bg/40 rounded-md px-1 -mx-1 transition-colors">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-[11px] text-textMuted w-[72px] shrink-0">{formatFechaCorta(a.fecha)}</span>
-                        <span className="font-mono text-[11px] text-textSec w-9 shrink-0">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
-                        {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-xs truncate ${color ? color.text : ''}`}>
-                          {a.nombreCurso}
-                          {a.esFormacion && a.edicion ? ` · Ed. ${a.edicion}` : ''}
-                          {a.esFormacion && a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}
-                        </span>
-                      </div>
-                      {a.sala && <span className="text-[11px] text-textMuted shrink-0">{a.sala}</span>}
-                    </button>
-                  );
-                })}
+              <div className="grid gap-x-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(380px,1fr))' }}>
+                <TablaProximas items={proximas.slice(0, Math.ceil(proximas.length / 2))} onClick={setSeleccionado} />
+                <TablaProximas items={proximas.slice(Math.ceil(proximas.length / 2))} onClick={setSeleccionado} />
               </div>
             )}
           </div>
@@ -356,6 +351,50 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar }) {
         )}
         <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
       </div>
+    </div>
+  );
+}
+
+function TablaProximas({ items, onClick }) {
+  if (!items.length) return null;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr className="border-b border-border text-textMuted text-left">
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Fecha</th>
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora</th>
+            <th className="py-1.5 pr-2 font-semibold">Curso</th>
+            <th className="py-1.5 pl-2 font-semibold text-right whitespace-nowrap">Sala</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((a) => {
+            const color = a.esFormacion ? colorFormacion(a.curso) : null;
+            return (
+              <tr
+                key={a.id}
+                onClick={() => onClick(a)}
+                className="border-b border-border/60 last:border-0 cursor-pointer hover:bg-bg/40"
+              >
+                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{formatFechaCorta(a.fecha)}</td>
+                <td className="py-1.5 pr-2 font-mono text-textSec whitespace-nowrap align-top">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
+                <td className="py-1.5 pr-2 align-top">
+                  <div className="flex items-center gap-1.5">
+                    {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
+                    <span className={color ? color.text : ''}>
+                      {a.nombreCurso}
+                      {a.esFormacion && a.edicion ? ` · Ed. ${a.edicion}` : ''}
+                      {a.esFormacion && a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}
+                    </span>
+                  </div>
+                </td>
+                <td className="py-1.5 pl-2 text-textMuted text-right whitespace-nowrap align-top">{a.sala || '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

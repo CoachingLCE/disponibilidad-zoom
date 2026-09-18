@@ -9,6 +9,7 @@ import {
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
 import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
 import { interpretarTexto } from '../../lib/lecturaInteligente';
+import { tienePermisoEditarDocentesCO } from '../../lib/permisos';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -38,8 +39,6 @@ export default function SalasZoomPage() {
   const [vista, setVista] = useState('estado');
   const [diaSala, setDiaSala] = useState('LUNES');
 
-  const [textoImportar, setTextoImportar] = useState(HORARIO_EJEMPLO);
-  const [msgImportar, setMsgImportar] = useState(null);
   const [accion, setAccion] = useState(null);
 
   useEffect(() => {
@@ -127,22 +126,6 @@ export default function SalasZoomPage() {
     return [...credenciales, ...fijas];
   }, [credenciales]);
 
-  async function importar() {
-    setMsgImportar(null);
-    try {
-      const res = await fetchAutenticado('/api/clases/importar', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: textoImportar })
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsgImportar({ tipo: 'error', texto: data.error }); return; }
-      setMsgImportar({ tipo: 'ok', texto: `Se agregaron ${data.agregadas} clase(s).${data.errores.length ? ' ' + data.errores.length + ' línea(s) con error.' : ''}` });
-      setTextoImportar('');
-      cargarDatos();
-    } catch (err) {
-      setMsgImportar({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
-    }
-  }
-
   if (cargando || !usuario) return null;
 
   const vistaAgrupadaHoy = vistaAgrupada.filter((c) => c.dia === diaHoy)
@@ -152,7 +135,7 @@ export default function SalasZoomPage() {
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">Salas Zoom</h1>
+      <h1 className="text-xl mb-1">Agregar actividad</h1>
       <p className="text-textSec text-sm mb-4">
         Horario semanal de las 8 salas — cargar, ver disponibilidad, y reservar.
         {!puedeEditar && ' Tu rol (Colaborador) solo puede ver, no puede cargar ni reservar.'}
@@ -206,27 +189,6 @@ export default function SalasZoomPage() {
         </div>
       )}
 
-      {puedeEditar && (
-        <div className={boxCls}>
-          <h2 className="text-sm font-semibold mb-2">Cargar horario</h2>
-          <p className="text-xs text-textSec mb-2.5">
-            Formato: <b>DÍA HH:MM CÓDIGO NÚMERO Sala N</b> — una clase por línea. Ya viene con el horario de ejemplo cargado; editalo o vaciálo y pegá el real.
-          </p>
-          <textarea
-            value={textoImportar} onChange={(e) => setTextoImportar(e.target.value)}
-            placeholder={'LUNES 18:00 CDEP 15 Sala 3\nMARTES 10:00 CEQUI 14 Sala 2'}
-            className={`${inputCls} min-h-[110px] font-mono text-xs resize-y`}
-          />
-          <div className="mt-2.5 flex gap-2">
-            <button className={btnCls} onClick={importar}>Importar</button>
-            <button className="bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs" onClick={() => setTextoImportar('')}>Vaciar</button>
-          </div>
-          {msgImportar && (
-            <p className={`text-xs mt-2 ${msgImportar.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msgImportar.texto}</p>
-          )}
-        </div>
-      )}
-
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">Ver horario</h2>
         <div className="flex gap-2 mb-4">
@@ -247,7 +209,7 @@ export default function SalasZoomPage() {
       </div>
 
       {puedeEditar && (
-        <PanelReservar fetchAutenticado={fetchAutenticado} onReservado={cargarDatos} />
+        <PanelReservar fetchAutenticado={fetchAutenticado} onReservado={cargarDatos} usuario={usuario} />
       )}
 
       {accion && (
@@ -414,6 +376,11 @@ function VistaEstado({ vista, diaHoy, onClick }) {
 }
 
 const TIPOS = ['Formación', 'BLOG', 'Masterclass', 'Reuniones', 'Capacitación', 'Jornada', 'Clases de apoyo', 'Auditorio', 'Caja de ideas', 'Encuentro Potencia', 'Laboratorio C.O', 'Clase especial', 'Equipo docente', 'Otro'];
+// "Período docente C.O." no es una actividad con fecha puntual — es la asignación de un
+// docente/staff a una edición durante varias semanas (lo que antes se cargaba en Docentes
+// C.O → "Nuevo período"). Se agrega acá para tener un solo lugar de carga, pero solo lo ve
+// quien realmente puede tocar esos datos (ver tienePermisoEditarDocentesCO).
+const TIPO_PERIODO_DOCENTE = 'Período docente C.O.';
 const CURSOS_MATERIA = [
   ['CO', 'Coaching Ontológico'], ['CE', 'Coaching Educativo'], ['CEQUI', 'Coaching de Equipos'],
   ['CDEP', 'Coaching Deportivo'], ['CV', 'Coaching Vocacional'], ['OR', 'Oratoria'], ['IE', 'Inteligencia Emocional'],
@@ -421,7 +388,14 @@ const CURSOS_MATERIA = [
   ['OTRO_Formador', 'Formador para formadores'], ['OTRO_PNL', 'PNL'], ['', '— Ninguno / no aplica —']
 ];
 
-function PanelReservar({ fetchAutenticado, onReservado }) {
+function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
+  const puedeEditarDocentesCO = tienePermisoEditarDocentesCO(usuario);
+  // Sofía, Paula y SuperAdmin además ven la opción para cargar un período de Docentes C.O
+  // desde acá — el resto del equipo con acceso a Salas Zoom no la ve, porque no tiene
+  // permiso para tocar esos datos igual (evita que elijan la opción y se encuentren con
+  // un error al guardar).
+  const tiposDisponibles = puedeEditarDocentesCO ? [...TIPOS, TIPO_PERIODO_DOCENTE] : TIPOS;
+
   const [tipo, setTipo] = useState('Formación');
   const [fecha, setFecha] = useState('');
   const [horaTxt, setHoraTxt] = useState('18:00');
@@ -433,6 +407,16 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
   const [staff, setStaff] = useState('');
   const [tematica, setTematica] = useState('');
   const [obs, setObs] = useState('');
+  // Campos propios de Masterclass (van a Info. técnica, no al cronograma general)
+  const [nombreActividad, setNombreActividad] = useState('');
+  const [horarioLibre, setHorarioLibre] = useState('');
+  const [formularioInscripcion, setFormularioInscripcion] = useState('');
+  const [linkAcceso, setLinkAcceso] = useState('');
+  const [moderador, setModerador] = useState('');
+  // Campos propios de Período docente C.O. (van a Docentes C.O, no al cronograma general)
+  const [diaPeriodo, setDiaPeriodo] = useState('');
+  const [desdePeriodo, setDesdePeriodo] = useState('');
+  const [hastaPeriodo, setHastaPeriodo] = useState('');
 
   // Vuelca lo que detectó la Lectura Inteligente en los campos normales del formulario —
   // el operador siempre puede revisar/corregir antes de guardar, nunca se guarda solo.
@@ -511,7 +495,56 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
     }
   }
 
+  // Masterclass (y formatos similares de Info. técnica): esto no se agrega al cronograma
+  // general — se guarda como registro de Info. técnica, igual que "Nuevo registro" hacía
+  // antes desde esa pantalla.
+  async function agregarMasterclass() {
+    setMsg(null);
+    if (!nombreActividad.trim()) { setMsg({ tipo: 'error', texto: 'Escribí el nombre de la actividad.' }); return; }
+    if (!fecha) { setMsg({ tipo: 'error', texto: 'Elegí la fecha.' }); return; }
+    try {
+      const mesTxt = new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', { month: 'long' });
+      const res = await fetchAutenticado('/api/info-tecnica', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: nombreActividad, formato: tipo, mes: mesTxt, fecha, disertante: docente, horario: horarioLibre,
+          formularioInscripcion, salaZoom: salaEspecial, linkAcceso, moderador
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+      setMsg({ tipo: 'ok', texto: `"${nombreActividad}" agregado a Info. técnica.` });
+      setNombreActividad(''); setDocente(''); setHorarioLibre(''); setFormularioInscripcion('');
+      setLinkAcceso(''); setModerador(''); setSalaEspecial(''); setObs('');
+      onReservado();
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
+  }
+
+  // Período docente C.O.: tampoco es una actividad del cronograma — es una asignación de
+  // Docentes C.O, igual que "Nuevo período" hacía antes desde esa pantalla.
+  async function agregarPeriodoDocente() {
+    setMsg(null);
+    if (!edicion.trim()) { setMsg({ tipo: 'error', texto: 'Elegí la edición.' }); return; }
+    try {
+      const res = await fetchAutenticado('/api/docentes-co', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ edicion: edicion.trim(), dia: diaPeriodo, horario: horarioLibre, desde: desdePeriodo, hasta: hastaPeriodo, docente, staff, observaciones: obs })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+      setMsg({ tipo: 'ok', texto: `Período de Edición ${edicion} guardado en Docentes C.O.` });
+      setDocente(''); setStaff(''); setObs(''); setDesdePeriodo(''); setHastaPeriodo(''); setDiaPeriodo(''); setHorarioLibre('');
+      onReservado();
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
+  }
+
   const esFormacion = tipo === 'Formación';
+  const esMasterclass = tipo === 'Masterclass';
+  const esPeriodoDocente = tipo === TIPO_PERIODO_DOCENTE;
 
   return (
     <div className={boxCls}>
@@ -523,74 +556,119 @@ function PanelReservar({ fetchAutenticado, onReservado }) {
       <div className="mb-3">
         <label className={labelCls}>Tipo</label>
         <select value={tipo} onChange={(e) => { setTipo(e.target.value); setResultado(null); setMsg(null); }} className={`${inputCls} max-w-xs`}>
-          {TIPOS.map((t) => <option key={t} value={t}>{t === 'Formación' ? 'Formación / Curso' : t}</option>)}
+          {tiposDisponibles.map((t) => <option key={t} value={t}>{t === 'Formación' ? 'Formación / Curso' : t}</option>)}
         </select>
       </div>
 
-      <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
-        <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
-        <div><label className={labelCls}>Hora</label>
-          <select value={horaTxt} onChange={(e) => setHoraTxt(e.target.value)} className={inputCls}>
-            {HORAS_OPCIONES.map((h) => <option key={h}>{h}</option>)}
-          </select>
-        </div>
-        <div><label className={labelCls}>{esFormacion ? 'Curso' : 'Curso/Materia'}</label>
-          {esFormacion ? (
-            <select
-              value={codigo}
-              onChange={(e) => { setCodigo(e.target.value); setCantidad(TOTALES[e.target.value] || 1); }}
-              className={inputCls}
-            >
-              {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
-            </select>
-          ) : (
-            <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={inputCls}>
-              {CURSOS_MATERIA.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          )}
-        </div>
-        <div><label className={labelCls}>Edición{esFormacion ? ' (ej: 51)' : ''}</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
-        {esFormacion && (
-          <>
-            <div>
-              <label className={labelCls}>Nº de esta clase (1, 2, 3…)</label>
-              <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="1" className={inputCls} />
-              <p className="text-[10px] text-textMuted mt-0.5">⚠️ NO el número de edición — si es la 1ª clase de la edición, va "1".</p>
+      {esPeriodoDocente ? (
+        <>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
+            <div><label className={labelCls}>Edición (ej: 45)</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Día</label><input value={diaPeriodo} onChange={(e) => setDiaPeriodo(e.target.value)} placeholder="Martes" className={inputCls} /></div>
+            <div><label className={labelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="19:00 a 21:00" className={inputCls} /></div>
+          </div>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
+            <div><label className={labelCls}>Desde</label><input type="date" value={desdePeriodo} onChange={(e) => setDesdePeriodo(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Hasta</label><input type="date" value={hastaPeriodo} onChange={(e) => setHastaPeriodo(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
+          </div>
+          <div className="mb-3"><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
+        </>
+      ) : esMasterclass ? (
+        <>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div className="lg:col-span-2"><label className={labelCls}>Nombre</label><input value={nombreActividad} onChange={(e) => setNombreActividad(e.target.value)} placeholder="ej: Efecto Florida" className={inputCls} /></div>
+            <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="20:00 a 21:15" className={inputCls} /></div>
+          </div>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div><label className={labelCls}>Disertante</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Sala de Zoom</label>
+              <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
+                <option value="">Sin sala asignada</option>
+                {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-            <div><label className={labelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={inputCls} /></div>
-          </>
-        )}
-        <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
-        {esFormacion && (
-          <div><label className={labelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
-        )}
-        {esFormacion && (
-          <div><label className={labelCls}>Sala preferida (opcional)</label>
-            <select value={salaPreferida} onChange={(e) => setSalaPreferida(e.target.value)} className={inputCls}>
-              <option value="">Elegir al buscar disponibilidad</option>
-              {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <p className="text-[10px] text-textMuted mt-0.5">Si la elegís, te la marcamos abajo si está libre en ese horario.</p>
+            <div><label className={labelCls}>Moderador</label><input value={moderador} onChange={(e) => setModerador(e.target.value)} className={inputCls} /></div>
           </div>
-        )}
-        {!esFormacion && (
-          <div><label className={labelCls}>Sala (opcional)</label>
-            <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
-              <option value="">Sin sala asignada</option>
-              {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
+            <div><label className={labelCls}>Formulario de inscripción</label><input value={formularioInscripcion} onChange={(e) => setFormularioInscripcion(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Link de acceso (Zoom)</label><input value={linkAcceso} onChange={(e) => setLinkAcceso(e.target.value)} className={inputCls} /></div>
           </div>
-        )}
-      </div>
-      <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))' }}>
-        {!esFormacion && (
-          <div><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>
-        )}
-        <div><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
-      </div>
+        </>
+      ) : (
+        <>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
+            <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>Hora</label>
+              <select value={horaTxt} onChange={(e) => setHoraTxt(e.target.value)} className={inputCls}>
+                {HORAS_OPCIONES.map((h) => <option key={h}>{h}</option>)}
+              </select>
+            </div>
+            <div><label className={labelCls}>{esFormacion ? 'Curso' : 'Curso/Materia'}</label>
+              {esFormacion ? (
+                <select
+                  value={codigo}
+                  onChange={(e) => { setCodigo(e.target.value); setCantidad(TOTALES[e.target.value] || 1); }}
+                  className={inputCls}
+                >
+                  {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
+                </select>
+              ) : (
+                <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={inputCls}>
+                  {CURSOS_MATERIA.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              )}
+            </div>
+            <div><label className={labelCls}>Edición{esFormacion ? ' (ej: 51)' : ''}</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={inputCls} /></div>
+            {esFormacion && (
+              <>
+                <div>
+                  <label className={labelCls}>Nº de esta clase (1, 2, 3…)</label>
+                  <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="1" className={inputCls} />
+                  <p className="text-[10px] text-textMuted mt-0.5">⚠️ NO el número de edición — si es la 1ª clase de la edición, va "1".</p>
+                </div>
+                <div><label className={labelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={inputCls} /></div>
+              </>
+            )}
+            <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
+            {esFormacion && (
+              <div><label className={labelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
+            )}
+            {esFormacion && (
+              <div><label className={labelCls}>Sala de Zoom preferida (opcional)</label>
+                <select value={salaPreferida} onChange={(e) => setSalaPreferida(e.target.value)} className={inputCls}>
+                  <option value="">Elegir al buscar disponibilidad</option>
+                  {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <p className="text-[10px] text-textMuted mt-0.5">Si la elegís, te la marcamos abajo si está libre en ese horario.</p>
+              </div>
+            )}
+            {!esFormacion && (
+              <div><label className={labelCls}>Sala de Zoom (opcional)</label>
+                <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={inputCls}>
+                  <option value="">Sin sala asignada</option>
+                  {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))' }}>
+            {!esFormacion && (
+              <div><label className={labelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={inputCls} /></div>
+            )}
+            <div><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
+          </div>
+        </>
+      )}
 
       {esFormacion ? (
         <button className={btnCls} onClick={consultar}>Buscar disponibilidad</button>
+      ) : esMasterclass ? (
+        <button className={btnCls} onClick={agregarMasterclass}>Agregar a Info. técnica</button>
+      ) : esPeriodoDocente ? (
+        <button className={btnCls} onClick={agregarPeriodoDocente}>Guardar período</button>
       ) : (
         <button className={btnCls} onClick={agregarActividadNoFormacion}>Agregar al cronograma</button>
       )}

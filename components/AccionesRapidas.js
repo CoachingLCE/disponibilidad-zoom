@@ -8,7 +8,7 @@ const ACCIONES = [
   { href: '/salas-zoom', label: 'Postergar clase' },
   { href: '/salas-zoom', label: 'Reservar sala' },
   { href: '/incidencias', label: 'Agregar feriado' },
-  { href: '/salas-zoom', label: 'Cargar horario' }
+  { href: '/salas-zoom', label: 'Agregar actividad' }
 ];
 
 export default function AccionesRapidas() {

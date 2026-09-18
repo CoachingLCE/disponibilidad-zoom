@@ -95,10 +95,10 @@ export default function AuditoriaPage() {
   return (
     <div className="max-w-[1200px] mx-auto px-6 pt-8 pb-16">
       {!puedeVer ? (
-        <AccesoDenegado seccion="Auditoría" />
+        <AccesoDenegado seccion="Historial de acciones" />
       ) : (
         <>
-          <h1 className="text-xl mb-1">Auditoría</h1>
+          <h1 className="text-xl mb-1">Historial de acciones</h1>
           <p className="text-textSec text-sm mb-4">Historial de acciones registradas por el equipo en la app (reservas, postergaciones, ediciones, altas y bajas de usuarios, etc.).</p>
 
           <div className="flex items-end gap-3 flex-wrap mb-4">

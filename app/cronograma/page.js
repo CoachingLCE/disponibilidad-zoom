@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, ESTADOS, fechaToDia
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
@@ -75,6 +75,24 @@ export default function CronogramaPage() {
   const [filtroDia, setFiltroDia] = useState('');
   const [filtroRango, setFiltroRango] = useState('');
   const [seleccionado, setSeleccionado] = useState(null);
+  // Cómo se pintan los bloques del cronograma: por curso (default, distingue formaciones)
+  // o por sala (para ver de un vistazo qué sala está usando cada bloque). Queda guardado
+  // en este navegador para no tener que elegirlo cada vez.
+  const [colorPor, setColorPor] = useState('curso');
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem('cronograma-color-por');
+      if (guardado === 'sala' || guardado === 'curso') setColorPor(guardado);
+    } catch { /* ignorar */ }
+  }, []);
+  function cambiarColorPor(valor) {
+    setColorPor(valor);
+    try { localStorage.setItem('cronograma-color-por', valor); } catch { /* ignorar */ }
+  }
+  function colorDe(a) {
+    if (colorPor === 'sala') return a.sala ? colorPorSala(a.sala) : null;
+    return a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
+  }
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -257,6 +275,12 @@ export default function CronogramaPage() {
           </div>
         </div>
 
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[11px] text-textMuted font-semibold">Colorear por:</span>
+          <button className={chipCls(colorPor === 'curso')} onClick={() => cambiarColorPor('curso')}>Curso</button>
+          <button className={chipCls(colorPor === 'sala')} onClick={() => cambiarColorPor('sala')}>Sala</button>
+        </div>
+
         <div className="flex flex-wrap gap-1.5 mb-2">
           <button className={chipCls(filtroTipo === '')} onClick={() => setFiltroTipo('')}>Todos los tipos</button>
           {tiposUsados.map((t) => <button key={t} className={chipCls(filtroTipo === t)} onClick={() => setFiltroTipo(t)}>{t}</button>)}
@@ -325,7 +349,7 @@ export default function CronogramaPage() {
                                 const idKey = a.id || `${a.fecha}-${a.horaMin}-${idx}`;
                                 const enCurso = f === hoyISO && horaActualMin >= h - BUFFER_MIN && horaActualMin < h + (a.duracion || 90);
                                 const conChoque = idsConChoque.has(a.id || `${a.fecha}-${a.horaMin}-${a.sala}`);
-                                const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
+                                const color = colorDe(a);
                                 return (
                                   <div
                                     key={idKey}
@@ -351,7 +375,7 @@ export default function CronogramaPage() {
             )}
           </>
         ) : vista === 'mes' ? (
-          <VistaMes todas={todas} onClick={(a) => setSeleccionado(a)} />
+          <VistaMes todas={todas} onClick={(a) => setSeleccionado(a)} colorPor={colorPor} />
         ) : todas.length === 0 ? (
           <p className="text-textSec text-sm">No hay actividades que coincidan.</p>
         ) : (
@@ -366,7 +390,7 @@ export default function CronogramaPage() {
               </thead>
               <tbody>
                 {todas.map((a, i) => {
-                  const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
+                  const color = colorDe(a);
                   return (
                     <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha)]} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
                       <td className="p-1.5">
@@ -409,7 +433,11 @@ export default function CronogramaPage() {
   );
 }
 
-function VistaMes({ todas, onClick }) {
+function VistaMes({ todas, onClick, colorPor }) {
+  function colorDe(a) {
+    if (colorPor === 'sala') return a.sala ? colorPorSala(a.sala) : null;
+    return a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
+  }
   const hoy = new Date();
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth());
@@ -472,7 +500,7 @@ function VistaMes({ todas, onClick }) {
               <p className="text-[10.5px] text-textMuted mb-1">{new Date(f + 'T00:00:00').getDate()}</p>
               <div className="flex flex-col gap-0.5">
                 {items.slice(0, 3).map((a, i) => {
-                  const color = a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
+                  const color = colorDe(a);
                   return (
                     <div key={i} onClick={() => onClick(a)} className={`text-[9.5px] px-1 py-0.5 rounded truncate cursor-pointer ${color ? `${color.bg} ${color.text}` : 'bg-infoBg text-infoText'}`}>
                       {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}

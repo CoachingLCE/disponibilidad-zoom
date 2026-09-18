@@ -9,6 +9,8 @@ import {
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { tienePermisoAuditoria } from '../../lib/permisos';
+import { DESTINATARIOS_RESUMEN } from '../../lib/destinatariosResumen';
+import { DESTINATARIOS_AVISO_FECHAS } from '../../lib/destinatariosAvisoFechas';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border whitespace-nowrap ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
@@ -339,6 +341,29 @@ export default function AnalisisPage() {
             Los indicadores de horario semanal (clases, horas, ocupación, salas, horarios críticos) reflejan el horario recurrente <b>vigente ahora</b> — la mayoría de las clases no tienen una fecha puntual por ocurrencia, así que no se pueden filtrar por un rango de fechas arbitrario sin perder precisión. Postergaciones y Evolución sí usan fechas reales.
           </p>
 
+          {/* POSTERGACIONES — justo debajo del filtro de Período, ya que es lo que ese filtro controla */}
+          <div className={boxCls}>
+            <h2 className="text-sm font-semibold mb-3">Postergaciones</h2>
+            <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
+              <StatCard n={postergacionesFiltradas.length} l="Total en el período" />
+              <StatCard n={postergacionesPorFormacion[0]?.[0] ? `${ICONOS[postergacionesPorFormacion[0][0]] || ''} ${postergacionesPorFormacion[0][0]}` : '—'} l="Formación con más" chico />
+              <StatCard n={postergacionesPorSala[0]?.[0] || '—'} l="Sala con más" chico />
+              <StatCard n={postergacionesPorDocente[0]?.[0] || '—'} l="Docente con más (aprox.)" chico />
+            </div>
+            {postergacionesFiltradas.length === 0 ? (
+              <p className="text-textSec text-sm">Sin postergaciones en el período con estos filtros.</p>
+            ) : (
+              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
+                <MiniLista titulo="Por formación" items={postergacionesPorFormacion.map(([k, v]) => [NOMBRES[k] || k, v])} />
+                <MiniLista titulo="Por sala" items={postergacionesPorSala} />
+                <MiniLista titulo="Por docente (aproximado)" items={postergacionesPorDocente} />
+              </div>
+            )}
+            <p className="text-[10.5px] text-textMuted mt-3">
+              "Por docente" cruza cada postergación con el docente actual de esa clase — si el docente cambió después, puede no ser exacto.
+            </p>
+          </div>
+
           {/* DASHBOARD DE INDICADORES */}
           <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
             <StatCard n={kpis.totalClases} l="Total de clases (semana)" />
@@ -465,38 +490,19 @@ export default function AnalisisPage() {
             )}
           </div>
 
-          {/* POSTERGACIONES */}
-          <div className={boxCls}>
-            <h2 className="text-sm font-semibold mb-3">Postergaciones</h2>
-            <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
-              <StatCard n={postergacionesFiltradas.length} l="Total en el período" />
-              <StatCard n={postergacionesPorFormacion[0]?.[0] ? `${ICONOS[postergacionesPorFormacion[0][0]] || ''} ${postergacionesPorFormacion[0][0]}` : '—'} l="Formación con más" chico />
-              <StatCard n={postergacionesPorSala[0]?.[0] || '—'} l="Sala con más" chico />
-              <StatCard n={postergacionesPorDocente[0]?.[0] || '—'} l="Docente con más (aprox.)" chico />
-            </div>
-            {postergacionesFiltradas.length === 0 ? (
-              <p className="text-textSec text-sm">Sin postergaciones en el período con estos filtros.</p>
-            ) : (
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
-                <MiniLista titulo="Por formación" items={postergacionesPorFormacion.map(([k, v]) => [NOMBRES[k] || k, v])} />
-                <MiniLista titulo="Por sala" items={postergacionesPorSala} />
-                <MiniLista titulo="Por docente (aproximado)" items={postergacionesPorDocente} />
-              </div>
-            )}
-            <p className="text-[10.5px] text-textMuted mt-3">
-              "Por docente" cruza cada postergación con el docente actual de esa clase — si el docente cambió después, puede no ser exacto.
-            </p>
-          </div>
-
           <div className={boxCls}>
             <h2 className="text-sm font-semibold mb-2">Envío de mail automático</h2>
-            <p className="text-xs text-textSec mb-2">
+            <p className="text-xs text-textSec mb-1">
               Cada lunes se manda un resumen automático con las clases creadas, postergadas, con cambio de sala o eliminadas de la semana, a:
             </p>
+            <ul className="text-xs text-textSec list-disc list-inside mb-3 space-y-0.5">
+              {DESTINATARIOS_RESUMEN.map((d) => <li key={d.email}>{d.nombre} ({d.email})</li>)}
+            </ul>
+            <p className="text-xs text-textSec mb-1">
+              El día 20 de cada mes se manda además el cronograma de fechas y feriados próximos, a:
+            </p>
             <ul className="text-xs text-textSec list-disc list-inside mb-1 space-y-0.5">
-              <li>Sofía Salgueiro (sofia.salgueiro@institutoilce.com)</li>
-              <li>Jennifer Rebasti (jennifer.rebasti@institutoilce.com)</li>
-              <li>Macarena Zoe Juncos Abello (Macarena.Juncos@institutoilce.com)</li>
+              {DESTINATARIOS_AVISO_FECHAS.map((d) => <li key={d.email}>{d.nombre} ({d.email})</li>)}
             </ul>
             <p className="text-[10.5px] text-textMuted">
               Ver el detalle de todos los mails automáticos de la app en <Link href="/emails" className="underline">Emails</Link>.

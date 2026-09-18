@@ -3,9 +3,19 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { DESTINATARIOS_RESUMEN } from '../../lib/destinatariosResumen';
+import { DESTINATARIOS_AVISO_FECHAS } from '../../lib/destinatariosAvisoFechas';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
+
+// Mismo color por tipo de movimiento que usa el mail real (app/api/cron/resumen-semanal),
+// para que la vista previa de acá coincida exactamente con lo que se termina mandando.
+const COLOR_ACCION = {
+  'Creada': '#16a34a',
+  'Postergada': '#d97706',
+  'Cambio de sala': '#2563eb',
+  'Eliminada': '#dc2626'
+};
 
 // Ejemplo de cómo se ve el mail — con datos de muestra, nunca se manda de verdad
 // desde acá (para eso está el cron real de los lunes).
@@ -18,7 +28,7 @@ function previsualizarResumenSemanal() {
   ];
   const filas = filasEjemplo.map((h) => `
     <tr>
-      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;"><b>${h.accion}</b></td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;"><b style="color:${COLOR_ACCION[h.accion] || '#1f2937'};">${h.accion}</b></td>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${h.detalle}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;">${h.usuario}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;white-space:nowrap;">${h.fecha}</td>
@@ -45,6 +55,41 @@ function previsualizarResumenSemanal() {
   `;
 }
 
+// Ejemplo de cómo se ve el aviso mensual de fechas — con datos de muestra, nunca se
+// manda de verdad desde acá (para eso está el cron real del día 20).
+function previsualizarAvisoFechas() {
+  const filasEjemplo = [
+    { fecha: '12/05/2026', motivo: 'Semana internacional del coaching', bloquea: false },
+    { fecha: '05/06/2026', motivo: 'Día mundial del medio ambiente', bloquea: false },
+    { fecha: '09/07/2026', motivo: 'Día de la Independencia', bloquea: true }
+  ];
+  const filas = filasEjemplo.map((f) => `
+    <tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;"><b>${f.fecha}</b></td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${f.motivo}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;color:${f.bloquea ? '#dc2626' : '#2563eb'};">${f.bloquea ? '🔒 Bloquea' : '👁️ Informativo'}</td>
+    </tr>`).join('');
+
+  return `
+    <div style="font-family:Arial,sans-serif;color:#1f2937;">
+      <p>Hola</p>
+      <p>¿cómo estás?</p>
+      <p>Te pasamos el cronograma de lo que se viene:</p>
+      <table style="border-collapse:collapse;width:100%;max-width:640px;font-size:13px;">
+        <thead>
+          <tr style="background:#f1f5f9;text-align:left;">
+            <th style="padding:6px 10px;">Fecha</th>
+            <th style="padding:6px 10px;">Motivo</th>
+            <th style="padding:6px 10px;">Estado</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+      <p style="margin-top:16px;color:#64748b;font-size:12px;">Este aviso se generó automáticamente desde Cronograma ILCE.</p>
+    </div>
+  `;
+}
+
 const EMAILS_AUTOMATIZADOS = [
   {
     id: 'resumen-semanal',
@@ -53,6 +98,14 @@ const EMAILS_AUTOMATIZADOS = [
     destinatarios: DESTINATARIOS_RESUMEN,
     descripcion: 'Lista las clases creadas, postergadas, con cambio de sala o eliminadas durante la última semana, para que el equipo esté al tanto de los movimientos en el cronograma.',
     previsualizar: previsualizarResumenSemanal
+  },
+  {
+    id: 'aviso-fechas',
+    titulo: '🗓️ Cronograma de lo que se viene',
+    cadencia: 'El día 20 de cada mes',
+    destinatarios: DESTINATARIOS_AVISO_FECHAS,
+    descripcion: 'Lista las fechas y feriados (bloqueantes o informativos) que se vienen en las próximas semanas, para que el equipo esté al tanto con anticipación.',
+    previsualizar: previsualizarAvisoFechas
   }
 ];
 

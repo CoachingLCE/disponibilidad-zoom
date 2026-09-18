@@ -17,13 +17,13 @@ const LINKS = [
   { href: '/formaciones', label: 'Formaciones' },
   { href: '/masterclasses', label: 'Masterclasses' },
   { href: '/docentes-co', label: 'Docentes C.O' },
-  { href: '/salas-zoom', label: 'Salas Zoom' },
+  { href: '/salas-zoom', label: 'Agregar actividad' },
   { href: '/credenciales-zoom', label: 'Credenciales Zoom' },
   { href: '/info-tecnica', label: 'Info. técnica' },
   { href: '/incidencias', label: 'Incidencias' },
   { href: '/analisis', label: 'Análisis' },
   { href: '/emails', label: 'Emails' },
-  { href: '/auditoria', label: 'Auditoría' },
+  { href: '/auditoria', label: 'Historial de acciones' },
   { href: '/accesos', label: 'Accesos', soloAdmin: true }
 ];
 

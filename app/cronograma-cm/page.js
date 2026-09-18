@@ -46,6 +46,7 @@ export default function CronogramaCMPage() {
   const [error, setError] = useState(null);
   const [errorExtras, setErrorExtras] = useState(null);
   const [semanaOffset, setSemanaOffset] = useState(0);
+  const [vista, setVista] = useState('semana'); // 'semana' | 'mes'
 
   const [fecha, setFecha] = useState('');
   const [hora, setHora] = useState(9);
@@ -302,59 +303,73 @@ export default function CronogramaCMPage() {
       )}
 
       <div className={boxCls}>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s - 1)}>← Semana anterior</button>
-          <div className="text-center">
-            <p className="text-sm font-semibold">{mesLabel}</p>
-            <button className={btnSecCls} onClick={() => setSemanaOffset(0)}>Hoy</button>
-          </div>
-          <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s + 1)}>Semana siguiente →</button>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[11px] text-textMuted font-semibold">Vista:</span>
+          <button className={chipToggleCls(vista === 'semana')} onClick={() => setVista('semana')}>Semana</button>
+          <button className={chipToggleCls(vista === 'mes')} onClick={() => setVista('mes')}>Mes</button>
         </div>
 
-        {cargandoDatos ? (
+        {vista === 'semana' ? (
+          <>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s - 1)}>← Semana anterior</button>
+              <div className="text-center">
+                <p className="text-sm font-semibold">{mesLabel}</p>
+                <button className={btnSecCls} onClick={() => setSemanaOffset(0)}>Hoy</button>
+              </div>
+              <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s + 1)}>Semana siguiente →</button>
+            </div>
+
+            {cargandoDatos ? (
+              <p className="text-textSec text-sm">Cargando…</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="text-[11px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Horario</th>
+                      {fechasSemana.map((f, i) => (
+                        <th key={f} className="text-[11px] uppercase px-1.5 py-2 border-b border-border text-center">
+                          {DIAS_LABEL[i]} {new Date(f + 'T00:00:00').getDate()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {HORAS.map((h) => (
+                      <tr key={h}>
+                        <td className="border border-border align-top p-1 font-mono text-textSec text-xs text-center">{h}</td>
+                        {fechasSemana.map((f) => {
+                          const items = porCelda[`${f}|${h}`] || [];
+                          return (
+                            <td key={f} className="border border-border align-top p-1 min-w-[130px]">
+                              {items.map((a) => {
+                                const color = colorCM(a.tipo);
+                                return (
+                                  <div
+                                    key={a.id}
+                                    onClick={() => puedeEditarCM && setSeleccionada(a)}
+                                    className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 border-l-2 ${color.bg} ${color.text} ${color.border} ${puedeEditarCM ? 'cursor-pointer' : ''}`}
+                                  >
+                                    {a.tipo}
+                                    {a.detalle && <span className="block font-normal text-[10px] opacity-80">{a.detalle}</span>}
+                                  </div>
+                                );
+                              })}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        ) : cargandoDatos ? (
           <p className="text-textSec text-sm">Cargando…</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse">
-              <thead>
-                <tr>
-                  <th className="text-[11px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Horario</th>
-                  {fechasSemana.map((f, i) => (
-                    <th key={f} className="text-[11px] uppercase px-1.5 py-2 border-b border-border text-center">
-                      {DIAS_LABEL[i]} {new Date(f + 'T00:00:00').getDate()}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {HORAS.map((h) => (
-                  <tr key={h}>
-                    <td className="border border-border align-top p-1 font-mono text-textSec text-xs text-center">{h}</td>
-                    {fechasSemana.map((f) => {
-                      const items = porCelda[`${f}|${h}`] || [];
-                      return (
-                        <td key={f} className="border border-border align-top p-1 min-w-[130px]">
-                          {items.map((a) => {
-                            const color = colorCM(a.tipo);
-                            return (
-                              <div
-                                key={a.id}
-                                onClick={() => puedeEditarCM && setSeleccionada(a)}
-                                className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 border-l-2 ${color.bg} ${color.text} ${color.border} ${puedeEditarCM ? 'cursor-pointer' : ''}`}
-                              >
-                                {a.tipo}
-                                {a.detalle && <span className="block font-normal text-[10px] opacity-80">{a.detalle}</span>}
-                              </div>
-                            );
-                          })}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <VistaMesCM actividades={actividades} onClick={(a) => puedeEditarCM && setSeleccionada(a)} puedeEditarCM={puedeEditarCM} />
         )}
       </div>
 
@@ -550,6 +565,79 @@ export default function CronogramaCMPage() {
           onCambio={cargar}
         />
       )}
+    </div>
+  );
+}
+
+function VistaMesCM({ actividades, onClick, puedeEditarCM }) {
+  const hoy = new Date();
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [mes, setMes] = useState(hoy.getMonth());
+
+  const primerDiaMes = new Date(anio, mes, 1);
+  const ultimoDiaMes = new Date(anio, mes + 1, 0);
+
+  function irAMes(deltaMeses) {
+    const destino = new Date(anio, mes + deltaMeses, 1);
+    setAnio(destino.getFullYear());
+    setMes(destino.getMonth());
+  }
+
+  // Arranca en el lunes de la semana que contiene el día 1, termina en el domingo de la
+  // semana que contiene el último día — igual que la vista de mes de Cronograma.
+  const diaSemanaPrimero = primerDiaMes.getDay();
+  const offsetInicio = diaSemanaPrimero === 0 ? -6 : 1 - diaSemanaPrimero;
+  const inicio = new Date(primerDiaMes); inicio.setDate(primerDiaMes.getDate() + offsetInicio);
+
+  const dias = [];
+  let cursor = new Date(inicio);
+  while (cursor <= ultimoDiaMes || cursor.getDay() !== 1) {
+    dias.push(toISO(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+    if (dias.length > 42) break; // salvavidas, nunca debería hacer falta
+  }
+
+  const hoyISO = toISO(new Date());
+  const porDia = {};
+  actividades.forEach((a) => { if (a.fecha) (porDia[a.fecha] = porDia[a.fecha] || []).push(a); });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <button className={btnSecCls} onClick={() => irAMes(-1)}>← Mes anterior</button>
+        <span className="text-sm font-semibold">{MESES[mes]} {anio}</span>
+        <button className={btnSecCls} onClick={() => irAMes(1)}>Mes siguiente →</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => (
+          <div key={d} className="text-[10.5px] text-textMuted text-center font-semibold pb-1">{d}</div>
+        ))}
+        {dias.map((f) => {
+          const esDelMes = new Date(f + 'T00:00:00').getMonth() === mes;
+          const items = (porDia[f] || []).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
+          return (
+            <div key={f} className={`border border-border rounded-lg p-1.5 min-h-[70px] ${esDelMes ? '' : 'opacity-30'} ${f === hoyISO ? 'ring-1 ring-accentTeal' : ''}`}>
+              <p className="text-[10.5px] text-textMuted mb-1">{new Date(f + 'T00:00:00').getDate()}</p>
+              <div className="flex flex-col gap-0.5">
+                {items.slice(0, 3).map((a) => {
+                  const color = colorCM(a.tipo);
+                  return (
+                    <div
+                      key={a.id}
+                      onClick={() => onClick(a)}
+                      className={`text-[9.5px] px-1 py-0.5 rounded truncate ${color.bg} ${color.text} ${puedeEditarCM ? 'cursor-pointer' : ''}`}
+                      title={a.detalle ? `${a.tipo} — ${a.detalle}` : a.tipo}
+                    >
+                      {a.tipo}
+                    </div>
+                  );
+                })}
+                {items.length > 3 && <p className="text-[9.5px] text-textMuted">+{items.length - 3} más</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

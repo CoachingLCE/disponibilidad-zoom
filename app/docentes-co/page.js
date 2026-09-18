@@ -38,17 +38,6 @@ export default function DocentesCOPage() {
   const [seleccionado, setSeleccionado] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('activa');
 
-  const [edicion, setEdicion] = useState('');
-  const [dia, setDia] = useState('');
-  const [horario, setHorario] = useState('');
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
-  const [docente, setDocente] = useState('');
-  const [staff, setStaff] = useState('');
-  const [obs, setObs] = useState('');
-  const [msg, setMsg] = useState(null);
-  const [guardando, setGuardando] = useState(false);
-
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargar(); }, [usuario]);
 
@@ -76,27 +65,6 @@ export default function DocentesCOPage() {
       setError('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
     } finally {
       setCargandoDatos(false);
-    }
-  }
-
-  async function agregar() {
-    setMsg(null);
-    if (!edicion.trim()) { setMsg({ tipo: 'error', texto: 'Elegí la edición.' }); return; }
-    setGuardando(true);
-    try {
-      const res = await fetchAutenticado('/api/docentes-co', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ edicion: edicion.trim(), dia, horario, desde, hasta, docente, staff, observaciones: obs })
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: 'Período guardado.' });
-      setDocente(''); setStaff(''); setObs(''); setDesde(''); setHasta('');
-      cargar();
-    } catch (err) {
-      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
-    } finally {
-      setGuardando(false);
     }
   }
 
@@ -154,28 +122,9 @@ export default function DocentesCOPage() {
       <p className="text-textSec text-sm mb-4">
         Quién da clase y quién hace staff en cada edición de Coaching Ontológico, y en qué período.
         {!puedeEditar && ' Solo podés ver — la edición está reservada.'}
+        {puedeEditar && ' Para cargar un período nuevo, andá a Agregar actividad (Salas Zoom) y elegí el tipo "Período docente C.O.".'}
       </p>
       {error && <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
-
-      {puedeEditar && (
-        <div className={boxCls}>
-          <h2 className="text-sm font-semibold mb-3">Nuevo período</h2>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
-            <div><label className={labelCls}>Edición</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} placeholder="ej: 45" className={inputCls} /></div>
-            <div><label className={labelCls}>Día</label><input value={dia} onChange={(e) => setDia(e.target.value)} placeholder="Martes" className={inputCls} /></div>
-            <div><label className={labelCls}>Horario</label><input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="19:00 a 21:00" className={inputCls} /></div>
-          </div>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
-            <div><label className={labelCls}>Desde</label><input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Hasta</label><input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={inputCls} /></div>
-          </div>
-          <div className="mb-3"><label className={labelCls}>Observaciones</label><input value={obs} onChange={(e) => setObs(e.target.value)} className={inputCls} /></div>
-          <button className={btnCls} disabled={guardando} onClick={agregar}>{guardando ? 'Guardando…' : 'Guardar período'}</button>
-          {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
-        </div>
-      )}
 
       <div className={boxCls}>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">

@@ -10,6 +10,7 @@ const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-
 const labelCls = 'text-xs text-textSec block mb-1 font-semibold';
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1 text-xs';
+const chipToggleCls = (activo) => `text-[11px] font-semibold px-2.5 py-1 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
 export default function IncidenciasPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
@@ -25,6 +26,7 @@ export default function IncidenciasPage() {
   const [fMotivo, setFMotivo] = useState('');
   const [fBloquea, setFBloquea] = useState(true);
   const [msgFeriado, setMsgFeriado] = useState(null);
+  const [verFeriadosPasados, setVerFeriadosPasados] = useState(false);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -94,6 +96,13 @@ export default function IncidenciasPage() {
 
   const alertas = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
   const conflictosDetalle = useMemo(() => calcularConflictosDetalle(clases), [clases]);
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  // Próximos primero (lo que de verdad importa mirar), los que ya pasaron quedan
+  // ocultos atrás de "Ver todas" para no ensuciar la lista con un año entero de feriados.
+  const feriadosOrdenados = [...feriados].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const feriadosProximos = feriadosOrdenados.filter((f) => f.fecha >= hoyISO);
+  const feriadosPasados = feriadosOrdenados.filter((f) => f.fecha < hoyISO);
+  const feriadosVisibles = verFeriadosPasados ? feriadosOrdenados : feriadosProximos;
 
   async function crearFeriado() {
     setMsgFeriado(null);
@@ -172,7 +181,13 @@ export default function IncidenciasPage() {
       </div>
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">Feriados</h2>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <h2 className="text-sm font-semibold">Feriados</h2>
+          <div className="flex gap-1.5">
+            <button className={chipToggleCls(!verFeriadosPasados)} onClick={() => setVerFeriadosPasados(false)}>Próximas</button>
+            <button className={chipToggleCls(verFeriadosPasados)} onClick={() => setVerFeriadosPasados(true)}>Todas{feriadosPasados.length > 0 ? ` (+${feriadosPasados.length} pasadas)` : ''}</button>
+          </div>
+        </div>
         {puedeEditar && (
           <div className="mb-4">
             <div className="grid gap-2.5 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
@@ -191,12 +206,14 @@ export default function IncidenciasPage() {
         )}
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : feriados.length === 0 ? (
           <p className="text-textSec text-sm">No hay feriados cargados.</p>
+        ) : feriadosVisibles.length === 0 ? (
+          <p className="text-textSec text-sm">No hay feriados próximos — mirá "Todas" para ver los que ya pasaron.</p>
         ) : (
           <table className="w-full text-xs border-collapse">
             <thead><tr className="border-b border-border text-textSec text-left"><th className="p-1.5">Fecha</th><th className="p-1.5">Motivo</th><th className="p-1.5">Estado</th><th></th></tr></thead>
             <tbody>
-              {[...feriados].sort((a, b) => a.fecha.localeCompare(b.fecha)).map((f) => (
-                <tr key={f.id} className={`border-b border-border border-l-2 ${f.bloquea ? 'border-l-dangerText' : 'border-l-infoText'}`}>
+              {feriadosVisibles.map((f) => (
+                <tr key={f.id} className={`border-b border-border border-l-2 ${f.bloquea ? 'border-l-dangerText' : 'border-l-infoText'} ${f.fecha < hoyISO ? 'opacity-50' : ''}`}>
                   <td className="p-1.5">{formatFechaCorta(f.fecha)}</td>
                   <td className="p-1.5">{f.motivo}</td>
                   <td className="p-1.5">
