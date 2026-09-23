@@ -27,9 +27,7 @@ export const POST = conManejo(async (request) => {
   const body = await request.json();
   const { fecha, tipo, curso, edicion, horaTxt, docente, tematica, observaciones, sala } = body;
   if (!fecha || !tipo) return NextResponse.json({ error: 'Faltan datos (fecha o tipo).' }, { status: 400 });
-  if (tipo === 'Formación') {
-    return NextResponse.json({ error: 'Las actividades de tipo Formación se reservan desde Salas Zoom / Cronograma (necesitan sala).' }, { status: 400 });
-  }
+  // Nota: las Formaciones se pueden cargar sin sala; el Depto. de Estudiantes asigna la sala después.
 
   const [hh, mm] = (horaTxt || '00:00').split(':').map((n) => parseInt(n, 10) || 0);
   const horaMin = hh * 60 + mm;
