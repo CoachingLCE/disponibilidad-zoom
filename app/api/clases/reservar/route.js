@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
-import { tienePermisoEditar } from '../../../../lib/permisos';
+import { tienePermisoEditarCronograma } from '../../../../lib/permisos';
 import { leerClases, agregarClases, leerFeriados, feriadoEnFecha } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 import {
@@ -21,7 +21,7 @@ import {
 export const POST = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
+  if (!tienePermisoEditarCronograma(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const body = await request.json();
   const { fecha, horaTxt, codigo, edicion, numero, cantidad = 1, sala, docente, staff, tematica, observaciones } = body;
