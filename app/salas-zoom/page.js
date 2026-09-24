@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, TOTALES, NOMBRES, ICONOS,
-  minutosAHora, formatFechaCorta, agruparParaVista, colorFormacion, calcularNumeroSesion
+  minutosAHora, horaAMinutos, formatFechaCorta, agruparParaVista, colorFormacion, calcularNumeroSesion
 } from '../../lib/salasLogic';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
 import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
@@ -904,6 +904,8 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
   const [paso, setPaso] = useState('menu');
   const credencialSala = credenciales.find((c) => c.sala === clase.sala);
   const [nuevaSala, setNuevaSala] = useState('');
+  const [diaCampo, setDiaCampo] = useState(clase.dia);
+  const [horaCampo, setHoraCampo] = useState(minutosAHora(clase.horaMin));
   const [motivoId, setMotivoId] = useState('salud');
   const [obs, setObs] = useState('');
   const [docenteCampo, setDocenteCampo] = useState(clase.docente || '');
@@ -931,6 +933,20 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
     try {
       const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nuevaSala })
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error); return; }
+      onCambio(); onCerrar();
+    } catch (err) {
+      setErr('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
+    }
+  }
+  async function cambiarDiaHora() {
+    setErr('');
+    try {
+      const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(clase.id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nuevoDia: diaCampo, nuevaHoraMin: horaAMinutos(horaCampo) })
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error); return; }
@@ -992,6 +1008,7 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
               <>
                 <button className={`${btnSecCls} text-left`} onClick={() => setPaso('campos')}>✏️ Editar docente / temática / observaciones</button>
                 <button className={`${btnSecCls} text-left`} onClick={() => setPaso('sala')}>🔁 Cambiar sala</button>
+                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('diahora')}>📅 Cambiar día / horario</button>
                 <button className={`${btnSecCls} text-left disabled:opacity-40`} disabled={!clase.fecha} onClick={() => setPaso('postergar')}>
                   ⏰ Postergar clase{!clase.fecha ? ' (necesita fecha)' : ''}
                 </button>
@@ -1027,6 +1044,30 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
             <div className="flex gap-2">
               <button className={btnSecCls} onClick={() => setPaso('menu')}>Volver</button>
               <button className={btnCls} disabled={!nuevaSala} onClick={cambiarSala}>Cambiar</button>
+            </div>
+          </div>
+        )}
+
+        {paso === 'diahora' && (
+          <div>
+            <p className="text-textMuted text-xs mb-2.5">Pensado para corregir una clase recurrente que quedó cargada en el día u horario equivocado (ej. cargada un martes cuando en realidad es un miércoles).</p>
+            <label className={labelCls}>Día</label>
+            <select value={diaCampo} onChange={(e) => setDiaCampo(e.target.value)} className={`${inputCls} mb-2.5`}>
+              {DIAS.map((d) => <option key={d} value={d}>{d.charAt(0) + d.slice(1).toLowerCase()}</option>)}
+            </select>
+            <label className={labelCls}>Horario</label>
+            <select value={horaCampo} onChange={(e) => setHoraCampo(e.target.value)} className={`${inputCls} mb-3`}>
+              {HORAS_OPCIONES.map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <button className={btnSecCls} onClick={() => setPaso('menu')}>Volver</button>
+              <button
+                className={btnCls}
+                disabled={diaCampo === clase.dia && horaAMinutos(horaCampo) === clase.horaMin}
+                onClick={cambiarDiaHora}
+              >
+                Guardar
+              </button>
             </div>
           </div>
         )}

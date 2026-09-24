@@ -4,19 +4,20 @@ import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar, tienePermisoEditarCronograma } from '../../../../lib/permisos';
 import { leerClases, actualizarClase, eliminarClasePorId } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
-import { BUFFER_MIN } from '../../../../lib/salasLogic';
+import { BUFFER_MIN, minutosAHora } from '../../../../lib/salasLogic';
 
-// PATCH /api/clases/[id] -> { nuevaSala? , docente?, tematica?, observaciones? }
-// Cambiar sala revisa choques como antes. Los demás campos (docente/temática/observaciones)
-// se pueden editar libremente — son datos informativos, no afectan la disponibilidad.
-// Educativo (Sofía, Paula) puede editar cualquiera de estos campos ya cargados.
+// PATCH /api/clases/[id] -> { nuevaSala?, nuevoDia?, nuevaHoraMin?, docente?, tematica?, observaciones? }
+// Cambiar sala / día / horario revisa choques (los tres pueden venir juntos o por separado,
+// ej. mover una clase recurrente que quedó cargada en el día equivocado). Los demás campos
+// (docente/temática/observaciones) se pueden editar libremente — son datos informativos, no
+// afectan la disponibilidad. Educativo (Sofía, Paula) puede editar cualquiera de estos campos.
 export const PATCH = conManejo(async (request, { params }) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!tienePermisoEditarCronograma(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const id = decodeURIComponent(params.id);
-  const { nuevaSala, docente, staff, tematica, observaciones } = await request.json();
+  const { nuevaSala, nuevoDia, nuevaHoraMin, docente, staff, tematica, observaciones } = await request.json();
 
   const clases = await leerClases();
   const clase = clases.find((c) => c.id === id);
@@ -25,17 +26,21 @@ export const PATCH = conManejo(async (request, { params }) => {
   const patch = {};
   let detalleAccion = '';
 
-  if (nuevaSala) {
-    const inicioProp = clase.horaMin - BUFFER_MIN, finProp = clase.horaMin + clase.duracion;
+  if (nuevaSala || nuevoDia || nuevaHoraMin != null) {
+    const salaFinal = nuevaSala || clase.sala;
+    const diaFinal = nuevoDia || clase.dia;
+    const horaFinal = nuevaHoraMin != null ? nuevaHoraMin : clase.horaMin;
+    const inicioProp = horaFinal - BUFFER_MIN, finProp = horaFinal + clase.duracion;
     const choque = clases.find((c) =>
-      c.id !== id && c.sala === nuevaSala && c.dia === clase.dia &&
+      c.id !== id && c.sala === salaFinal && c.dia === diaFinal &&
       inicioProp < (c.horaMin + c.duracion) && (c.horaMin - BUFFER_MIN) < finProp
     );
     if (choque) {
-      return NextResponse.json({ error: `${nuevaSala} está ocupada ese horario por ${choque.label}.` }, { status: 409 });
+      return NextResponse.json({ error: `${salaFinal} está ocupada ese horario por ${choque.label}.` }, { status: 409 });
     }
-    patch.Sala = nuevaSala;
-    detalleAccion += `Sala: ${clase.sala} → ${nuevaSala}. `;
+    if (nuevaSala) { patch.Sala = nuevaSala; detalleAccion += `Sala: ${clase.sala} → ${nuevaSala}. `; }
+    if (nuevoDia) { patch.Dia = nuevoDia; detalleAccion += `Día: ${clase.dia} → ${nuevoDia}. `; }
+    if (nuevaHoraMin != null) { patch.HoraMin = String(nuevaHoraMin); detalleAccion += `Horario: ${minutosAHora(clase.horaMin)} → ${minutosAHora(nuevaHoraMin)}. `; }
   }
   if (docente !== undefined) { patch.Docente = docente; detalleAccion += 'Docente actualizado. '; }
   if (staff !== undefined) { patch.Staff = staff; detalleAccion += 'Staff actualizado. '; }

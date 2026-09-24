@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 
-const ROLES_DISPONIBLES = ['Colaborador', 'Admin', 'SuperAdmin', 'Educativo'];
+const ROLES_DISPONIBLES = ['SuperAdmin', 'Admin', 'Educativo', 'Colaborador'];
 const ROLES_RESERVADOS = ['Admin', 'SuperAdmin'];
 
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';

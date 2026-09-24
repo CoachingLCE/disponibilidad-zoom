@@ -113,67 +113,192 @@ function previsualizarAvisoActividades() {
   </div>`;
 }
 
+// "cuando" es a qué dispara el envío (para la columna "Cuándo se envía", igual criterio
+// que la pantalla de Emails de fichas-ilce: qué acción/cron dispara el mail, no una fecha
+// puntual). "tipo" es la etiqueta corta con su propio color en la tabla, y "asunto" es el
+// texto del Asunto tal cual sale (sin la cantidad, que varía en cada envío real).
 const EMAILS_AUTOMATIZADOS = [
   {
     id: 'resumen-semanal',
     titulo: '📆 Resumen semanal de movimientos',
-    cadencia: 'Todos los lunes',
+    cuando: 'Todos los lunes (automático)',
+    asunto: 'Resumen semanal de clases — Cronograma ILCE',
+    tipo: 'Resumen semanal',
     destinatarios: DESTINATARIOS_RESUMEN,
     descripcion: 'Lista las clases creadas, postergadas, con cambio de sala o eliminadas durante la última semana, para que el equipo esté al tanto de los movimientos en el cronograma.',
     previsualizar: previsualizarResumenSemanal
   },
   {
     id: 'aviso-fechas',
-    titulo: '🗓️ Cronograma de lo que se viene',
-    cadencia: 'El día 20 de cada mes',
+    titulo: '🗓️ Cronograma de lo que se viene (fechas)',
+    cuando: 'El día 20 de cada mes (automático)',
+    asunto: 'Cronograma de lo que se viene — Cronograma ILCE',
+    tipo: 'Fechas y feriados',
     destinatarios: DESTINATARIOS_AVISO_FECHAS,
     descripcion: 'Lista las fechas y feriados (bloqueantes o informativos) que se vienen en las próximas semanas, para que el equipo esté al tanto con anticipación.',
     previsualizar: previsualizarAvisoFechas
   },
   {
     id: 'aviso-actividades',
-    titulo: '🗓️ Cronograma de lo que se viene',
-    cadencia: 'El día 25 de cada mes',
+    titulo: '🗓️ Cronograma de lo que se viene (actividades)',
+    cuando: 'El día 25 de cada mes (automático)',
+    asunto: 'Actividades del próximo mes — Cronograma ILCE',
+    tipo: 'Actividades del mes',
     destinatarios: DESTINATARIOS_AVISO_ACTIVIDADES,
     descripcion: 'Lista todas las actividades y formaciones agendadas para el próximo mes, con fecha, horario y sala.',
     previsualizar: previsualizarAvisoActividades
   }
 ];
 
+const TIPO_COLOR = {
+  'Resumen semanal': 'bg-infoBg text-infoText',
+  'Fechas y feriados': 'bg-warningBg text-warningText',
+  'Actividades del mes': 'bg-successBg text-successText'
+};
+
+function nombresJoin(destinatarios) {
+  const nombres = destinatarios.map((d) => d.nombre);
+  if (nombres.length <= 1) return nombres[0] || '—';
+  return nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1];
+}
+
 export default function EmailsPage() {
-  const { usuario, cargando } = useSession();
+  const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
   const [previa, setPrevia] = useState(null);
+  const [envios, setEnvios] = useState([]);
+  const [cargandoEnvios, setCargandoEnvios] = useState(true);
+  const [avisoSinRegistro, setAvisoSinRegistro] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
+  useEffect(() => {
+    if (!usuario) return;
+    (async () => {
+      try {
+        const r = await fetchAutenticado('/api/emails-enviados');
+        const d = await r.json();
+        setEnvios(d.envios || []);
+        if (d.error) setAvisoSinRegistro(true);
+      } catch {
+        setAvisoSinRegistro(true);
+      } finally {
+        setCargandoEnvios(false);
+      }
+    })();
+  }, [usuario]);
+
   if (cargando || !usuario) return null;
 
-  return (
-    <div className="max-w-[900px] mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">Emails</h1>
-      <p className="text-textSec text-sm mb-5">Todos los mails automáticos que manda la aplicación, a quién y con qué frecuencia.</p>
+  const q = busqueda.trim().toLowerCase();
+  const enviosFiltrados = q
+    ? envios.filter((e) => (e.tipo + ' ' + e.asunto + ' ' + e.destinatarios).toLowerCase().includes(q))
+    : envios;
 
-      {EMAILS_AUTOMATIZADOS.map((m) => (
-        <div key={m.id} className={boxCls}>
-          <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-            <h2 className="text-sm font-semibold">{m.titulo}</h2>
-            <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-infoBg text-infoText whitespace-nowrap">{m.cadencia}</span>
-          </div>
-          <p className="text-xs text-textSec mb-3">{m.descripcion}</p>
-          <p className="text-xs font-semibold text-textSec mb-1">Destinatarios:</p>
-          <ul className="text-xs text-textSec list-disc list-inside mb-3 space-y-0.5">
-            {m.destinatarios.map((d) => <li key={d.email}>{d.nombre} ({d.email})</li>)}
-          </ul>
-          <button className={btnSecCls} onClick={() => setPrevia(m)}>Ver ejemplo →</button>
+  return (
+    <div className="max-w-[1000px] mx-auto px-6 pt-8 pb-20">
+      <h1 className="text-xl mb-1">📧 Emails</h1>
+      <p className="text-textSec text-sm mb-5">Qué mails automáticos manda el sistema, y el registro real de cada envío.</p>
+
+      <div className={boxCls}>
+        <h2 className="text-sm font-semibold mb-3">Mails automáticos que genera el sistema</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border text-textSec text-left">
+                <th className="p-1.5">Cuándo se envía</th>
+                <th className="p-1.5">A quién</th>
+                <th className="p-1.5">De / CC</th>
+                <th className="p-1.5">Asunto</th>
+                <th className="p-1.5">Tipo</th>
+                <th className="p-1.5">Ver mail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {EMAILS_AUTOMATIZADOS.map((m) => (
+                <tr key={m.id} className="border-b border-border align-top">
+                  <td className="p-1.5 min-w-[140px]">{m.cuando}</td>
+                  <td className="p-1.5 min-w-[160px]">{nombresJoin(m.destinatarios)}</td>
+                  <td className="p-1.5 whitespace-nowrap text-textSec">Cronograma ILCE</td>
+                  <td className="p-1.5 min-w-[220px]">{m.asunto}</td>
+                  <td className="p-1.5">
+                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[m.tipo] || 'bg-surface2 text-textMuted'}`}>
+                      {m.tipo}
+                    </span>
+                  </td>
+                  <td className="p-1.5">
+                    <button className="text-infoText underline whitespace-nowrap" onClick={() => setPrevia(m)}>Ver mail →</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+        <p className="text-[10.5px] text-textMuted mt-2">
+          Cada uno describe su alcance completo al hacer clic en "Ver mail" — ahí también se ve el detalle de destinatarios y de qué depende que se mande.
+        </p>
+      </div>
+
+      <div className={boxCls}>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <h2 className="text-sm font-semibold">Registro de envíos ({envios.length})</h2>
+          <input
+            value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar…"
+            className="bg-bg border border-border rounded-lg px-2.5 py-1.5 text-xs w-48"
+          />
+        </div>
+        {cargandoEnvios ? (
+          <p className="text-textSec text-sm">Cargando…</p>
+        ) : avisoSinRegistro ? (
+          <p className="text-textSec text-xs">
+            Todavía no hay registro de envíos reales — se va a empezar a completar solo, a partir del próximo mail automático que se mande.
+          </p>
+        ) : enviosFiltrados.length === 0 ? (
+          <p className="text-textSec text-sm">{envios.length === 0 ? 'Todavía no se mandó ningún mail automático.' : 'No hay envíos que coincidan con la búsqueda.'}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border text-textSec text-left">
+                  <th className="p-1.5">Fecha</th><th className="p-1.5">Tipo</th><th className="p-1.5">Asunto</th>
+                  <th className="p-1.5">Destinatarios</th><th className="p-1.5">Cantidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                {enviosFiltrados.map((e, i) => (
+                  <tr key={i} className="border-b border-border">
+                    <td className="p-1.5 whitespace-nowrap">{new Date(e.fecha).toLocaleString('es-AR')}</td>
+                    <td className="p-1.5">
+                      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[e.tipo] || 'bg-surface2 text-textMuted'}`}>
+                        {e.tipo}
+                      </span>
+                    </td>
+                    <td className="p-1.5">{e.asunto}</td>
+                    <td className="p-1.5 text-textSec">{e.destinatarios}</td>
+                    <td className="p-1.5">{e.cantidad ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {previa && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setPrevia(null)}>
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800">Ejemplo — {previa.titulo}</p>
-              <button className="text-gray-500 text-sm" onClick={() => setPrevia(null)}>Cerrar ✕</button>
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-gray-800">Ejemplo — {previa.titulo}</p>
+                <button className="text-gray-500 text-sm" onClick={() => setPrevia(null)}>Cerrar ✕</button>
+              </div>
+              <p className="text-xs text-gray-500 mb-1">{previa.cuando}</p>
+              <p className="text-xs text-gray-600 mb-2">{previa.descripcion}</p>
+              <p className="text-[11px] font-semibold text-gray-600 mb-0.5">Destinatarios:</p>
+              <ul className="text-[11px] text-gray-600 list-disc list-inside">
+                {previa.destinatarios.map((d) => <li key={d.email}>{d.nombre} ({d.email})</li>)}
+              </ul>
             </div>
             <div className="p-5" dangerouslySetInnerHTML={{ __html: previa.previsualizar() }} />
           </div>

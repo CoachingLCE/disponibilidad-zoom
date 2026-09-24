@@ -6,6 +6,7 @@ import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoAccesos } from '../../../../lib/permisos';
 import { DESTINATARIOS_AVISO_ACTIVIDADES } from '../../../../lib/destinatariosAvisoActividades';
 import { NOMBRES, formatFechaCorta, minutosAHora } from '../../../../lib/salasLogic';
+import { registrarEnvioEmail } from '../../../../lib/datosEmailsEnviados';
 
 // Rango del PRÓXIMO mes calendario (día 1 al último día).
 function rangoProximoMes() {
@@ -58,11 +59,19 @@ async function armarYEnviar() {
     return { enviado: false, motivo: `No hay actividades cargadas para ${nombreMes}.` };
   }
 
+  const asunto = `Actividades de ${nombreMes} — Cronograma ILCE (${items.length})`;
   await enviarMail({
     to: DESTINATARIOS_AVISO_ACTIVIDADES.map((d) => `"${d.nombre}" <${d.email}>`).join(', '),
-    subject: `Actividades de ${nombreMes} — Cronograma ILCE (${items.length})`,
+    subject: asunto,
     html: armarHtml(items, nombreMes)
   });
+
+  try {
+    await registrarEnvioEmail({
+      tipo: 'Cronograma de lo que se viene (actividades)', asunto,
+      destinatarios: DESTINATARIOS_AVISO_ACTIVIDADES.map((d) => d.email).join(', '), cantidad: items.length
+    });
+  } catch { /* no hay pestaña de registro todavía */ }
 
   return { enviado: true, cantidad: items.length };
 }

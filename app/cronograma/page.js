@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
@@ -20,6 +20,32 @@ const tabCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-lg border 
 
 const DIAS_SEMANA = DIAS.slice(0, 6); // Lunes a Sábado
 const MESES_LARGO = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+// Un color propio por Tipo (además de Formación, que ya tiene su verde histórico) para que
+// la columna Tipo de la vista Lista se distinga de un vistazo — antes todo lo que no fuera
+// Formación se veía igual (azul si tenía curso, gris si no).
+const TIPO_COLORES = {
+  'Formación': 'bg-successBg text-successText',
+  'Capacitación': 'bg-warningBg text-warningText',
+  'Reuniones': 'bg-infoBg text-infoText',
+  'Encuentro Potencia': 'bg-orange-400/10 text-orange-400',
+  'Laboratorio C.O': 'bg-accentPurple/10 text-accentPurple',
+  'Masterclass': 'bg-accentMagenta/10 text-accentMagenta',
+  'BLOG': 'bg-accentTeal/10 text-accentTeal',
+  'Jornada': 'bg-pink-400/10 text-pink-400',
+  'Clases de apoyo': 'bg-cyan-400/10 text-cyan-400',
+  'Auditorio': 'bg-dangerBg text-dangerText',
+  'Caja de ideas': 'bg-lime-400/10 text-lime-400',
+  'Clase especial': 'bg-fuchsia-400/10 text-fuchsia-400',
+  'Equipo docente': 'bg-sky-400/10 text-sky-400',
+  'Otro': 'bg-surface2 text-textMuted'
+};
+function colorDeTipo(a) {
+  return TIPO_COLORES[a.tipo] || (a.curso ? 'bg-infoBg text-infoText' : 'bg-surface2 text-textMuted');
+}
+function diaCorto(dia) {
+  return dia ? dia.charAt(0) + dia.slice(1).toLowerCase() : '—';
+}
 
 function esMesActual(fechaISO) {
   if (!fechaISO) return false;
@@ -66,6 +92,7 @@ export default function CronogramaPage() {
 
   const [clases, setClases] = useState([]);
   const [actividades, setActividades] = useState([]);
+  const [formacionesManual, setFormacionesManual] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [vista, setVista] = useState('calendario'); // calendario | lista
   const [semanaOffset, setSemanaOffset] = useState(0);
@@ -101,10 +128,11 @@ export default function CronogramaPage() {
   async function cargarDatos() {
     setCargandoDatos(true);
     try {
-      const [rc, ra, rd] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/actividades'), fetchAutenticado('/api/docentes-co')]);
+      const [rc, ra, rd, rf] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/actividades'), fetchAutenticado('/api/docentes-co'), fetchAutenticado('/api/formaciones')]);
       const [dc, da] = await Promise.all([rc.json(), ra.json()]);
       if (rc.ok) setClases(dc.clases);
       if (rd.ok) { try { const dd = await rd.json(); setAsignacionesCO(dd.asignaciones || []); } catch { /* */ } }
+      if (rf.ok) { try { const df = await rf.json(); setFormacionesManual(df.formaciones || []); } catch { /* */ } }
       if (ra.ok) {
         setActividades(da.actividades);
         if (da.actividades.length < CRONOGRAMA_HISTORICO.length && puedeEditar) {
@@ -141,6 +169,12 @@ export default function CronogramaPage() {
     return true;
   }
 
+  // Ediciones que el histórico ya da por terminadas (misma fuente que usa Inicio para su
+  // "Próximas clases") — antes esta pantalla no las descontaba, así que una edición que ya
+  // llegó a su clase 16/16 (ej. CDEP 12) seguía apareciendo semana a semana en el
+  // cronograma en vivo aunque la propia página Formaciones ya la mostrara "Finalizada".
+  const edicionesFinalizadas = useMemo(() => calcularEdicionesFinalizadas(CRONOGRAMA_HISTORICO), []);
+
   const { todas, totalSinFiltro } = useMemo(() => {
     // El "número" que guarda cada clase (c.numero) identifica la EDICIÓN (ej: "CV 5"),
     // no qué sesión semanal es dentro de esa edición — antes se mostraban como si fueran
@@ -168,7 +202,8 @@ export default function CronogramaPage() {
       if (!m) m = cands[cands.length - 1];
       return m ? { docente: m.docente || '', staff: m.staff || '' } : null;
     };
-    const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => {
+    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
+    const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => {
       const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(c.numero, c.fecha) : null;
       return {
         id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
@@ -182,14 +217,15 @@ export default function CronogramaPage() {
     // incluyen igual, con fecha vacía — el calendario las proyecta sobre la semana que se
     // esté mirando (más abajo), y en la vista Lista aparecen con fecha "—". Sin fecha
     // puntual no hay forma de saber qué sesión es, así que no se le asigna número.
-    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => { const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(c.numero, '9999-12-31') : null; return ({
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => { const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(c.numero, '9999-12-31') : null; return ({
       id: c.id, fecha: '', dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.numero, numeroSesion: null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente || (ds ? ds.docente : ''), staff: c.staff || (ds ? ds.staff : ''),
       total: TOTALES[c.codigo], tematica: c.tematica,
       // Sin fecha puntual todavía (horario semanal fijo) — como referencia se guarda la
-      // fecha de inicio real de la edición (confirmada a mano en fechasInicioReales.js),
-      // así la vista Lista puede mostrar algo útil en vez de "—" y ordenar razonablemente.
-      fechaInicioEdicion: FECHAS_INICIO_REALES[`${c.codigo}|${c.numero}`] || null,
+      // fecha de inicio real de la edición. Una corrección cargada a mano desde el detalle
+      // de esta clase (pestaña "Formaciones" del Sheet, editable desde acá mismo) tiene
+      // prioridad sobre el valor fijo del código en fechasInicioReales.js.
+      fechaInicioEdicion: (formacionesManual.find((m) => m.codigo === c.codigo && String(m.edicion) === String(c.numero))?.fechaInicio) || FECHAS_INICIO_REALES[`${c.codigo}|${c.numero}`] || null,
       observaciones: c.observaciones, pasada: false, recurrente: true
     }); });
     // Importante: las entradas históricas de tipo "Formación" quedan afuera acá — esas
@@ -205,7 +241,7 @@ export default function CronogramaPage() {
     if (filtroDia) out = out.filter((a) => a.dia === filtroDia);
     if (filtroRango) out = out.filter((a) => a.recurrente || dentroDeRango(a.fecha, filtroRango));
     return { todas: out, totalSinFiltro: completo.length };
-  }, [clases, actividades, asignacionesCO, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
+  }, [clases, actividades, asignacionesCO, formacionesManual, edicionesFinalizadas, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
 
   const tiposUsados = [...new Set(['Formación', ...actividades.map((a) => a.tipo)])];
   const cursosUsados = [...new Set(clases.map((c) => c.codigo).concat(actividades.filter((a) => a.curso).map((a) => a.curso)))];
@@ -303,7 +339,7 @@ export default function CronogramaPage() {
         </div>
         <div className="flex flex-wrap gap-1.5 mb-2">
           <button className={chipCls(filtroCurso === '')} onClick={() => setFiltroCurso('')}>Todas las formaciones</button>
-          {cursosUsados.map((c) => <button key={c} className={chipCls(filtroCurso === c)} onClick={() => setFiltroCurso(c)}>{ICONOS[c] || ''} {c}</button>)}
+          {cursosUsados.map((c) => <button key={c} className={chipCls(filtroCurso === c)} onClick={() => setFiltroCurso(c)}>{ICONOS[c] || ''} {nombreCurso(c)}</button>)}
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           <select value={filtroSala} onChange={(e) => setFiltroSala(e.target.value)} className={`${inputCls} w-auto`}>
@@ -399,7 +435,7 @@ export default function CronogramaPage() {
             <table className="w-full min-w-[820px] text-xs border-collapse">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
-                  <th className="p-1.5">Fecha</th><th className="p-1.5">Tipo</th><th className="p-1.5">Curso</th><th className="p-1.5">Edición</th>
+                  <th className="p-1.5">Fecha</th><th className="p-1.5">Día</th><th className="p-1.5">Tipo</th><th className="p-1.5">Curso</th><th className="p-1.5">Edición</th>
                   <th className="p-1.5">Horario</th><th className="p-1.5">Sala</th><th className="p-1.5">Docente</th>
                   <th className="p-1.5">Temática</th><th className="p-1.5">Observaciones</th>
                 </tr>
@@ -407,6 +443,7 @@ export default function CronogramaPage() {
               <tbody>
                 {todas.map((a, i) => {
                   const color = colorDe(a);
+                  const dia = a.dia || (a.fecha ? fechaToDia(a.fecha) : '');
                   return (
                     <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha)]} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
                       <td className="p-1.5">
@@ -416,10 +453,9 @@ export default function CronogramaPage() {
                           </span>
                         ) : '—'}
                       </td>
+                      <td className="p-1.5 whitespace-nowrap">{diaCorto(dia)}</td>
                       <td className="p-1.5">
-                        <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                          a.tipo === 'Formación' ? 'bg-successBg text-successText' : a.curso ? 'bg-infoBg text-infoText' : 'bg-surface2 text-textMuted'
-                        }`}>
+                        <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${colorDeTipo(a)}`}>
                           {a.tipo}
                         </span>
                       </td>
@@ -444,7 +480,7 @@ export default function CronogramaPage() {
         )}
       </div>
 
-      {seleccionado && <ModalDetalle item={seleccionado} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} />}
+      {seleccionado && <ModalDetalle item={seleccionado} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} onGuardado={cargarDatos} />}
     </div>
   );
 }
@@ -533,9 +569,57 @@ function VistaMes({ todas, onClick, colorPor }) {
   );
 }
 
-function ModalDetalle({ item, onCerrar, puedeEditar }) {
+function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
+  const { fetchAutenticado } = useSession();
   const esFormacion = item.tipo === 'Formación';
+  // La "Fecha de inicio" solo tiene sentido para una Formación que todavía no tiene
+  // clases con fecha puntual cargadas (horario recurrente) — para una clase ya fechada,
+  // esa fecha puntual es la de la sesión, no la de inicio de la edición.
+  const puedeEditarFechaInicio = esFormacion && !item.fecha && item.curso && item.edicion;
   const idReunion = CREDENCIALES_ZOOM_DEFAULT.find((c) => c.sala === item.sala)?.idReunion;
+
+  const [editando, setEditando] = useState(false);
+  const [docE, setDocE] = useState(item.docente || '');
+  const [staffE, setStaffE] = useState(item.staff || '');
+  const [salaE, setSalaE] = useState(item.sala || '');
+  const [fechaInicioE, setFechaInicioE] = useState(item.fechaInicioEdicion || '');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function guardar() {
+    setGuardando(true); setError('');
+    try {
+      // Docente/Staff/Sala viven en la clase puntual (pestaña Clases) — solo se manda si
+      // hay una fila real (item.id). La Fecha de inicio vive en la pestaña Formaciones,
+      // por curso+edición, así que va a un endpoint aparte.
+      if (item.id) {
+        const cambios = {};
+        if (docE !== (item.docente || '')) cambios.docente = docE;
+        if (esFormacion && staffE !== (item.staff || '')) cambios.staff = staffE;
+        if (salaE && salaE !== (item.sala || '')) cambios.nuevaSala = salaE;
+        if (Object.keys(cambios).length > 0) {
+          const r = await fetchAutenticado(`/api/clases/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios) });
+          if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'No se pudo guardar la clase.'); }
+        }
+      }
+      if (puedeEditarFechaInicio && fechaInicioE !== (item.fechaInicioEdicion || '')) {
+        const r = await fetchAutenticado('/api/formaciones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: item.curso, edicion: item.edicion, fechaInicio: fechaInicioE }) });
+        if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'No se pudo guardar la fecha de inicio.'); }
+      }
+      setEditando(false);
+      if (onGuardado) await onGuardado();
+    } catch (e) {
+      setError(e.message || 'No se pudo guardar.');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  function cancelar() {
+    setEditando(false); setError('');
+    setDocE(item.docente || ''); setStaffE(item.staff || ''); setSalaE(item.sala || ''); setFechaInicioE(item.fechaInicioEdicion || '');
+  }
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
@@ -544,21 +628,61 @@ function ModalDetalle({ item, onCerrar, puedeEditar }) {
         </h3>
         <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>
         <div className="space-y-1.5 text-sm mb-4">
-          <Fila label="Fecha" valor={formatFechaCorta(item.fecha)} />
+          {puedeEditarFechaInicio ? (
+            editando ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-textMuted">Fecha de inicio</span>
+                <input type="date" className="bg-bg border border-border rounded-lg px-2 py-1 text-sm" value={fechaInicioE} onChange={(e) => setFechaInicioE(e.target.value)} />
+              </div>
+            ) : (
+              <Fila label="Fecha de inicio" valor={item.fechaInicioEdicion ? formatFechaCorta(item.fechaInicioEdicion) : '—'} />
+            )
+          ) : (
+            <Fila label="Fecha" valor={formatFechaCorta(item.fecha)} />
+          )}
           <Fila label="Horario" valor={item.horaMin != null ? minutosAHora(item.horaMin) : '—'} />
-          <Fila
-            label="Sala"
-            valor={item.sala ? <Link href="/credenciales-zoom" className="text-infoText underline">{item.sala}</Link> : '—'}
-          />
+          {editando ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-textMuted">Sala</span>
+              <select className="bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={salaE} onChange={(e) => setSalaE(e.target.value)}>
+                {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          ) : (
+            <Fila
+              label="Sala"
+              valor={item.sala ? <Link href="/credenciales-zoom" className="text-infoText underline">{item.sala}</Link> : '—'}
+            />
+          )}
           {idReunion && <Fila label="ID de reunión" valor={idReunion} />}
           {esFormacion && item.numeroSesion && item.total && (
             <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
           )}
-          <Fila label="Docente" valor={item.docente || '—'} />
-          {esFormacion && <Fila label="Staff" valor={item.staff || '—'} />}
+          {editando ? (
+            <>
+              <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Docente</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={docE} onChange={(e) => setDocE(e.target.value)} placeholder="Docente" /></div>
+              {esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Staff</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={staffE} onChange={(e) => setStaffE(e.target.value)} placeholder="Staff" /></div>}
+            </>
+          ) : (
+            <>
+              <Fila label="Docente" valor={item.docente || '—'} />
+              {esFormacion && <Fila label="Staff" valor={item.staff || '—'} />}
+            </>
+          )}
           {!esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
           <Fila label="Observaciones" valor={item.observaciones || '—'} />
         </div>
+        {error && <p className="text-dangerText text-xs mb-3">{error}</p>}
+        {puedeEditar && item.id && (
+          editando ? (
+            <div className="flex gap-2 mb-3">
+              <button className={btnCls} onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
+              <button className={btnSecCls} onClick={cancelar} disabled={guardando}>Cancelar</button>
+            </div>
+          ) : (
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar {puedeEditarFechaInicio ? 'fecha de inicio, docente, staff o sala' : 'docente, staff o sala'}</button>
+          )
+        )}
         {puedeEditar && (
           <div className="flex flex-col gap-2 mb-3">
             {esFormacion && (

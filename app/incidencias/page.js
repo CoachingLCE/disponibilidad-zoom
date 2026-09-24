@@ -27,6 +27,7 @@ export default function IncidenciasPage() {
   const [fBloquea, setFBloquea] = useState(true);
   const [msgFeriado, setMsgFeriado] = useState(null);
   const [verFeriadosPasados, setVerFeriadosPasados] = useState(false);
+  const [conflictoSeleccionado, setConflictoSeleccionado] = useState(null);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargarDatos(); }, [usuario]);
@@ -136,7 +137,7 @@ export default function IncidenciasPage() {
 
   return (
     <div className="max-w-[1200px] mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">Incidencias</h1>
+      <h1 className="text-xl mb-1">Alertas y feriados</h1>
       <p className="text-textSec text-sm mb-5">Situaciones que requieren atención, y la información administrativa de feriados y postergaciones.</p>
 
       <div className="bg-surface2 border-2 border-dangerText/30 rounded-2xl p-5 mb-5">
@@ -166,7 +167,7 @@ export default function IncidenciasPage() {
                 </thead>
                 <tbody>
                   {conflictosDetalle.map((c, i) => (
-                    <tr key={i} className="border-b border-border">
+                    <tr key={i} onClick={() => setConflictoSeleccionado(c)} className="border-b border-border cursor-pointer hover:bg-bg">
                       <td className="p-1.5">{c.sala}</td>
                       <td className="p-1.5">{c.dia.charAt(0) + c.dia.slice(1).toLowerCase()}</td>
                       <td className="p-1.5">{c.claseA.label} · {minutosAHora(c.claseA.horaMin)}{c.claseA.fecha ? ' · ' + formatFechaCorta(c.claseA.fecha) : ''}</td>
@@ -176,9 +177,14 @@ export default function IncidenciasPage() {
                 </tbody>
               </table>
             </div>
+            <p className="text-[10.5px] text-textMuted mt-1.5">Hacé clic en una fila para ver el detalle completo de las dos clases.</p>
           </div>
         )}
       </div>
+
+      {conflictoSeleccionado && (
+        <ModalConflicto conflicto={conflictoSeleccionado} onCerrar={() => setConflictoSeleccionado(null)} />
+      )}
 
       <div className={boxCls}>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
@@ -253,6 +259,52 @@ export default function IncidenciasPage() {
             </tbody>
           </table>
         )}
+      </div>
+    </div>
+  );
+}
+
+function FilaInfo({ label, valor }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      <span className="text-textMuted">{label}</span>
+      <span className="text-right">{valor ?? '—'}</span>
+    </div>
+  );
+}
+
+// Detalle completo de las dos clases en conflicto — antes solo se veía el nombre y el
+// horario en la tabla; para decidir cuál mover hace falta también el docente, la edición
+// y las observaciones de cada una.
+function ModalConflicto({ conflicto, onCerrar }) {
+  const claseInfo = (c) => (
+    <div className="space-y-1.5 flex-1 min-w-0">
+      <p className="font-semibold text-sm mb-1.5">{c.label}</p>
+      <FilaInfo label="Código" valor={c.codigo || '—'} />
+      <FilaInfo label="Edición" valor={c.edicion || '—'} />
+      <FilaInfo label="Horario" valor={minutosAHora(c.horaMin)} />
+      <FilaInfo label="Fecha" valor={c.fecha ? formatFechaCorta(c.fecha) : 'Horario recurrente (sin fecha puntual)'} />
+      <FilaInfo label="Docente" valor={c.docente || '—'} />
+      <FilaInfo label="Staff" valor={c.staff || '—'} />
+      <FilaInfo label="Observaciones" valor={c.observaciones || '—'} />
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
+      <div className="bg-surface2 border border-border rounded-2xl p-5 w-[560px] max-w-[95vw]" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-semibold mb-1">🔴 Clases superpuestas</h3>
+        <p className="text-textSec text-xs mb-4">
+          {conflicto.sala} · {conflicto.dia.charAt(0) + conflicto.dia.slice(1).toLowerCase()}
+        </p>
+        <div className="flex gap-4 mb-4">
+          {claseInfo(conflicto.claseA)}
+          <div className="w-px bg-border shrink-0" />
+          {claseInfo(conflicto.claseB)}
+        </div>
+        <p className="text-[10.5px] text-textMuted mb-3">
+          Para resolverlo, andá a Salas Zoom o Cronograma y cambiale la sala u horario a una de las dos.
+        </p>
+        <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
       </div>
     </div>
   );

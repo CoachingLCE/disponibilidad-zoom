@@ -6,6 +6,7 @@ import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoAccesos } from '../../../../lib/permisos';
 import { DESTINATARIOS_AVISO_FECHAS } from '../../../../lib/destinatariosAvisoFechas';
 import { formatFechaCorta } from '../../../../lib/salasLogic';
+import { registrarEnvioEmail } from '../../../../lib/datosEmailsEnviados';
 
 // Se manda una vez por mes (el 20) — la ventana de "lo que se viene" cubre un poco más
 // de un mes hacia adelante, para que nada quede afuera entre un envío y el siguiente.
@@ -54,11 +55,21 @@ async function armarYEnviar() {
     return { enviado: false, motivo: 'No hay fechas cargadas para los próximos días.' };
   }
 
+  const asunto = `Cronograma de lo que se viene — Cronograma ILCE (${proximos.length} fecha(s))`;
   await enviarMail({
     to: DESTINATARIOS_AVISO_FECHAS.map((d) => `"${d.nombre}" <${d.email}>`).join(', '),
-    subject: `Cronograma de lo que se viene — Cronograma ILCE (${proximos.length} fecha(s))`,
+    subject: asunto,
     html: armarHtml(proximos)
   });
+
+  // El registro es best-effort: si la pestaña "EmailsEnviados" todavía no existe en el
+  // Sheet, no queremos que eso rompa la respuesta de un mail que ya se mandó bien.
+  try {
+    await registrarEnvioEmail({
+      tipo: 'Cronograma de lo que se viene (fechas)', asunto,
+      destinatarios: DESTINATARIOS_AVISO_FECHAS.map((d) => d.email).join(', '), cantidad: proximos.length
+    });
+  } catch { /* no hay pestaña de registro todavía */ }
 
   return { enviado: true, cantidad: proximos.length };
 }

@@ -80,8 +80,18 @@ export default function FormacionesPage() {
     Object.keys(FECHAS_INICIO_REALES).forEach((key) => {
       out[key] = { cargadas: 0, total: null, ...out[key], fechaInicio: FECHAS_INICIO_REALES[key] };
     });
+    // La pestaña "Formaciones" del Sheet es editable en vivo desde el detalle de una clase en
+    // Cronograma (POST /api/formaciones) — por eso es la fuente MÁS confiable de todas: si
+    // alguien corrigió ahí una fecha de inicio, tiene que pisar tanto al histórico como al
+    // hardcodeado de fechasInicioReales.js (antes, una corrección hecha desde Cronograma no
+    // se veía reflejada acá porque fechasInicioReales.js siempre ganaba).
+    formacionesManual.forEach((m) => {
+      if (!m.fechaInicio) return;
+      const key = `${m.codigo}|${m.edicion}`;
+      out[key] = { cargadas: 0, total: null, ...out[key], fechaInicio: m.fechaInicio };
+    });
     return out;
-  }, []);
+  }, [formacionesManual]);
 
   // Combina lo calculado automáticamente desde el horario (calcularFormaciones) con, en
   // orden de confiabilidad: 1) el histórico real (fechas verdaderas de clases que ya
@@ -204,7 +214,15 @@ export default function FormacionesPage() {
     else if (filtro === 'finalizadas') out = out.filter((f) => f.estado === 'Finalizó');
     if (filtroCurso) out = out.filter((f) => f.codigo === filtroCurso);
     if (filtroCuatrimestre) out = out.filter((f) => f.cuatrimestre === parseInt(filtroCuatrimestre, 10));
-    return out;
+    // Orden pedido por Diego: de la más reciente a la más antigua. fechaFinal/fechaInicio
+    // ya vienen como texto ISO (YYYY-MM-DD), así que comparan bien como texto. Antes no
+    // se ordenaba nada y las tarjetas salían en el orden "crudo" del horario (ej. Coaching
+    // Deportivo 11, 12, 13, 1, 2, 3…).
+    return [...out].sort((a, b) => {
+      const da = a.fechaFinal || a.fechaInicio || '';
+      const db = b.fechaFinal || b.fechaInicio || '';
+      return db.localeCompare(da);
+    });
   }, [formaciones, filtro, filtroCurso, filtroCuatrimestre]);
 
   const cursosUsados = [...new Set(formaciones.map((f) => f.codigo))].sort();
@@ -249,7 +267,12 @@ export default function FormacionesPage() {
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))' }}>
           {filtradas.map((f) => {
-            const color = colorFormacion(f.codigo);
+            // Una edición Finalizada se ve en gris apagado en vez del color propio del curso —
+            // antes se veía igual de "viva" que una en curso y solo se distinguía por el
+            // pequeño cartel "Finalizada" arriba a la derecha, fácil de pasar por alto.
+            const color = f.estado === 'Finalizó'
+              ? { dot: 'bg-textMuted', text: 'text-textMuted', bg: 'bg-textMuted/10', border: 'border-textMuted/40' }
+              : colorFormacion(f.codigo);
             const estado = f.estado === 'Finalizó' ? ESTADOS.finalizada : f.estado === 'Próximamente' ? ESTADOS.proximamente : ESTADOS.normal;
             const enVivo = formacionEnVivo(f);
             return (

@@ -5,6 +5,7 @@ import { enviarMail } from '../../../../lib/mailer';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoAccesos } from '../../../../lib/permisos';
 import { DESTINATARIOS_RESUMEN } from '../../../../lib/destinatariosResumen';
+import { registrarEnvioEmail } from '../../../../lib/datosEmailsEnviados';
 
 const ACCIONES_RELEVANTES = ['Reservó', 'Postergó clase', 'Cambió sala', 'Canceló clase'];
 
@@ -69,11 +70,19 @@ async function armarYEnviar() {
     return { enviado: false, motivo: 'No hubo clases creadas, modificadas ni eliminadas esta semana.' };
   }
 
+  const asunto = `Resumen semanal de clases — Cronograma ILCE (${recientes.length} movimiento(s))`;
   await enviarMail({
     to: DESTINATARIOS_RESUMEN.map((d) => `"${d.nombre}" <${d.email}>`).join(', '),
-    subject: `Resumen semanal de clases — Cronograma ILCE (${recientes.length} movimiento(s))`,
+    subject: asunto,
     html: armarHtml(recientes)
   });
+
+  try {
+    await registrarEnvioEmail({
+      tipo: 'Resumen semanal de movimientos', asunto,
+      destinatarios: DESTINATARIOS_RESUMEN.map((d) => d.email).join(', '), cantidad: recientes.length
+    });
+  } catch { /* no hay pestaña de registro todavía */ }
 
   return { enviado: true, cantidad: recientes.length };
 }

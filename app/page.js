@@ -163,7 +163,7 @@ export default function InicioPage() {
     const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => ({
       id: c.id, fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
-      horaMin: c.horaMin, sala: c.sala, esFormacion: true,
+      horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, esFormacion: true,
       docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
@@ -171,15 +171,15 @@ export default function InicioPage() {
     const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => ({
       id: c.id, fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
       edicion: c.numero, numeroSesion: null, total: TOTALES[c.codigo] || null,
-      horaMin: c.horaMin, sala: c.sala, esFormacion: true,
+      horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, esFormacion: true,
       docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
     })).filter((c) => c.fecha);
     // Mismo criterio que en Cronograma: las Formación históricas se excluyen acá,
     // porque ya están representadas (con sala real) en deClases.
     const deOtras = actividades.filter((a) => a.fecha && a.tipo !== 'Formación').map((a) => ({
       id: a.id, fecha: a.fecha, dia: a.dia, curso: '', nombreCurso: a.nombreCurso || a.tipo, tipo: a.tipo,
-      edicion: '', numero: '', horaMin: a.horaMin, sala: a.sala || '', esFormacion: false,
-      docente: a.docente || '', tematica: a.tematica || '', observaciones: a.observaciones || ''
+      edicion: '', numero: '', horaMin: a.horaMin, duracion: 90, sala: a.sala || '', esFormacion: false,
+      docente: a.docente || '', staff: '', tematica: a.tematica || '', observaciones: a.observaciones || ''
     }));
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades, edicionesFinalizadas]);
@@ -320,10 +320,7 @@ export default function InicioPage() {
             {proximas.length === 0 ? (
               <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
             ) : (
-              <div className="grid gap-x-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(380px,1fr))' }}>
-                <TablaProximas items={proximas.slice(0, Math.ceil(proximas.length / 2))} onClick={setSeleccionado} />
-                <TablaProximas items={proximas.slice(Math.ceil(proximas.length / 2))} onClick={setSeleccionado} />
-              </div>
+              <TablaProximas items={proximas} onClick={setSeleccionado} />
             )}
           </div>
         </>
@@ -443,14 +440,19 @@ function TablaProximas({ items, onClick }) {
         <thead>
           <tr className="border-b border-border text-textMuted text-left">
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Fecha</th>
-            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora</th>
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Día</th>
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora de inicio</th>
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora de finalización</th>
             <th className="py-1.5 pr-2 font-semibold">Curso</th>
-            <th className="py-1.5 pl-2 font-semibold text-right whitespace-nowrap">Sala</th>
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Sala</th>
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Docente</th>
+            <th className="py-1.5 pl-2 font-semibold whitespace-nowrap">Staff</th>
           </tr>
         </thead>
         <tbody>
           {items.map((a) => {
             const color = a.esFormacion ? colorFormacion(a.curso) : null;
+            const dia = a.dia || (a.fecha ? fechaToDia(a.fecha) : '');
             return (
               <tr
                 key={a.id}
@@ -458,7 +460,9 @@ function TablaProximas({ items, onClick }) {
                 className="border-b border-border/60 last:border-0 cursor-pointer hover:bg-bg/40"
               >
                 <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{formatFechaCorta(a.fecha)}</td>
+                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{dia ? dia.charAt(0) + dia.slice(1).toLowerCase() : '—'}</td>
                 <td className="py-1.5 pr-2 font-mono text-textSec whitespace-nowrap align-top">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
+                <td className="py-1.5 pr-2 font-mono text-textSec whitespace-nowrap align-top">{a.horaMin != null ? minutosAHora(a.horaMin + (a.duracion || 90)) : '—'}</td>
                 <td className="py-1.5 pr-2 align-top">
                   <div className="flex items-center gap-1.5">
                     {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
@@ -469,7 +473,9 @@ function TablaProximas({ items, onClick }) {
                     </span>
                   </div>
                 </td>
-                <td className="py-1.5 pl-2 text-textMuted text-right whitespace-nowrap align-top">{a.sala || '—'}</td>
+                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{a.sala || '—'}</td>
+                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{a.docente || '—'}</td>
+                <td className="py-1.5 pl-2 text-textMuted whitespace-nowrap align-top">{a.staff || '—'}</td>
               </tr>
             );
           })}
