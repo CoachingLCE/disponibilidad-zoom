@@ -20,7 +20,7 @@ const LINKS = [
   { href: '/salas-zoom', label: 'Agregar actividad' },
   { href: '/credenciales-zoom', label: 'Credenciales Zoom' },
   { href: '/info-tecnica', label: 'Info. técnica' },
-  { href: '/incidencias', label: 'Incidencias' },
+  { href: '/incidencias', label: 'Alertas y feriados' },
   { href: '/analisis', label: 'Análisis' },
   { href: '/emails', label: 'Emails' },
   { href: '/auditoria', label: 'Historial de acciones' },
