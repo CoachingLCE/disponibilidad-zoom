@@ -10,6 +10,14 @@ const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full bord
 
 const DIAS_SEMANA = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const _normDia = (d) => (d || '').toString().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+// La clase de hoy todavía no terminó (aún no llegó, o está ocurriendo) — para no contarla como dada.
+function claseHoyNoTerminada(f) {
+  if (!f.patronDia || f.patronHora == null) return false;
+  const ahora = new Date();
+  if (_normDia(f.patronDia) !== _normDia(DIAS_SEMANA[ahora.getDay()])) return false;
+  const min = ahora.getHours() * 60 + ahora.getMinutes();
+  return min < f.patronHora + (f.patronDur || 90);
+}
 // Una formación está "en vivo" si hoy es su día recurrente y la hora actual cae dentro de la clase.
 function formacionEnVivo(f) {
   if (!f.patronDia || f.patronHora == null) return false;
@@ -263,7 +271,7 @@ export default function FormacionesPage() {
                 {f.pct != null ? (
                   <>
                     <div className="flex items-center justify-between text-xs text-textSec mb-1">
-                      <span>Clase {Math.min(f.cargadas, f.total)} / {f.total}</span>
+                      <span>Clase {Math.max(0, Math.min(f.cargadas, f.total) - (claseHoyNoTerminada(f) ? 1 : 0))} / {f.total}</span>
                       <span>{f.pct}%</span>
                     </div>
                     <div className="w-full h-2 bg-bg border border-border rounded-full overflow-hidden mb-3">
