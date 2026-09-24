@@ -75,6 +75,7 @@ export default function CronogramaPage() {
   const [filtroDia, setFiltroDia] = useState('');
   const [filtroRango, setFiltroRango] = useState('');
   const [seleccionado, setSeleccionado] = useState(null);
+  const [asignacionesCO, setAsignacionesCO] = useState([]);
   // Cómo se pintan los bloques del cronograma: por curso (default, distingue formaciones)
   // o por sala (para ver de un vistazo qué sala está usando cada bloque). Queda guardado
   // en este navegador para no tener que elegirlo cada vez.
@@ -100,9 +101,10 @@ export default function CronogramaPage() {
   async function cargarDatos() {
     setCargandoDatos(true);
     try {
-      const [rc, ra] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/actividades')]);
+      const [rc, ra, rd] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/actividades'), fetchAutenticado('/api/docentes-co')]);
       const [dc, da] = await Promise.all([rc.json(), ra.json()]);
       if (rc.ok) setClases(dc.clases);
+      if (rd.ok) { try { const dd = await rd.json(); setAsignacionesCO(dd.asignaciones || []); } catch { /* */ } }
       if (ra.ok) {
         setActividades(da.actividades);
         if (da.actividades.length < CRONOGRAMA_HISTORICO.length && puedeEditar) {
@@ -156,26 +158,40 @@ export default function CronogramaPage() {
       ordenado.forEach((c, idx) => { sesionPorId[c.id] = idx + 1; });
     });
 
-    const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => ({
-      id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
-      total: TOTALES[c.codigo], tematica: c.tematica,
-      observaciones: c.observaciones, pasada: esPasada(c.fecha)
-    }));
+    // Docente/Staff de C.O.: la clase no los trae; se cruzan con el roster de docentes-co por edición + fecha del período.
+    const docenteStaffCO = (edicion, fecha) => {
+      const ed = String(edicion || '').replace(/\D/g, '');
+      if (!ed || !asignacionesCO.length) return null;
+      const cands = asignacionesCO.filter((r) => String(r.edicion || '').replace(/\D/g, '') === ed);
+      if (!cands.length) return null;
+      let m = cands.find((r) => (!r.desde || (fecha && fecha >= r.desde)) && (!r.hasta || (fecha && fecha <= r.hasta)));
+      if (!m) m = cands[cands.length - 1];
+      return m ? { docente: m.docente || '', staff: m.staff || '' } : null;
+    };
+    const deClasesConFecha = clases.filter((c) => c.fecha).map((c) => {
+      const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(c.numero, c.fecha) : null;
+      return {
+        id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
+        edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala,
+        docente: c.docente || (ds ? ds.docente : ''), staff: c.staff || (ds ? ds.staff : ''),
+        total: TOTALES[c.codigo], tematica: c.tematica,
+        observaciones: c.observaciones, pasada: esPasada(c.fecha)
+      };
+    });
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía): se
     // incluyen igual, con fecha vacía — el calendario las proyecta sobre la semana que se
     // esté mirando (más abajo), y en la vista Lista aparecen con fecha "—". Sin fecha
     // puntual no hay forma de saber qué sesión es, así que no se le asigna número.
-    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => ({
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia).map((c) => { const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(c.numero, '9999-12-31') : null; return ({
       id: c.id, fecha: '', dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numeroSesion: null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente, staff: c.staff,
+      edicion: c.numero, numeroSesion: null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente || (ds ? ds.docente : ''), staff: c.staff || (ds ? ds.staff : ''),
       total: TOTALES[c.codigo], tematica: c.tematica,
       // Sin fecha puntual todavía (horario semanal fijo) — como referencia se guarda la
       // fecha de inicio real de la edición (confirmada a mano en fechasInicioReales.js),
       // así la vista Lista puede mostrar algo útil en vez de "—" y ordenar razonablemente.
       fechaInicioEdicion: FECHAS_INICIO_REALES[`${c.codigo}|${c.numero}`] || null,
       observaciones: c.observaciones, pasada: false, recurrente: true
-    }));
+    }); });
     // Importante: las entradas históricas de tipo "Formación" quedan afuera acá — esas
     // clases YA están representadas en `deClasesConFecha`/`deClasesRecurrentes` (la fuente
     // real, con sala asignada). Si las mezclamos, la misma edición aparece dos veces.
@@ -189,7 +205,7 @@ export default function CronogramaPage() {
     if (filtroDia) out = out.filter((a) => a.dia === filtroDia);
     if (filtroRango) out = out.filter((a) => a.recurrente || dentroDeRango(a.fecha, filtroRango));
     return { todas: out, totalSinFiltro: completo.length };
-  }, [clases, actividades, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
+  }, [clases, actividades, asignacionesCO, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
 
   const tiposUsados = [...new Set(['Formación', ...actividades.map((a) => a.tipo)])];
   const cursosUsados = [...new Set(clases.map((c) => c.codigo).concat(actividades.filter((a) => a.curso).map((a) => a.curso)))];
