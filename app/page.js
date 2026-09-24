@@ -334,13 +334,19 @@ export default function InicioPage() {
           onCerrar={() => setSeleccionado(null)}
           puedeEditar={puedeEditar}
           asignacionesCO={asignacionesCODisponibles}
+          onGuardado={cargarTodo}
         />
       )}
     </div>
   );
 }
 
-function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO }) {
+function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, onGuardado }) {
+  const { fetchAutenticado } = useSession();
+  const [editando, setEditando] = useState(false);
+  const [docE, setDocE] = useState(item.docente || '');
+  const [staffE, setStaffE] = useState(item.staff || '');
+  const [guardando, setGuardando] = useState(false);
   const idReunion = CREDENCIALES_ZOOM_DEFAULT.find((c) => c.sala === item.sala)?.idReunion;
   // En Coaching Ontológico el docente/staff no se carga por clase — se carga por período
   // en Docentes C.O. Si la clase puntual no tiene el dato, se busca ahí antes de mostrar "—".
@@ -349,6 +355,15 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO }) {
   const staffMostrar = item.staff || periodoCO?.staff || '';
   const observacionesMostrar = item.observaciones || periodoCO?.observaciones || '';
   const usoPeriodoCO = !!periodoCO && (!item.docente || !item.staff) && (!!periodoCO.docente || !!periodoCO.staff);
+  async function guardarDocenteStaff() {
+    if (!item.id) return;
+    setGuardando(true);
+    try {
+      const r = await fetchAutenticado(`/api/clases/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ docente: docE, staff: staffE }) });
+      if (r.ok) { setEditando(false); if (onGuardado) await onGuardado(); }
+      else { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo guardar.'); }
+    } finally { setGuardando(false); }
+  }
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
@@ -367,11 +382,30 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO }) {
           {item.esFormacion && item.numeroSesion && item.total && (
             <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
           )}
-          <Fila label="Docente" valor={docenteMostrar || '—'} />
-          {item.esFormacion && <Fila label="Staff" valor={staffMostrar || '—'} />}
+          {editando ? (
+            <>
+              <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Docente</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={docE} onChange={(e) => setDocE(e.target.value)} placeholder="Docente" /></div>
+              {item.esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Staff</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={staffE} onChange={(e) => setStaffE(e.target.value)} placeholder="Staff" /></div>}
+            </>
+          ) : (
+            <>
+              <Fila label="Docente" valor={docenteMostrar || '—'} />
+              {item.esFormacion && <Fila label="Staff" valor={staffMostrar || '—'} />}
+            </>
+          )}
           {!item.esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
           <Fila label="Observaciones" valor={observacionesMostrar || '—'} />
         </div>
+        {puedeEditar && item.esFormacion && item.id && (
+          editando ? (
+            <div className="flex gap-2 mb-3">
+              <button className={btnCls} onClick={guardarDocenteStaff} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
+              <button className={btnSecCls} onClick={() => { setEditando(false); setDocE(item.docente || ''); setStaffE(item.staff || ''); }}>Cancelar</button>
+            </div>
+          ) : (
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar docente / staff</button>
+          )
+        )}
         {usoPeriodoCO && (
           <p className="text-[10.5px] text-textMuted mb-3">
             Docente/staff según el período cargado en <Link href="/docentes-co" className="underline">Docentes C.O.</Link> — esta clase puntual no tiene el dato propio.
