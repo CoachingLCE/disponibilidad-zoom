@@ -53,3 +53,7 @@ body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   transition: background-color .25s ease, color .25s ease;
 }
+
+/* Cartel "EN VIVO" (clase ocurriendo ahora) — rojo parpadeante. */
+@keyframes envivoBlink { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+.en-vivo-badge { background: rgba(239, 68, 68, .22); color: #f87171; border: 1px solid rgba(239, 68, 68, .5); animation: envivoBlink 1.1s ease-in-out infinite; }

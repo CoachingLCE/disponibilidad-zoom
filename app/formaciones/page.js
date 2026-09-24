@@ -8,6 +8,17 @@ import { FECHAS_INICIO_REALES } from '../../lib/fechasInicioReales';
 
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
+const DIAS_SEMANA = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+const _normDia = (d) => (d || '').toString().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+// Una formación está "en vivo" si hoy es su día recurrente y la hora actual cae dentro de la clase.
+function formacionEnVivo(f) {
+  if (!f.patronDia || f.patronHora == null) return false;
+  const ahora = new Date();
+  if (_normDia(f.patronDia) !== _normDia(DIAS_SEMANA[ahora.getDay()])) return false;
+  const min = ahora.getHours() * 60 + ahora.getMinutes();
+  return min >= f.patronHora && min < f.patronHora + (f.patronDur || 90);
+}
+
 export default function FormacionesPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
@@ -232,6 +243,7 @@ export default function FormacionesPage() {
           {filtradas.map((f) => {
             const color = colorFormacion(f.codigo);
             const estado = f.estado === 'Finalizó' ? ESTADOS.finalizada : f.estado === 'Próximamente' ? ESTADOS.proximamente : ESTADOS.normal;
+            const enVivo = formacionEnVivo(f);
             return (
               <div key={f.codigo + f.edicion} className={`bg-surface2 border-l-4 ${color.border} border-t border-r border-b border-border rounded-xl p-4`}>
                 <div className="flex items-center justify-between mb-1">
@@ -239,7 +251,9 @@ export default function FormacionesPage() {
                     <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />
                     <span className={`font-semibold text-sm truncate ${color.text}`}>{ICONOS[f.codigo] || ''} {NOMBRES[f.codigo] || f.codigo} {f.numero}</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${estado.bg} ${estado.text}`}>{estado.label}</span>
+                  {enVivo
+                    ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
+                    : <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${estado.bg} ${estado.text}`}>{estado.label}</span>}
                 </div>
 
                 {f.total === 48 && f.cuatrimestre && (
