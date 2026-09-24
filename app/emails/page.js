@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { DESTINATARIOS_RESUMEN } from '../../lib/destinatariosResumen';
 import { DESTINATARIOS_AVISO_FECHAS } from '../../lib/destinatariosAvisoFechas';
+import { DESTINATARIOS_AVISO_ACTIVIDADES } from '../../lib/destinatariosAvisoActividades';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
@@ -90,6 +91,28 @@ function previsualizarAvisoFechas() {
   `;
 }
 
+function previsualizarAvisoActividades() {
+  const ej = [
+    { fecha: '02/11/2026', form: 'Coaching Ontológico 45', hora: '19:00', sala: 'Sala 6' },
+    { fecha: '05/11/2026', form: 'Coaching Deportivo 14', hora: '19:00', sala: 'Sala 3' },
+    { fecha: '10/11/2026', form: 'Coaching de Equipos 15', hora: '10:00', sala: 'Sala 2' }
+  ];
+  const filas = ej.map((c) => `<tr>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;"><b>${c.fecha}</b></td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${c.form}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${c.hora}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${c.sala}</td>
+  </tr>`).join('');
+  return `<div style="font-family:Arial,sans-serif;color:#1f2937;">
+    <p>Hola</p><p>\u00bfc\u00f3mo est\u00e1s?</p><p>Te pasamos el listado de actividades de <b>Noviembre 2026</b>:</p>
+    <table style="border-collapse:collapse;width:100%;max-width:680px;font-size:13px;">
+      <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:6px 10px;">Fecha</th><th style="padding:6px 10px;">Formaci\u00f3n</th><th style="padding:6px 10px;">Horario</th><th style="padding:6px 10px;">Sala</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    <p style="margin-top:16px;color:#64748b;font-size:12px;">Este aviso se gener\u00f3 autom\u00e1ticamente desde Cronograma ILCE.</p>
+  </div>`;
+}
+
 const EMAILS_AUTOMATIZADOS = [
   {
     id: 'resumen-semanal',
@@ -106,6 +129,14 @@ const EMAILS_AUTOMATIZADOS = [
     destinatarios: DESTINATARIOS_AVISO_FECHAS,
     descripcion: 'Lista las fechas y feriados (bloqueantes o informativos) que se vienen en las próximas semanas, para que el equipo esté al tanto con anticipación.',
     previsualizar: previsualizarAvisoFechas
+  },
+  {
+    id: 'aviso-actividades',
+    titulo: '🗓️ Cronograma de lo que se viene',
+    cadencia: 'El día 25 de cada mes',
+    destinatarios: DESTINATARIOS_AVISO_ACTIVIDADES,
+    descripcion: 'Lista todas las actividades y formaciones agendadas para el próximo mes, con fecha, horario y sala.',
+    previsualizar: previsualizarAvisoActividades
   }
 ];
 

@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/aviso-fechas",
       "schedule": "0 12 20 * *"
+    },
+    {
+      "path": "/api/cron/aviso-actividades",
+      "schedule": "0 12 25 * *"
     }
   ]
 }
