@@ -251,10 +251,10 @@ export default function EmailsPage() {
             <tbody>
               {EMAILS_AUTOMATIZADOS.map((m) => (
                 <tr key={m.id} className="border-b border-border align-top">
-                  <td className="p-1.5 min-w-[140px] whitespace-nowrap">{m.cuando}</td>
-                  <td className="p-1.5 min-w-[160px] whitespace-nowrap">{nombresJoin(m.destinatarios)}</td>
+                  <td className="p-1.5 max-w-[180px]">{m.cuando}</td>
+                  <td className="p-1.5 max-w-[220px]">{nombresJoin(m.destinatarios)}</td>
                   <td className="p-1.5 whitespace-nowrap text-textSec">Cronograma ILCE</td>
-                  <td className="p-1.5 min-w-[220px]">{m.asunto}</td>
+                  <td className="p-1.5 max-w-[260px]">{m.asunto}</td>
                   <td className="p-1.5">
                     <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[m.tipo] || 'bg-surface2 text-textMuted'}`}>
                       {m.tipo}
