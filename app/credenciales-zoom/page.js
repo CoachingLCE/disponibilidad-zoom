@@ -53,7 +53,7 @@ export default function CredencialesZoomPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
-                  <th className="p-2">Sala</th><th className="p-2">Usuario</th><th className="p-2">Contraseña</th><th className="p-2">ID de reunión</th>
+                  <th className="p-2">Sala</th><th className="p-2">Usuario</th><th className="p-2">Contraseña</th><th className="p-2">ID de reunión</th><th className="p-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -63,6 +63,12 @@ export default function CredencialesZoomPage() {
                     <td className="p-2">{c.usuario}</td>
                     <td className="p-2 font-mono">{c.contrasena}</td>
                     <td className="p-2 font-mono">{c.idReunion || '—'}</td>
+                    <td className="p-2">
+                      <a href="https://zoom.us/signin" target="_blank" rel="noopener noreferrer"
+                        className="inline-block text-xs font-semibold px-2.5 py-1 rounded-lg bg-accentTeal/10 text-accentTeal hover:bg-accentTeal/20 whitespace-nowrap">
+                        Abrir ↗
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -71,6 +77,9 @@ export default function CredencialesZoomPage() {
         </div>
       )}
 
+      <p className="text-[11px] text-textMuted mb-1">
+        "Abrir" lleva directo a la pantalla de inicio de sesión de Zoom, en una pestaña nueva — Zoom no permite completar el usuario y la contraseña automáticamente por seguridad, así que hay que pegarlos ahí (los tenés justo al lado, en la tabla).
+      </p>
       <p className="text-[11px] text-textMuted">
         Si cambia alguna contraseña, avisale a un Admin/SuperAdmin para que la actualice en la pestaña "CredencialesZoom" del Google Sheet.
       </p>

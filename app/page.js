@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSession } from '../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, ESTADOS, calcularEdicionesFinalizadas,
+  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, calcularEdicionesFinalizadas,
   calcularNumeroSesion, toISO
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
@@ -240,7 +240,7 @@ export default function InicioPage() {
             ) : (
               <div data-tour="tarjetas-clases" className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
                 {agendaHoy.map((a, i) => {
-                  const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + 90;
+                  const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + (a.duracion || 90);
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;
                   return (
                     <button key={i} onClick={() => setSeleccionado(a)}
@@ -248,9 +248,7 @@ export default function InicioPage() {
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <span className="font-mono text-xs text-textSec">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
                         {enCurso && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADOS.enCurso.bg} ${ESTADOS.enCurso.text}`}>
-                            {ESTADOS.enCurso.label.toUpperCase()}
-                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mb-0.5">
