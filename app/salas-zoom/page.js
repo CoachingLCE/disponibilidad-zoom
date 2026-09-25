@@ -27,6 +27,10 @@ const seccionTituloCls = 'text-[11px] font-semibold text-textMuted uppercase tra
 const campoCls = 'w-full h-[42px] bg-surface2 border border-border rounded-[12px] px-3 text-sm';
 const campoLabelCls = 'text-[11.5px] text-textSec block mb-1.5 font-medium';
 const btnPrimaryCls = 'inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-[12px] px-5 py-2.5 text-sm font-semibold disabled:opacity-40 shadow-sm shrink-0';
+const botonToggleCls = 'h-9 px-3.5 rounded-[10px] text-xs font-semibold border border-border bg-surface2 text-textSec';
+const botonToggleOnCls = 'border-transparent bg-gradient-to-r from-accentPurple to-accentMagenta text-white';
+// Un color por cuatrimestre, nada más para diferenciarlos de un vistazo en el formulario.
+const COLORES_CUATRIMESTRE = ['rgb(var(--color-accentTeal))', 'rgb(var(--color-accentPurple))', 'rgb(var(--color-accentMagenta))'];
 
 const HORAS_OPCIONES = (() => {
   const out = [];
@@ -420,6 +424,16 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
   const [cantidad, setCantidad] = useState(TOTALES.CO || 1);
   const [docente, setDocente] = useState('');
   const [staff, setStaff] = useState('');
+  // Docente/staff por cuatrimestre, solo para crear una edición completa de C.O. (48 clases
+  // desde la 1) — si es el mismo en los 3, se sigue usando el Docente/Staff de siempre.
+  const [mismoDocenteCuatrimestres, setMismoDocenteCuatrimestres] = useState(true);
+  const [cuatrimestreDocentes, setCuatrimestreDocentes] = useState([
+    { docente: '', staff: '' }, { docente: '', staff: '' }, { docente: '', staff: '' }
+  ]);
+  function setCuatDocente(i, campo, valor) {
+    setCuatrimestreDocentes((arr) => arr.map((c, idx) => (idx === i ? { ...c, [campo]: valor } : c)));
+  }
+  const esEdicionNuevaCO = tipo === 'Formación' && codigo === 'CO' && numero.trim() === '1';
   const [tematica, setTematica] = useState('');
   const [obs, setObs] = useState('');
   // Campos propios de Masterclass (van a Info. técnica, no al cronograma general)
@@ -459,9 +473,28 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
   const [resultado, setResultado] = useState(null);
   const [msg, setMsg] = useState(null);
 
+  // Si el docente/staff cambia entre cuatrimestres, se manda el detalle de los 3; si es el
+  // mismo, no hace falta — el servidor usa el Docente/Staff único para los 3 igual.
+  function datosCuatrimestresCO() {
+    if (!esEdicionNuevaCO || mismoDocenteCuatrimestres) return {};
+    return { cuatrimestres: cuatrimestreDocentes };
+  }
+  function errorCuatrimestresCO() {
+    if (!esEdicionNuevaCO || mismoDocenteCuatrimestres) return null;
+    const falta = cuatrimestreDocentes.findIndex((c) => !c.docente.trim());
+    if (falta !== -1) return `Falta el docente del ${CUATRIMESTRES_CO[falta].label}.`;
+    return null;
+  }
+  function reiniciarCamposCuatrimestre() {
+    setMismoDocenteCuatrimestres(true);
+    setCuatrimestreDocentes([{ docente: '', staff: '' }, { docente: '', staff: '' }, { docente: '', staff: '' }]);
+  }
+
   async function consultar() {
     setMsg(null); setResultado(null);
     if (!fecha) { setMsg({ tipo: 'error', texto: 'Elegí la fecha.' }); return; }
+    const errorCuat = errorCuatrimestresCO();
+    if (errorCuat) { setMsg({ tipo: 'error', texto: errorCuat }); return; }
     try {
       const res = await fetchAutenticado('/api/clases/reservar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -476,15 +509,17 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
   }
 
   async function reservarEn(sala) {
+    const errorCuat = errorCuatrimestresCO();
+    if (errorCuat) { setMsg({ tipo: 'error', texto: errorCuat }); return; }
     try {
       const res = await fetchAutenticado('/api/clases/reservar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala, docente, staff, tematica, observaciones: obs })
+        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sala, docente, staff, tematica, observaciones: obs, ...datosCuatrimestresCO() })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({ tipo: 'ok', texto: `Reservado en ${sala} (${data.agregadas} clase(s)).${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
-      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida('');
+      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida(''); reiniciarCamposCuatrimestre();
       onReservado();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -495,15 +530,17 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
   // horario, edición quedan cargados) y aparece en Inicio → "Pendientes de asignar sala" para
   // que alguien con permiso le complete la sala más tarde.
   async function reservarSinSala() {
+    const errorCuat = errorCuatrimestresCO();
+    if (errorCuat) { setMsg({ tipo: 'error', texto: errorCuat }); return; }
     try {
       const res = await fetchAutenticado('/api/clases/reservar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sinSala: true, docente, staff, tematica, observaciones: obs })
+        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sinSala: true, docente, staff, tematica, observaciones: obs, ...datosCuatrimestresCO() })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({ tipo: 'aviso', texto: `Guardado sin sala (${data.agregadas} clase(s)) — quedó pendiente de asignar en Inicio.${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
-      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida('');
+      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida(''); reiniciarCamposCuatrimestre();
       onReservado();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -716,9 +753,40 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
                   </div>
                 </>
               )}
-              <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
-              {esFormacion && (
-                <div><label className={campoLabelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
+              {esEdicionNuevaCO ? (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label className={campoLabelCls}>¿Mismo docente y staff en los 3 cuatrimestres?</label>
+                  <div className="flex gap-2 mb-2.5">
+                    <button type="button" onClick={() => setMismoDocenteCuatrimestres(true)}
+                      className={`${botonToggleCls} ${mismoDocenteCuatrimestres ? botonToggleOnCls : ''}`}>Sí, el mismo</button>
+                    <button type="button" onClick={() => setMismoDocenteCuatrimestres(false)}
+                      className={`${botonToggleCls} ${!mismoDocenteCuatrimestres ? botonToggleOnCls : ''}`}>No, cambia por cuatrimestre</button>
+                  </div>
+                  {mismoDocenteCuatrimestres ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
+                      <div><label className={campoLabelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {CUATRIMESTRES_CO.map((c, i) => (
+                        <div key={c.id} className="p-2.5 rounded-lg bg-surface2/60" style={{ borderLeft: `3px solid ${COLORES_CUATRIMESTRE[i]}` }}>
+                          <p className="text-[11px] font-semibold mb-1.5 leading-tight">{c.label}</p>
+                          <input placeholder="Docente" value={cuatrimestreDocentes[i].docente} onChange={(e) => setCuatDocente(i, 'docente', e.target.value)} className={`${campoCls} mb-1.5`} />
+                          <input placeholder="Staff (opcional)" value={cuatrimestreDocentes[i].staff} onChange={(e) => setCuatDocente(i, 'staff', e.target.value)} className={campoCls} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-textMuted mt-2">Se van a guardar en Docentes C.O. los 3 períodos (1°, 2° y 3° cuatrimestre) apenas se reserve, con las fechas de cada bloque de 16 clases.</p>
+                </div>
+              ) : (
+                <>
+                  <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
+                  {esFormacion && (
+                    <div><label className={campoLabelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
+                  )}
+                </>
               )}
               {esFormacion ? (
                 <div><label className={campoLabelCls}>Sala de Zoom preferida (opcional)</label>

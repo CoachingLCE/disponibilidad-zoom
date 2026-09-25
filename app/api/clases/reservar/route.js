@@ -3,10 +3,19 @@ import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditarCronograma } from '../../../../lib/permisos';
 import { leerClases, agregarClases, leerFeriados, feriadoEnFecha } from '../../../../lib/datosClases';
+import { agregarDocentesCOBulk } from '../../../../lib/datosDocentesCO';
 import { registrarAccion } from '../../../../lib/auditoria';
 import {
-  DURACIONES, BUFFER_MIN, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad
+  DURACIONES, BUFFER_MIN, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad, minutosAHora, diaLindo
 } from '../../../../lib/salasLogic';
+
+// Coaching Ontológico: una edición completa son 48 clases en 3 cuatrimestres de 16, con un
+// receso de 2 semanas entre cada uno (además de la semana "normal" hasta la clase siguiente,
+// así que entre el último de un cuatrimestre y el primero del próximo pasan 3 semanas). Acá
+// se arma esa cadencia y se reparte el docente/staff de cada cuatrimestre en sus 16 clases —
+// en vez de una sola serie corrida semana a semana con un único docente para las 48.
+const CLASES_POR_CUATRIMESTRE_CO = 16;
+const RECESO_EXTRA_DIAS = 14;
 
 // POST /api/clases/reservar
 // Body: { fecha, codigo, edicion, numero, cantidad, sala, docente?, tematica?, observaciones? }
@@ -24,7 +33,20 @@ export const POST = conManejo(async (request) => {
   if (!tienePermisoEditarCronograma(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const body = await request.json();
-  const { fecha, horaTxt, codigo, edicion, numero, cantidad = 1, sala, sinSala, docente, staff, tematica, observaciones } = body;
+  const { fecha, horaTxt, codigo, edicion, numero, cantidad = 1, sala, sinSala, docente, staff, tematica, observaciones, cuatrimestres } = body;
+
+  // Solo se arma la cadencia con recesos y el reparto por cuatrimestre cuando de verdad se
+  // está creando una edición completa de Coaching Ontológico desde su primera clase — un
+  // agregado suelto de una clase, o de otro curso, sigue reservando como siempre (una serie
+  // corrida semana a semana).
+  const numeroInicialCO = numero ? parseInt(numero, 10) : null;
+  const esEdicionCOCompleta = codigo === 'CO' && Number(cantidad) === 48 && numeroInicialCO === 1;
+  // "cuatrimestres" (opcional) es [{docente, staff}, {docente, staff}, {docente, staff}] cuando
+  // el docente/staff cambia entre cuatrimestres; si no viene, se usa el docente/staff único
+  // (el mismo campo de siempre) para los 3.
+  const cuatrimestresCO = esEdicionCOCompleta
+    ? (Array.isArray(cuatrimestres) && cuatrimestres.length === 3 ? cuatrimestres : [{ docente, staff }, { docente, staff }, { docente, staff }])
+    : null;
 
   if (!fecha || !horaTxt || !codigo || !DURACIONES[codigo]) {
     return NextResponse.json({ error: 'Faltan datos (fecha, hora o curso no reconocido).' }, { status: 400 });
@@ -83,8 +105,21 @@ export const POST = conManejo(async (request) => {
   const nuevasClases = [];
   let fechaCursor = new Date(fecha + 'T00:00:00');
 
+  // Marca en qué cuatrimestre (0, 1 o 2) cae cada clase de una edición completa de C.O., para
+  // repartir el docente/staff y para saber dónde insertar las 2 semanas extra de receso.
+  const cuatrimestreDe = (i) => Math.min(2, Math.floor(i / CLASES_POR_CUATRIMESTRE_CO));
+  const primeraFechaPorCuatrimestre = [null, null, null];
+  const ultimaFechaPorCuatrimestre = [null, null, null];
+
   for (let i = 0; i < cantidad; i++) {
-    if (i > 0) fechaCursor.setDate(fechaCursor.getDate() + 7);
+    if (i > 0) {
+      fechaCursor.setDate(fechaCursor.getDate() + 7);
+      // Entre el último de un cuatrimestre y el primero del próximo (clase 17 y clase 33)
+      // se suman las 2 semanas de receso, además de la semana normal de cadencia.
+      if (esEdicionCOCompleta && (i === CLASES_POR_CUATRIMESTRE_CO || i === CLASES_POR_CUATRIMESTRE_CO * 2)) {
+        fechaCursor.setDate(fechaCursor.getDate() + RECESO_EXTRA_DIAS);
+      }
+    }
     let feriado = feriadoEnFecha(feriados, toISO(fechaCursor));
     while (feriado) {
       fechaCursor.setDate(fechaCursor.getDate() + 7);
@@ -100,9 +135,17 @@ export const POST = conManejo(async (request) => {
       continue;
     }
 
+    const bloque = esEdicionCOCompleta ? cuatrimestreDe(i) : null;
+    const docenteClase = bloque !== null ? (cuatrimestresCO[bloque].docente || '') : (docente || '');
+    const staffClase = bloque !== null ? (cuatrimestresCO[bloque].staff || '') : (staff || '');
+    if (bloque !== null) {
+      if (!primeraFechaPorCuatrimestre[bloque]) primeraFechaPorCuatrimestre[bloque] = fechaStr;
+      ultimaFechaPorCuatrimestre[bloque] = fechaStr;
+    }
+
     nuevasClases.push({
       dia, horaMin, codigo, edicion: edicion || '1', numero: numeroI, sala: sala || '', label: labelI, duracion,
-      fecha: fechaStr, docente: docente || '', staff: staff || '', tematica: tematica || '', observaciones: observaciones || '',
+      fecha: fechaStr, docente: docenteClase, staff: staffClase, tematica: tematica || '', observaciones: observaciones || '',
       pendienteSala: !sala,
       id: `${codigo}-${edicion || '1'}-${numeroI || 'x'}-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`
     });
@@ -112,6 +155,23 @@ export const POST = conManejo(async (request) => {
     await agregarClases(nuevasClases);
   }
   const agregadas = nuevasClases.length;
+
+  // Al crear una edición completa de C.O., además de las 48 clases se guarda de una vez el
+  // período de cada cuatrimestre en Docentes C.O. — antes había que cargarlo aparte a mano,
+  // cuatrimestre por cuatrimestre, y era fácil que alguno quedara sin cargar ("Vacante").
+  if (esEdicionCOCompleta && edicion && agregadas > 0) {
+    const horarioTxt = `${minutosAHora(horaMin)} a ${minutosAHora(horaMin + duracion)}`;
+    const periodos = [0, 1, 2]
+      .filter((b) => primeraFechaPorCuatrimestre[b])
+      .map((b) => ({
+        edicion: edicion.trim(), dia: diaLindo(dia), horario: horarioTxt,
+        desde: primeraFechaPorCuatrimestre[b], hasta: ultimaFechaPorCuatrimestre[b],
+        docente: cuatrimestresCO[b].docente || '', staff: cuatrimestresCO[b].staff || '',
+        sala: sala || '', cuatrimestre: String(b + 1),
+        observaciones: 'Generado automático al crear la edición.', usuario: usuario.nombre
+      }));
+    if (periodos.length > 0) await agregarDocentesCOBulk(periodos);
+  }
 
   const primerLabel = codigo + (numeroInicial !== null ? ' ' + numeroInicial : '');
   await registrarAccion(

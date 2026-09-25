@@ -118,7 +118,28 @@ export default function InicioPage() {
         texto: `Finaliza en breve: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} — va por la clase ${f.cargadas} de ${f.total}.`
       }))
   ), [formaciones]);
-  const alertas = useMemo(() => [...alertasConflictos, ...alertasPorFinalizar], [alertasConflictos, alertasPorFinalizar]);
+  // Avisa cuando a una edición todavía sin ninguna clase dictada (cargadas === 0) le quedan
+  // 15 días o menos para su primera clase — para poder ir coordinando antes de que arranque.
+  const alertasPorComenzar = useMemo(() => {
+    const hoyDia = new Date(); hoyDia.setHours(0, 0, 0, 0);
+    return formaciones
+      .filter((f) => f.fechaInicio && f.cargadas === 0)
+      .map((f) => {
+        const diasFaltan = Math.round((new Date(f.fechaInicio + 'T00:00:00') - hoyDia) / 86400000);
+        return { f, diasFaltan };
+      })
+      .filter(({ diasFaltan }) => diasFaltan >= 0 && diasFaltan <= 15)
+      .map(({ f, diasFaltan }) => ({
+        tipo: 'aviso',
+        texto: diasFaltan === 0
+          ? `Hoy comienza: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} (${formatFechaCorta(f.fechaInicio)}).`
+          : `En ${diasFaltan} día${diasFaltan === 1 ? '' : 's'} comienza: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} (${formatFechaCorta(f.fechaInicio)}).`
+      }));
+  }, [formaciones]);
+  const alertas = useMemo(
+    () => [...alertasConflictos, ...alertasPorFinalizar, ...alertasPorComenzar],
+    [alertasConflictos, alertasPorFinalizar, alertasPorComenzar]
+  );
 
   // Clases reservadas "sin sala" desde Salas Zoom (para no perder el lugar en el cronograma
   // cuando en el momento no había ninguna libre, o simplemente se decidió elegirla después) —
@@ -537,6 +558,7 @@ function TablaProximas({ items, onClick, asignacionesCO }) {
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora de inicio</th>
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora de finalización</th>
             <th className="py-1.5 pr-2 font-semibold">Curso</th>
+            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Nº Clase</th>
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Sala</th>
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Docente</th>
             <th className="py-1.5 pl-2 font-semibold whitespace-nowrap">Staff</th>
@@ -569,9 +591,11 @@ function TablaProximas({ items, onClick, asignacionesCO }) {
                     <span className={color ? color.text : ''}>
                       {a.nombreCurso}
                       {a.esFormacion && a.edicion ? ` · Edición ${a.edicion}` : ''}
-                      {a.esFormacion && a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}
                     </span>
                   </div>
+                </td>
+                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">
+                  {a.esFormacion && a.numeroSesion && a.total ? `Clase ${a.numeroSesion} de ${a.total}` : '—'}
                 </td>
                 <td className="py-1.5 pr-2 whitespace-nowrap align-top">
                   {a.sala ? (
