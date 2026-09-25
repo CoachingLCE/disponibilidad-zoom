@@ -2,7 +2,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta, calcularAlertas, calcularConflictosDetalle, minutosAHora } from '../../lib/salasLogic';
+import { formatFechaCorta, calcularAlertas, calcularConflictosDetalle, minutosAHora, NOMBRES } from '../../lib/salasLogic';
+
+// Nombre completo del curso en vez del código corto (CE, CO, CEQUI...) que nadie del
+// equipo reconoce a simple vista — igual criterio que el resto de la app (Cronograma,
+// Formaciones, Inicio), que ya muestran NOMBRES[codigo] en vez del código.
+function nombreClase(c) {
+  return `${NOMBRES[c.codigo] || c.codigo}${c.edicion ? ' · Edición ' + c.edicion : ''}`;
+}
 import { FERIADOS_DEFAULT } from '../../lib/feriadosDefault';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
@@ -170,8 +177,8 @@ export default function IncidenciasPage() {
                     <tr key={i} onClick={() => setConflictoSeleccionado(c)} className="border-b border-border cursor-pointer hover:bg-bg">
                       <td className="p-1.5">{c.sala}</td>
                       <td className="p-1.5">{c.dia.charAt(0) + c.dia.slice(1).toLowerCase()}</td>
-                      <td className="p-1.5">{c.claseA.label} · {minutosAHora(c.claseA.horaMin)}{c.claseA.fecha ? ' · ' + formatFechaCorta(c.claseA.fecha) : ''}</td>
-                      <td className="p-1.5">{c.claseB.label} · {minutosAHora(c.claseB.horaMin)}{c.claseB.fecha ? ' · ' + formatFechaCorta(c.claseB.fecha) : ''}</td>
+                      <td className="p-1.5">{nombreClase(c.claseA)} · {minutosAHora(c.claseA.horaMin)}{c.claseA.fecha ? ' · ' + formatFechaCorta(c.claseA.fecha) : ''}</td>
+                      <td className="p-1.5">{nombreClase(c.claseB)} · {minutosAHora(c.claseB.horaMin)}{c.claseB.fecha ? ' · ' + formatFechaCorta(c.claseB.fecha) : ''}</td>
                     </tr>
                   ))}
                 </tbody>

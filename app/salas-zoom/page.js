@@ -670,7 +670,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
                     onChange={(e) => { setCodigo(e.target.value); setCantidad(TOTALES[e.target.value] || 1); }}
                     className={campoCls}
                   >
-                    {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {c} — {NOMBRES[c]}</option>)}
+                    {Object.keys(NOMBRES).filter((c) => c !== 'O').map((c) => <option key={c} value={c}>{ICONOS[c]} {NOMBRES[c]}</option>)}
                   </select>
                 ) : (
                   <select value={codigo} onChange={(e) => setCodigo(e.target.value)} className={campoCls}>
@@ -691,7 +691,10 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
                     <label className={campoLabelCls}>Nº de esta clase (1, 2, 3…)</label>
                     <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="1" className={campoCls} />
                   </div>
-                  <div><label className={campoLabelCls}>Cantidad</label><input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 1)} className={campoCls} /></div>
+                  <div>
+                    <label className={campoLabelCls}>Cantidad</label>
+                    <input type="number" min={1} value={cantidad} disabled readOnly title="En una Formación la cantidad de clases es fija (el total del curso) — no se puede cargar un número distinto." className={`${campoCls} opacity-60 cursor-not-allowed`} />
+                  </div>
                 </>
               )}
               <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
@@ -823,6 +826,17 @@ function LecturaInteligente({ onAplicar }) {
     onAplicar({ ...resultado, curso });
     setAplicado(true);
   }
+
+  // Se aplica solo al formulario de abajo apenas hay algo detectado (o cuando se cambia la
+  // coincidencia elegida en "Encontré varias coincidencias") — antes había que acordarse de
+  // apretar "Aplicar al formulario" para que se reflejara. El botón queda como forma manual
+  // de volver a aplicar (por ej. después de tocar algo abajo a mano).
+  useEffect(() => {
+    if (!resultado) return;
+    if (!(resultado.curso || resultado.edicion || resultado.cantidad || resultado.horaTxt || resultado.diaDetectado || resultado.docente || resultado.staff)) return;
+    aplicar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultado, cursoElegidoIdx]);
 
   function limpiar() {
     setTexto(''); setResultado(null); setAplicado(false);

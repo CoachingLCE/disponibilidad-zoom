@@ -33,6 +33,17 @@ function estadoDe(periodo, hoyISO) {
   return 'finalizada';
 }
 
+/** Para el brillo de fila del Historial completo: "activo" = todavía no finalizó (sin
+    Hasta, o Hasta en el futuro/hoy); "viejo" = finalizó hace más de 1 año; "reciente" =
+    finalizó hace entre 1 día y 1 año. */
+function bandaFinalizacion(hastaISO) {
+  if (!hastaISO) return 'activo';
+  const dias = (new Date() - new Date(hastaISO + 'T00:00:00')) / (1000 * 60 * 60 * 24);
+  if (dias < 1) return 'activo';
+  if (dias > 365) return 'viejo';
+  return 'reciente';
+}
+
 export default function DocentesCOPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
@@ -196,11 +207,14 @@ export default function DocentesCOPage() {
                 </tr>
               </thead>
               <tbody>
-                {historialOrdenado.map((a, i) => (
+                {historialOrdenado.map((a, i) => {
+                  const banda = bandaFinalizacion(a.hasta);
+                  const claseBanda = banda === 'viejo' ? 'fila-periodo-viejo' : banda === 'reciente' ? 'fila-periodo-reciente' : 'fila-periodo-activo';
+                  return (
                   <tr
                     key={i}
                     onClick={() => puedeEditar && setSeleccionado(a)}
-                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''}`}
+                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''} ${claseBanda}`}
                   >
                     <td className="p-1.5">{a.edicion}°</td>
                     <td className="p-1.5">{a.dia}</td>
@@ -213,7 +227,8 @@ export default function DocentesCOPage() {
                     <td className="p-1.5">{a.staff || '—'}</td>
                     <td className="p-1.5">{a.observaciones || '—'}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

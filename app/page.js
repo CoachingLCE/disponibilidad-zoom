@@ -49,6 +49,20 @@ function diaCapitalizado(dia) {
   return dia.charAt(0) + dia.slice(1).toLowerCase();
 }
 
+// Estado de una clase puntual respecto de la hora actual, para el cartel de la tarjeta en
+// "Agenda de hoy": "proximamente" arranca 30' antes del inicio, "en-vivo" mientras dura, y
+// "finalizando" en los últimos 15' antes de terminar (para avisar que ya casi corta).
+function estadoDeAgenda(horaMin, duracion) {
+  if (horaMin == null) return null;
+  const ahora = new Date();
+  const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
+  const inicio = horaMin, fin = horaMin + (duracion || 90);
+  if (minAhora >= inicio - 30 && minAhora < inicio) return 'proximamente';
+  if (minAhora >= fin - 15 && minAhora < fin) return 'finalizando';
+  if (minAhora >= inicio && minAhora < fin) return 'en-vivo';
+  return null;
+}
+
 export default function InicioPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
@@ -240,15 +254,21 @@ export default function InicioPage() {
             ) : (
               <div data-tour="tarjetas-clases" className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
                 {agendaHoy.map((a, i) => {
-                  const enCurso = a.horaMin != null && horaActual >= a.horaMin - BUFFER_MIN && horaActual < a.horaMin + (a.duracion || 90);
+                  const estadoAgenda = estadoDeAgenda(a.horaMin, a.duracion);
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;
                   return (
                     <button key={i} onClick={() => setSeleccionado(a)}
                       className={`text-left border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3 transition-colors hover:border-accentTeal/60 hover:bg-bg/40`}>
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <span className="font-mono text-xs text-textSec">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
-                        {enCurso && (
+                        {estadoAgenda === 'en-vivo' && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
+                        )}
+                        {estadoAgenda === 'proximamente' && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 proximamente-badge">🕐 PRÓXIMAMENTE</span>
+                        )}
+                        {estadoAgenda === 'finalizando' && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizando-badge">⏳ FINALIZANDO</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mb-0.5">
@@ -304,11 +324,18 @@ export default function InicioPage() {
               <p className="text-textSec text-sm py-1">Sin conflictos detectados por ahora.</p>
             ) : (
               <div className="flex flex-col gap-1.5">
-                {alertas.map((a, i) => (
-                  <div key={i} className={`rounded-lg px-3 py-2 text-xs font-medium ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`}>
-                    {a.texto}
-                  </div>
-                ))}
+                {alertas.map((a, i) => {
+                  const cls = `rounded-lg px-3 py-2 text-xs font-medium ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`;
+                  // Los conflictos de sala/feriado (tipo "warn") tienen su detalle completo en
+                  // /incidencias — clickeable para ir directo ahí en vez de solo avisar acá.
+                  return a.tipo === 'warn' ? (
+                    <Link key={i} href="/incidencias" className={`${cls} block hover:brightness-125 transition-[filter]`}>
+                      {a.texto} <span className="underline">Ver detalle →</span>
+                    </Link>
+                  ) : (
+                    <div key={i} className={cls}>{a.texto}</div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -318,7 +345,7 @@ export default function InicioPage() {
             {proximas.length === 0 ? (
               <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
             ) : (
-              <TablaProximas items={proximas} onClick={setSeleccionado} />
+              <TablaProximas items={proximas} onClick={setSeleccionado} asignacionesCO={asignacionesCODisponibles} />
             )}
           </div>
         </>
@@ -329,6 +356,7 @@ export default function InicioPage() {
           onCerrar={() => setSeleccionado(null)}
           puedeEditar={puedeEditar}
           asignacionesCO={asignacionesCODisponibles}
+          formaciones={formaciones}
           onGuardado={cargarTodo}
         />
       )}
@@ -336,11 +364,15 @@ export default function InicioPage() {
   );
 }
 
-function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, onGuardado }) {
+function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, formaciones, onGuardado }) {
   const { fetchAutenticado } = useSession();
   const [editando, setEditando] = useState(false);
   const [docE, setDocE] = useState(item.docente || '');
   const [staffE, setStaffE] = useState(item.staff || '');
+  const [salaE, setSalaE] = useState(item.sala || '');
+  const [horaE, setHoraE] = useState(item.horaMin != null ? minutosAHora(item.horaMin) : '');
+  const [tematicaE, setTematicaE] = useState(item.tematica || '');
+  const [observacionesE, setObservacionesE] = useState(item.observaciones || '');
   const [guardando, setGuardando] = useState(false);
   const idReunion = CREDENCIALES_ZOOM_DEFAULT.find((c) => c.sala === item.sala)?.idReunion;
   // En Coaching Ontológico el docente/staff no se carga por clase — se carga por período
@@ -350,11 +382,25 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, onGua
   const staffMostrar = item.staff || periodoCO?.staff || '';
   const observacionesMostrar = item.observaciones || periodoCO?.observaciones || '';
   const usoPeriodoCO = !!periodoCO && (!item.docente || !item.staff) && (!!periodoCO.docente || !!periodoCO.staff);
-  async function guardarDocenteStaff() {
+  // Fecha de inicio de la formación (primera clase con fecha de esta misma edición) — viene
+  // de calcularFormaciones, que ya agrupa toda la agenda por curso+edición para Formaciones.
+  const formacionInfo = item.esFormacion ? (formaciones || []).find((f) => f.codigo === item.curso && String(f.numero) === String(item.edicion)) : null;
+  // Convierte "HH:MM" a minutos para mandarlo al PATCH (que espera nuevaHoraMin en minutos).
+  function horaAMinutos(hhmm) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec((hhmm || '').trim());
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  }
+  async function guardarTodo() {
     if (!item.id) return;
     setGuardando(true);
     try {
-      const r = await fetchAutenticado(`/api/clases/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ docente: docE, staff: staffE }) });
+      const nuevaHoraMin = horaAMinutos(horaE);
+      const body = { docente: docE, tematica: tematicaE, observaciones: observacionesE };
+      if (item.esFormacion) body.staff = staffE;
+      if (salaE && salaE !== item.sala) body.nuevaSala = salaE;
+      if (nuevaHoraMin != null && nuevaHoraMin !== item.horaMin) body.nuevaHoraMin = nuevaHoraMin;
+      const r = await fetchAutenticado(`/api/clases/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (r.ok) { setEditando(false); if (onGuardado) await onGuardado(); }
       else { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo guardar.'); }
     } finally { setGuardando(false); }
@@ -367,38 +413,56 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, onGua
         </h3>
         <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>
         <div className="space-y-1.5 text-sm mb-4">
-          <Fila label="Fecha" valor={formatFechaCorta(item.fecha)} />
-          <Fila label="Horario" valor={item.horaMin != null ? minutosAHora(item.horaMin) : '—'} />
-          <Fila
-            label="Sala"
-            valor={item.sala ? <Link href="/credenciales-zoom" className="text-infoText underline">{item.sala}</Link> : '—'}
-          />
-          {idReunion && <Fila label="ID de reunión" valor={idReunion} />}
+          <Fila label={item.esFormacion ? 'Fecha de la clase' : 'Fecha'} valor={formatFechaCorta(item.fecha)} />
+          {item.esFormacion && formacionInfo?.fechaInicio && (
+            <Fila label="Fecha de inicio de la formación" valor={formatFechaCorta(formacionInfo.fechaInicio)} />
+          )}
           {item.esFormacion && item.numeroSesion && item.total && (
             <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
           )}
           {editando ? (
             <>
+              <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Horario</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={horaE} onChange={(e) => setHoraE(e.target.value)} placeholder="HH:MM" /></div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-textMuted">Sala</span>
+                <select className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={salaE} onChange={(e) => setSalaE(e.target.value)}>
+                  <option value="">— Sin sala —</option>
+                  {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
               <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Docente</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={docE} onChange={(e) => setDocE(e.target.value)} placeholder="Docente" /></div>
               {item.esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Staff</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={staffE} onChange={(e) => setStaffE(e.target.value)} placeholder="Staff" /></div>}
+              {!item.esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Temática</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={tematicaE} onChange={(e) => setTematicaE(e.target.value)} placeholder="Temática" /></div>}
+              <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Observaciones</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={observacionesE} onChange={(e) => setObservacionesE(e.target.value)} placeholder="Observaciones" /></div>
+              <p className="text-[10.5px] text-textMuted">La fecha y el curso/edición no se editan desde acá — para eso usá "Cambiar sala, postergar o cancelar esta clase" o cargala de nuevo.</p>
             </>
           ) : (
             <>
+              <Fila label="Horario" valor={item.horaMin != null ? minutosAHora(item.horaMin) : '—'} />
+              <Fila
+                label="Sala"
+                valor={item.sala ? <Link href="/credenciales-zoom" className="text-infoText underline">{item.sala}</Link> : '—'}
+              />
+              {idReunion && <Fila label="ID de reunión" valor={idReunion} />}
               <Fila label="Docente" valor={docenteMostrar || '—'} />
               {item.esFormacion && <Fila label="Staff" valor={staffMostrar || '—'} />}
+              {!item.esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
+              <Fila label="Observaciones" valor={observacionesMostrar || '—'} />
             </>
           )}
-          {!item.esFormacion && <Fila label="Temática" valor={item.tematica || '—'} />}
-          <Fila label="Observaciones" valor={observacionesMostrar || '—'} />
         </div>
         {puedeEditar && item.esFormacion && item.id && (
           editando ? (
             <div className="flex gap-2 mb-3">
-              <button className={btnCls} onClick={guardarDocenteStaff} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
-              <button className={btnSecCls} onClick={() => { setEditando(false); setDocE(item.docente || ''); setStaffE(item.staff || ''); }}>Cancelar</button>
+              <button className={btnCls} onClick={guardarTodo} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
+              <button className={btnSecCls} onClick={() => {
+                setEditando(false); setDocE(item.docente || ''); setStaffE(item.staff || '');
+                setSalaE(item.sala || ''); setHoraE(item.horaMin != null ? minutosAHora(item.horaMin) : '');
+                setTematicaE(item.tematica || ''); setObservacionesE(item.observaciones || '');
+              }}>Cancelar</button>
             </div>
           ) : (
-            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar docente / staff</button>
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar</button>
           )
         )}
         {usoPeriodoCO && (
@@ -430,7 +494,20 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, onGua
   );
 }
 
-function TablaProximas({ items, onClick }) {
+// Qué tan pronto arranca una clase, para el brillo de la fila en "Próximas clases":
+// mañana (dentro de 24hs), entre 24 y 48hs, o más lejos (sin brillo).
+function bandaProximidad(fecha, horaMin) {
+  if (!fecha) return null;
+  const inicio = new Date(fecha + 'T00:00:00');
+  if (horaMin != null) inicio.setMinutes(inicio.getMinutes() + horaMin);
+  const horas = (inicio - new Date()) / (1000 * 60 * 60);
+  if (horas < 0) return null;
+  if (horas <= 24) return 'manana';
+  if (horas <= 48) return 'pronto';
+  return null;
+}
+
+function TablaProximas({ items, onClick, asignacionesCO }) {
   if (!items.length) return null;
   return (
     <div className="overflow-x-auto">
@@ -451,11 +528,18 @@ function TablaProximas({ items, onClick }) {
           {items.map((a) => {
             const color = a.esFormacion ? colorFormacion(a.curso) : null;
             const dia = a.dia || (a.fecha ? fechaToDia(a.fecha) : '');
+            const banda = bandaProximidad(a.fecha, a.horaMin);
+            // Coaching Ontológico no carga docente/staff por clase, sino por período en
+            // Docentes C.O. — mismo fallback que ya usa el modal de detalle, para no mostrar
+            // "—" cuando el dato en realidad está cargado (solo que en otro lado).
+            const periodoCO = a.curso === 'CO' && a.edicion ? buscarPeriodoCO(asignacionesCO || [], a.edicion, a.fecha) : null;
+            const docenteMostrar = a.docente || periodoCO?.docente || '';
+            const staffMostrar = a.staff || periodoCO?.staff || '';
             return (
               <tr
                 key={a.id}
                 onClick={() => onClick(a)}
-                className="border-b border-border/60 last:border-0 cursor-pointer hover:bg-bg/40"
+                className={`border-b border-border/60 last:border-0 cursor-pointer hover:bg-bg/40 ${banda === 'manana' ? 'fila-manana' : banda === 'pronto' ? 'fila-pronto' : ''}`}
               >
                 <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{formatFechaCorta(a.fecha)}</td>
                 <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{dia ? dia.charAt(0) + dia.slice(1).toLowerCase() : '—'}</td>
@@ -466,14 +550,14 @@ function TablaProximas({ items, onClick }) {
                     {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
                     <span className={color ? color.text : ''}>
                       {a.nombreCurso}
-                      {a.esFormacion && a.edicion ? ` · Ed. ${a.edicion}` : ''}
+                      {a.esFormacion && a.edicion ? ` · Edición ${a.edicion}` : ''}
                       {a.esFormacion && a.numeroSesion && a.total ? ` · Clase ${a.numeroSesion} de ${a.total}` : ''}
                     </span>
                   </div>
                 </td>
                 <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{a.sala || '—'}</td>
-                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{a.docente || '—'}</td>
-                <td className="py-1.5 pl-2 text-textMuted whitespace-nowrap align-top">{a.staff || '—'}</td>
+                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{docenteMostrar || '—'}</td>
+                <td className="py-1.5 pl-2 text-textMuted whitespace-nowrap align-top">{staffMostrar || '—'}</td>
               </tr>
             );
           })}

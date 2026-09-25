@@ -57,3 +57,22 @@ body {
 /* Cartel "EN VIVO" (clase ocurriendo ahora) — rojo parpadeante. */
 @keyframes envivoBlink { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 .en-vivo-badge { background: rgba(239, 68, 68, .22); color: #f87171; border: 1px solid rgba(239, 68, 68, .5); animation: envivoBlink 1.1s ease-in-out infinite; }
+/* Carteles "PRÓXIMAMENTE" (arranca en <30') y "FINALIZANDO" (últimos 15') de la tarjeta de
+   Agenda de hoy — mismos tokens de warning que ya se usan en el resto de la app. */
+.proximamente-badge { background: rgb(var(--color-warningBg)); color: rgb(var(--color-warningText)); border: 1px solid rgb(var(--color-warningText) / .5); }
+.finalizando-badge { background: rgb(var(--color-warningBg)); color: rgb(var(--color-warningText)); border: 1px solid rgb(var(--color-warningText) / .5); animation: envivoBlink 1.1s ease-in-out infinite; }
+
+/* Brillo de fila en "Próximas clases" según cuánto falta para que arranque —
+   franja izquierda + fondo tenue, más intenso cuanto más cerca (mismo celeste que ya se
+   usa para "esto merece tu atención" en el resto de la app, en vez de un color nuevo). */
+.fila-manana { box-shadow: inset 3px 0 0 0 rgb(var(--color-accentTeal)); background: rgb(var(--color-accentTeal) / .08); }
+.fila-manana:hover { background: rgb(var(--color-accentTeal) / .14); }
+.fila-pronto { box-shadow: inset 3px 0 0 0 rgb(var(--color-accentTeal) / .4); background: rgb(var(--color-accentTeal) / .03); }
+.fila-pronto:hover { background: rgb(var(--color-accentTeal) / .08); }
+
+/* Brillo de fila en el Historial de Docentes C.O. según cuánto hace que terminó ese
+   período — mismos tokens good/warn ya usados en el resto de la app para "vigente" /
+   "atención", y atenuado (sin color) para lo que ya quedó viejo. */
+.fila-periodo-activo { box-shadow: inset 3px 0 0 0 rgb(var(--color-successText)); background: rgb(var(--color-successText) / .05); }
+.fila-periodo-reciente { box-shadow: inset 3px 0 0 0 rgb(var(--color-warningText)); background: rgb(var(--color-warningText) / .05); }
+.fila-periodo-viejo { opacity: .55; }
