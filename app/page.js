@@ -6,7 +6,7 @@ import { useSession } from '../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, calcularEdicionesFinalizadas,
-  calcularNumeroSesion, toISO
+  calcularNumeroSesion, toISO, buscarPeriodoCO
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
@@ -17,20 +17,9 @@ const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
 
-// Para Coaching Ontológico, el docente/staff no vive en la clase en sí — se carga aparte,
-// por período, en Docentes C.O. (mismo criterio que usa esa pantalla: entre los períodos
-// de esa edición, el que tiene la fecha "Desde" más reciente que ya arrancó para la fecha
-// de la clase; si ninguno arrancó todavía, el que tenga la fecha "Desde" más próxima).
-// Así la ficha de Inicio puede mostrar esa info aunque la clase puntual no la tenga cargada.
-function buscarPeriodoCO(asignaciones, edicion, fechaISO) {
-  const deLaEdicion = asignaciones.filter((a) => String(a.edicion) === String(edicion));
-  if (deLaEdicion.length === 0) return null;
-  const yaArrancados = fechaISO
-    ? deLaEdicion.filter((a) => (!a.desde || a.desde <= fechaISO) && (!a.hasta || a.hasta >= fechaISO))
-    : [];
-  const candidatos = yaArrancados.length > 0 ? yaArrancados : deLaEdicion;
-  return candidatos.reduce((mejor, a) => (!mejor || (a.desde || '') > (mejor.desde || '') ? a : mejor), null);
-}
+// buscarPeriodoCO (Para Coaching Ontológico, el docente/staff no vive en la clase en sí —
+// se carga aparte, por período, en Docentes C.O.) ahora vive en lib/salasLogic.js para
+// poder reusarla también desde /incidencias.
 
 /** Lunes y domingo (ISO) de la semana que contiene `fechaBase`. */
 function rangoSemana(fechaBase) {

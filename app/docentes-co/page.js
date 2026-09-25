@@ -210,13 +210,25 @@ export default function DocentesCOPage() {
                 {historialOrdenado.map((a, i) => {
                   const banda = bandaFinalizacion(a.hasta);
                   const claseBanda = banda === 'viejo' ? 'fila-periodo-viejo' : banda === 'reciente' ? 'fila-periodo-reciente' : 'fila-periodo-activo';
+                  // Los períodos ya vienen ordenados por edición (de mayor a menor), así que los
+                  // de una misma edición quedan siempre consecutivos acá — se agrupan en una sola
+                  // celda de Edición (con rowSpan) para que se lea como un solo bloque en vez de
+                  // repetir el número en cada período, y se marca el inicio de cada grupo con un
+                  // borde superior más marcado.
+                  const esInicioGrupo = i === 0 || historialOrdenado[i - 1].edicion !== a.edicion;
+                  let tamanoGrupo = 1;
+                  if (esInicioGrupo) {
+                    while (historialOrdenado[i + tamanoGrupo] && historialOrdenado[i + tamanoGrupo].edicion === a.edicion) tamanoGrupo++;
+                  }
                   return (
                   <tr
                     key={i}
                     onClick={() => puedeEditar && setSeleccionado(a)}
-                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''} ${claseBanda}`}
+                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''} ${claseBanda} ${esInicioGrupo ? 'fila-grupo-nuevo' : ''}`}
                   >
-                    <td className="p-1.5">{a.edicion}°</td>
+                    {esInicioGrupo && (
+                      <td className="p-1.5 align-top font-semibold" rowSpan={tamanoGrupo}>{a.edicion}°</td>
+                    )}
                     <td className="p-1.5">{a.dia}</td>
                     <td className="p-1.5">{a.horario}</td>
                     <td className="p-1.5">{a.sala || '—'}</td>

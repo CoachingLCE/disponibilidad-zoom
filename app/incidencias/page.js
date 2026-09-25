@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { formatFechaCorta, calcularAlertas, calcularConflictosDetalle, minutosAHora, NOMBRES } from '../../lib/salasLogic';
+import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 // Nombre completo del curso en vez del código corto (CE, CO, CEQUI...) que nadie del
 // equipo reconoce a simple vista — igual criterio que el resto de la app (Cronograma,
@@ -27,6 +28,7 @@ export default function IncidenciasPage() {
   const [clases, setClases] = useState([]);
   const [feriados, setFeriados] = useState([]);
   const [postergaciones, setPostergaciones] = useState([]);
+  const [docentesCO, setDocentesCO] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
 
   const [fFecha, setFFecha] = useState('');
@@ -58,10 +60,12 @@ export default function IncidenciasPage() {
   async function cargarDatos() {
     setCargandoDatos(true);
     try {
-      const [rc, rf, rp] = await Promise.all([
-        fetchAutenticado('/api/clases'), fetchAutenticado('/api/feriados'), fetchAutenticado('/api/postergaciones')
+      const [rc, rf, rp, rd] = await Promise.all([
+        fetchAutenticado('/api/clases'), fetchAutenticado('/api/feriados'), fetchAutenticado('/api/postergaciones'),
+        fetchAutenticado('/api/docentes-co')
       ]);
-      const [dc, df, dp] = await Promise.all([rc.json(), rf.json(), rp.json()]);
+      const [dc, df, dp, dd] = await Promise.all([rc.json(), rf.json(), rp.json(), rd.json()]);
+      if (rd.ok) setDocentesCO(dd.asignaciones);
       if (rc.ok) {
         setClases(dc.clases);
         // Limpieza automática de clases duplicadas, en silencio, cada vez que se entra acá
@@ -103,7 +107,16 @@ export default function IncidenciasPage() {
   }
 
   const alertas = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
-  const conflictosDetalle = useMemo(() => calcularConflictosDetalle(clases), [clases]);
+  // Mismo criterio que Inicio: los períodos fijos del código quedan disponibles siempre,
+  // y si el Sheet ya tiene cargado ese mismo período (edición+desde) con cambios, el del
+  // Sheet pisa al fijo — así el detalle de un choque con Coaching Ontológico puede completar
+  // el docente/staff aunque la clase en sí no los tenga cargados.
+  const asignacionesCODisponibles = useMemo(() => {
+    const clavesSheet = new Set(docentesCO.map((a) => `${a.edicion}|${a.desde}`));
+    const fijos = DOCENTES_CO_DEFAULT.filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}`));
+    return [...fijos, ...docentesCO];
+  }, [docentesCO]);
+  const conflictosDetalle = useMemo(() => calcularConflictosDetalle(clases, asignacionesCODisponibles), [clases, asignacionesCODisponibles]);
   const hoyISO = new Date().toISOString().slice(0, 10);
   // Próximos primero (lo que de verdad importa mirar), los que ya pasaron quedan
   // ocultos atrás de "Ver todas" para no ensuciar la lista con un año entero de feriados.
@@ -255,8 +268,8 @@ export default function IncidenciasPage() {
             <tbody>
               {postergaciones.map((p, i) => (
                 <tr key={i} className="border-b border-border">
-                  <td className="p-1.5">{p.codigo} {p.edicion}</td>
-                  <td className="p-1.5">{p.numero}</td>
+                  <td className="p-1.5">{NOMBRES[p.codigo] || p.codigo}</td>
+                  <td className="p-1.5">{p.numero || p.edicion}</td>
                   <td className="p-1.5">{formatFechaCorta(p.fechaOriginal)}</td>
                   <td className="p-1.5">{formatFechaCorta(p.fechaNueva)}</td>
                   <td className="p-1.5">{p.motivo}</td>
@@ -286,8 +299,7 @@ function FilaInfo({ label, valor }) {
 function ModalConflicto({ conflicto, onCerrar }) {
   const claseInfo = (c) => (
     <div className="space-y-1.5 flex-1 min-w-0">
-      <p className="font-semibold text-sm mb-1.5">{c.label}</p>
-      <FilaInfo label="Código" valor={c.codigo || '—'} />
+      <p className="font-semibold text-sm mb-1.5">{nombreClase(c)}</p>
       <FilaInfo label="Edición" valor={c.edicion || '—'} />
       <FilaInfo label="Horario" valor={minutosAHora(c.horaMin)} />
       <FilaInfo label="Fecha" valor={c.fecha ? formatFechaCorta(c.fecha) : 'Horario recurrente (sin fecha puntual)'} />

@@ -76,3 +76,8 @@ body {
 .fila-periodo-activo { box-shadow: inset 3px 0 0 0 rgb(var(--color-successText)); background: rgb(var(--color-successText) / .05); }
 .fila-periodo-reciente { box-shadow: inset 3px 0 0 0 rgb(var(--color-warningText)); background: rgb(var(--color-warningText) / .05); }
 .fila-periodo-viejo { opacity: .55; }
+
+/* Marca el primer período de cada edición en el Historial completo (la celda de Edición
+   ahora ocupa varias filas con rowSpan) — un borde superior más marcado separa un grupo
+   de edición del siguiente, para que se lea como un bloque en vez de una lista plana. */
+.fila-grupo-nuevo { border-top: 2px solid rgb(var(--color-border) / .8); }
