@@ -398,9 +398,9 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold mb-1">
-          {item.esFormacion ? `${item.curso} ${item.edicion || ''}` : item.tipo}
+          {item.esFormacion ? `${item.nombreCurso}${item.edicion ? ' · Edición ' + item.edicion : ''}` : item.tipo}
         </h3>
-        <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>
+        {!item.esFormacion && <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>}
         <div className="space-y-1.5 text-sm mb-4">
           <Fila label={item.esFormacion ? 'Fecha de la clase' : 'Fecha'} valor={formatFechaCorta(item.fecha)} />
           {item.esFormacion && formacionInfo?.fechaInicio && (

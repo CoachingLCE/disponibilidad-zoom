@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta, SALAS } from '../../lib/salasLogic';
+import { formatFechaCorta, SALAS, buscarPeriodoCO } from '../../lib/salasLogic';
 import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 const CUATRIMESTRES_CO = [
@@ -99,23 +99,21 @@ export default function DocentesCOPage() {
 
   const hoyISO = toISO(new Date());
 
-  // Período vigente de cada edición = el que tiene la fecha "Desde" más reciente (y, ante un
-  // empate en "Desde" — pasa con varios períodos viejos que no tienen "Desde" cargado — el
-  // que tiene el "Hasta" más reciente, porque es el que trae la info más actualizada).
-  // Antes se comparaba solo por Desde: con un empate (ej. dos períodos de la Edición 1, ambos
-  // con Desde vacío, uno con Hasta vacío y el otro con Hasta 2023), quedaba el primero que
-  // apareciera en la lista sin importar cuál — a veces el que tenía Hasta vacío, lo que hacía
-  // aparecer como "Activa" una edición finalizada hace años.
+  // Período vigente de cada edición = el que cubre hoy (Desde <= hoy <= Hasta, con
+  // buscarPeriodoCO — la misma función que ya usan Inicio e Incidencias para completar
+  // docente/staff), y si ninguno cubre hoy, el de "Desde" más reciente entre todos.
+  // Antes se elegía directamente el de "Desde" más reciente sin mirar si ya había arrancado
+  // — y como varias ediciones tienen sus 2-3 períodos cargados de entrada desde el vamos
+  // (planificación a futuro), el período todavía no arrancado con el "Desde" más lejano
+  // "ganaba" y tapaba al que realmente está en curso ahora mismo (ver Edición 54: el
+  // período que arranca en 2027 quedaba como "vigente" en vez del que va de 27/08/2026 a
+  // 10/12/2026, que es el que de verdad cubre la fecha de hoy).
   const vigentesPorEdicion = useMemo(() => {
-    const porEdicion = {};
-    asignacionesCombinadas.forEach((a) => {
-      const actual = porEdicion[a.edicion];
-      if (!actual || (a.desde || '') > (actual.desde || '') ||
-          ((a.desde || '') === (actual.desde || '') && (a.hasta || '') > (actual.hasta || ''))) {
-        porEdicion[a.edicion] = a;
-      }
-    });
-    return Object.values(porEdicion).map((a) => ({ ...a, estado: estadoDe(a, hoyISO) }));
+    const ediciones = [...new Set(asignacionesCombinadas.map((a) => a.edicion))];
+    return ediciones
+      .map((ed) => buscarPeriodoCO(asignacionesCombinadas, ed, hoyISO))
+      .filter(Boolean)
+      .map((a) => ({ ...a, estado: estadoDe(a, hoyISO) }));
   }, [asignacionesCombinadas, hoyISO]);
 
   // Ordenadas para que la interacción diaria sea más rápida: activas primero (lo que se
@@ -208,26 +206,32 @@ export default function DocentesCOPage() {
               </thead>
               <tbody>
                 {historialOrdenado.map((a, i) => {
-                  const banda = bandaFinalizacion(a.hasta);
-                  const claseBanda = banda === 'viejo' ? 'fila-periodo-viejo' : banda === 'reciente' ? 'fila-periodo-reciente' : 'fila-periodo-activo';
-                  // Los períodos ya vienen ordenados por edición (de mayor a menor), así que los
-                  // de una misma edición quedan siempre consecutivos acá — se agrupan en una sola
-                  // celda de Edición (con rowSpan) para que se lea como un solo bloque en vez de
-                  // repetir el número en cada período, y se marca el inicio de cada grupo con un
-                  // borde superior más marcado.
+                  // Los períodos ya vienen ordenados por edición (de mayor a menor) y, dentro de
+                  // cada edición, por Desde (de más reciente a más viejo) — así que el primero de
+                  // cada grupo es siempre el período más reciente de esa edición.
                   const esInicioGrupo = i === 0 || historialOrdenado[i - 1].edicion !== a.edicion;
                   let tamanoGrupo = 1;
                   if (esInicioGrupo) {
                     while (historialOrdenado[i + tamanoGrupo] && historialOrdenado[i + tamanoGrupo].edicion === a.edicion) tamanoGrupo++;
                   }
+                  // El color de "vigencia" (activo/reciente/viejo) se calcula una sola vez por
+                  // edición, con el período más reciente del grupo — y se pinta solo en la celda
+                  // de Edición (que ya ocupa las N filas del grupo con rowSpan), para que se vea
+                  // como una única línea continua de un color en vez de partirse en un segmento
+                  // por período con un corte de color en cada borde de fila.
+                  let claseBandaGrupo = '';
+                  if (esInicioGrupo) {
+                    const banda = bandaFinalizacion(a.hasta);
+                    claseBandaGrupo = banda === 'viejo' ? 'fila-periodo-viejo' : banda === 'reciente' ? 'fila-periodo-reciente' : 'fila-periodo-activo';
+                  }
                   return (
                   <tr
                     key={i}
                     onClick={() => puedeEditar && setSeleccionado(a)}
-                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''} ${claseBanda} ${esInicioGrupo ? 'fila-grupo-nuevo' : ''}`}
+                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''} ${esInicioGrupo ? 'fila-grupo-nuevo' : ''}`}
                   >
                     {esInicioGrupo && (
-                      <td className="p-1.5 align-top font-semibold" rowSpan={tamanoGrupo}>{a.edicion}°</td>
+                      <td className={`p-1.5 align-top font-semibold ${claseBandaGrupo}`} rowSpan={tamanoGrupo}>{a.edicion}°</td>
                     )}
                     <td className="p-1.5">{a.dia}</td>
                     <td className="p-1.5">{a.horario}</td>

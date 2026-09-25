@@ -998,7 +998,7 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
-        <h3 className="mt-0 mb-1 text-base font-semibold">{clase.label}{clase.edicion ? ' · Edición ' + clase.edicion : ''}</h3>
+        <h3 className="mt-0 mb-1 text-base font-semibold">{NOMBRES[clase.codigo] || clase.label}{(clase.numero || clase.edicion) ? ' · Edición ' + (clase.numero || clase.edicion) : ''}</h3>
         <p className="text-textSec text-xs mb-1">
           {clase.dia} {minutosAHora(clase.horaMin)} · {clase.sala}{clase.fecha ? ' · ' + formatFechaCorta(clase.fecha) : ''}
         </p>

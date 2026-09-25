@@ -4,11 +4,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
 import { FECHAS_INICIO_REALES } from '../../lib/fechasInicioReales';
+import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -175,6 +176,17 @@ export default function CronogramaPage() {
   // cronograma en vivo aunque la propia página Formaciones ya la mostrara "Finalizada".
   const edicionesFinalizadas = useMemo(() => calcularEdicionesFinalizadas(CRONOGRAMA_HISTORICO), []);
 
+  // Mismo criterio que Inicio, Incidencias y Docentes C.O.: los períodos fijos del código
+  // quedan disponibles siempre además de los que ya estén en el Sheet — antes acá se usaba
+  // solo `asignacionesCO` (el Sheet, sin los fijos), así que una edición cuyo período
+  // vigente todavía era uno de los fijos (no cargado a mano en el Sheet) se quedaba sin
+  // poder completar el docente/staff.
+  const asignacionesCODisponibles = useMemo(() => {
+    const clavesSheet = new Set(asignacionesCO.map((a) => `${a.edicion}|${a.desde}`));
+    const fijos = DOCENTES_CO_DEFAULT.filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}`));
+    return [...fijos, ...asignacionesCO];
+  }, [asignacionesCO]);
+
   const { todas, totalSinFiltro } = useMemo(() => {
     // El "número" que guarda cada clase (c.numero) identifica la EDICIÓN (ej: "CV 5"),
     // no qué sesión semanal es dentro de esa edición — antes se mostraban como si fueran
@@ -192,15 +204,13 @@ export default function CronogramaPage() {
       ordenado.forEach((c, idx) => { sesionPorId[c.id] = idx + 1; });
     });
 
-    // Docente/Staff de C.O.: la clase no los trae; se cruzan con el roster de docentes-co por edición + fecha del período.
+    // Docente/Staff de C.O.: la clase no los trae; se cruza con el período de Docentes C.O.
+    // aplicable a esa edición+fecha (buscarPeriodoCO — mismo criterio que Inicio e
+    // Incidencias: el que ya arrancó y no terminó a esa fecha, o si ninguno cubre la fecha
+    // exacta, el de "Desde" más reciente entre los que hay).
     const docenteStaffCO = (edicion, fecha) => {
-      const ed = String(edicion || '').replace(/\D/g, '');
-      if (!ed || !asignacionesCO.length) return null;
-      const cands = asignacionesCO.filter((r) => String(r.edicion || '').replace(/\D/g, '') === ed);
-      if (!cands.length) return null;
-      let m = cands.find((r) => (!r.desde || (fecha && fecha >= r.desde)) && (!r.hasta || (fecha && fecha <= r.hasta)));
-      if (!m) m = cands[cands.length - 1];
-      return m ? { docente: m.docente || '', staff: m.staff || '' } : null;
+      const periodo = buscarPeriodoCO(asignacionesCODisponibles, edicion, fecha || null);
+      return periodo ? { docente: periodo.docente || '', staff: periodo.staff || '' } : null;
     };
     const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
     const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => {
@@ -241,7 +251,7 @@ export default function CronogramaPage() {
     if (filtroDia) out = out.filter((a) => a.dia === filtroDia);
     if (filtroRango) out = out.filter((a) => a.recurrente || dentroDeRango(a.fecha, filtroRango));
     return { todas: out, totalSinFiltro: completo.length };
-  }, [clases, actividades, asignacionesCO, formacionesManual, edicionesFinalizadas, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
+  }, [clases, actividades, asignacionesCODisponibles, formacionesManual, edicionesFinalizadas, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
 
   const tiposUsados = [...new Set(['Formación', ...actividades.map((a) => a.tipo)])];
   const cursosUsados = [...new Set(clases.map((c) => c.codigo).concat(actividades.filter((a) => a.curso).map((a) => a.curso)))];
@@ -624,9 +634,9 @@ function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold mb-1">
-          {esFormacion ? `${item.curso} ${item.edicion || ''}` : item.tipo}
+          {esFormacion ? `${item.nombreCurso}${item.edicion ? ' · Edición ' + item.edicion : ''}` : item.tipo}
         </h3>
-        <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>
+        {!esFormacion && <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>}
         <div className="space-y-1.5 text-sm mb-4">
           {puedeEditarFechaInicio ? (
             editando ? (
