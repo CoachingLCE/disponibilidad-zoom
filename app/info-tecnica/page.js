@@ -53,6 +53,7 @@ export default function InfoTecnicaPage() {
   }, [items]);
 
   const ordenados = [...itemsCombinados].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  const hoyISO = new Date().toISOString().slice(0, 10);
 
   if (cargando || !usuario) return null;
 
@@ -76,7 +77,14 @@ export default function InfoTecnicaPage() {
               <div key={it.id} onClick={() => puedeEditar && !it.esFijo && setSeleccionado(it)} className={`bg-bg border border-border rounded-lg p-3 ${puedeEditar && !it.esFijo ? 'cursor-pointer' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold">{it.nombre}</p>
-                  <span className="text-xs text-textMuted shrink-0">{it.mes} · {formatFechaCorta(it.fecha)}</span>
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    {it.fecha && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${it.fecha < hoyISO ? 'finalizada-badge' : 'proximamente-badge'}`}>
+                        {it.fecha < hoyISO ? '✓ FINALIZADA' : 'PRÓXIMAMENTE'}
+                      </span>
+                    )}
+                    <span className="text-xs text-textMuted">{it.mes} · {formatFechaCorta(it.fecha)}</span>
+                  </span>
                 </div>
                 <p className="text-xs text-textSec mt-1">
                   {it.formato && <>{it.formato} · </>}

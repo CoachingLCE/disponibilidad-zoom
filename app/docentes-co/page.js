@@ -50,6 +50,7 @@ export default function DocentesCOPage() {
   const puedeEditar = usuario?.puedeEditarDocentesCO;
 
   const [asignaciones, setAsignaciones] = useState([]);
+  const [clases, setClases] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
   const [seleccionado, setSeleccionado] = useState(null);
@@ -75,15 +76,29 @@ export default function DocentesCOPage() {
     setCargandoDatos(true);
     setError(null);
     try {
-      const res = await fetchAutenticado('/api/docentes-co');
+      const [res, resClases] = await Promise.all([fetchAutenticado('/api/docentes-co'), fetchAutenticado('/api/clases')]);
       const data = await res.json();
       if (res.ok) setAsignaciones(data.asignaciones); else setError(data.error);
+      try { const dc = await resClases.json(); if (resClases.ok) setClases(dc.clases || []); } catch { /* no bloquea el resto */ }
     } catch (err) {
       setError('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
     } finally {
       setCargandoDatos(false);
     }
   }
+
+  // La Sala de cada edición de C.O. se carga en Salas Zoom (pestaña Clases), no en Docentes
+  // C.O. — ese campo "Sala" del período casi nunca se completa a mano. Se toma de cualquier
+  // clase real ya agendada de esa edición que sí tenga sala (la más reciente si hay varias),
+  // para no mostrar "Sin definir" cuando la sala en realidad ya está cargada en otro lado.
+  const salaPorEdicionCO = useMemo(() => {
+    const porEdicion = {};
+    clases.filter((c) => c.codigo === 'CO' && c.numero && c.sala).forEach((c) => {
+      const actual = porEdicion[c.numero];
+      if (!actual || (c.fecha || '') > (actual.fecha || '')) porEdicion[c.numero] = c;
+    });
+    return Object.fromEntries(Object.entries(porEdicion).map(([ed, c]) => [ed, c.sala]));
+  }, [clases]);
 
   // Los 170 períodos que Diego pasó (edición 1 a 58) están siempre disponibles acá en
   // el código — no dependen de que se hayan importado bien al Sheet. Se identifican por
@@ -94,8 +109,8 @@ export default function DocentesCOPage() {
     const fijos = DOCENTES_CO_DEFAULT
       .filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}`))
       .map((a, idx) => ({ ...a, id: `fijo-doc-${idx}`, esFijo: true }));
-    return [...fijos, ...asignaciones];
-  }, [asignaciones]);
+    return [...fijos, ...asignaciones].map((a) => ({ ...a, sala: a.sala || salaPorEdicionCO[a.edicion] || '' }));
+  }, [asignaciones, salaPorEdicionCO]);
 
   const hoyISO = toISO(new Date());
 
@@ -117,11 +132,13 @@ export default function DocentesCOPage() {
   }, [asignacionesCombinadas, hoyISO]);
 
   // Ordenadas para que la interacción diaria sea más rápida: activas primero (lo que se
-  // consulta todo el tiempo), después futuras, y las finalizadas al final.
+  // consulta todo el tiempo), después futuras, y las finalizadas al final — y dentro de cada
+  // grupo, de la edición más reciente a la más vieja (edición más alta primero: la Edición 1
+  // es la más antigua de todas).
   const ORDEN_ESTADO = { activa: 0, futura: 1, finalizada: 2 };
   const vigentesOrdenadas = useMemo(() => {
     return [...vigentesPorEdicion].sort((a, b) =>
-      ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado] || parseInt(a.edicion, 10) - parseInt(b.edicion, 10)
+      ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado] || parseInt(b.edicion, 10) - parseInt(a.edicion, 10)
     );
   }, [vigentesPorEdicion]);
 
@@ -134,7 +151,28 @@ export default function DocentesCOPage() {
     todas: vigentesPorEdicion.length
   }), [vigentesPorEdicion]);
 
-  const historialOrdenado = [...asignacionesCombinadas].sort((a, b) => parseInt(b.edicion, 10) - parseInt(a.edicion, 10) || (b.desde || '').localeCompare(a.desde || ''));
+  // Se ordena por edición (de mayor a menor) y, dentro de cada edición, por Desde (del
+  // período más reciente al más viejo). De paso se calcula, para cada fila, en qué posición
+  // del grupo de su edición está (0 = más reciente) y cuántos períodos tiene ese grupo —
+  // el campo "Cuatrimestre" casi nunca se carga a mano, así que se deriva de esa posición:
+  // el período más viejo del grupo es el 1er cuatrimestre, el siguiente el 2do, y así.
+  const historialOrdenado = useMemo(() => {
+    const ordenado = [...asignacionesCombinadas].sort((a, b) =>
+      parseInt(b.edicion, 10) - parseInt(a.edicion, 10) || (b.desde || '').localeCompare(a.desde || '')
+    );
+    let inicioGrupo = 0;
+    return ordenado.map((a, i) => {
+      const esInicioGrupo = i === 0 || ordenado[i - 1].edicion !== a.edicion;
+      if (esInicioGrupo) inicioGrupo = i;
+      let tamanoGrupo = 1;
+      while (ordenado[inicioGrupo + tamanoGrupo] && ordenado[inicioGrupo + tamanoGrupo].edicion === a.edicion) tamanoGrupo++;
+      const posEnGrupo = i - inicioGrupo;
+      // Cuatrimestre calculado: 1 para el más viejo del grupo, subiendo hasta tamanoGrupo
+      // para el más nuevo. Si el período ya trae un cuatrimestre cargado a mano, se respeta ese.
+      const cuatrimestreCalculado = tamanoGrupo - posEnGrupo;
+      return { ...a, esInicioGrupo, tamanoGrupo, cuatrimestreCalculado };
+    });
+  }, [asignacionesCombinadas]);
 
   if (cargando || !usuario) return null;
 
@@ -206,14 +244,9 @@ export default function DocentesCOPage() {
               </thead>
               <tbody>
                 {historialOrdenado.map((a, i) => {
-                  // Los períodos ya vienen ordenados por edición (de mayor a menor) y, dentro de
-                  // cada edición, por Desde (de más reciente a más viejo) — así que el primero de
-                  // cada grupo es siempre el período más reciente de esa edición.
-                  const esInicioGrupo = i === 0 || historialOrdenado[i - 1].edicion !== a.edicion;
-                  let tamanoGrupo = 1;
-                  if (esInicioGrupo) {
-                    while (historialOrdenado[i + tamanoGrupo] && historialOrdenado[i + tamanoGrupo].edicion === a.edicion) tamanoGrupo++;
-                  }
+                  // esInicioGrupo, tamanoGrupo y cuatrimestreCalculado ya vienen calculados
+                  // en el useMemo de historialOrdenado.
+                  const { esInicioGrupo, tamanoGrupo } = a;
                   // El color de "vigencia" (activo/reciente/viejo) se calcula una sola vez por
                   // edición, con el período más reciente del grupo — y se pinta solo en la celda
                   // de Edición (que ya ocupa las N filas del grupo con rowSpan), para que se vea
@@ -236,7 +269,7 @@ export default function DocentesCOPage() {
                     <td className="p-1.5">{a.dia}</td>
                     <td className="p-1.5">{a.horario}</td>
                     <td className="p-1.5">{a.sala || '—'}</td>
-                    <td className="p-1.5">{a.cuatrimestre ? `${a.cuatrimestre}°` : '—'}</td>
+                    <td className="p-1.5">{(a.cuatrimestre || a.cuatrimestreCalculado) ? `${a.cuatrimestre || a.cuatrimestreCalculado}°` : '—'}</td>
                     <td className="p-1.5">{formatFechaCorta(a.desde)}</td>
                     <td className="p-1.5">{formatFechaCorta(a.hasta)}</td>
                     <td className="p-1.5">{a.docente || '—'}</td>

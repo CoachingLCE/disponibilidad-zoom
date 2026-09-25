@@ -61,6 +61,8 @@ body {
    Agenda de hoy — mismos tokens de warning que ya se usan en el resto de la app. */
 .proximamente-badge { background: rgb(var(--color-warningBg)); color: rgb(var(--color-warningText)); border: 1px solid rgb(var(--color-warningText) / .5); }
 .finalizando-badge { background: rgb(var(--color-warningBg)); color: rgb(var(--color-warningText)); border: 1px solid rgb(var(--color-warningText) / .5); animation: envivoBlink 1.1s ease-in-out infinite; }
+/* "FINALIZADA": neutro (ni warning ni éxito) — la clase ya pasó, no requiere ninguna acción. */
+.finalizada-badge { background: rgb(var(--color-textMuted) / .15); color: rgb(var(--color-textMuted)); border: 1px solid rgb(var(--color-textMuted) / .4); }
 
 /* Brillo de fila en "Próximas clases" según cuánto falta para que arranque —
    franja izquierda + fondo tenue, más intenso cuanto más cerca (mismo celeste que ya se

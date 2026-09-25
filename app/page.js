@@ -39,17 +39,19 @@ function diaCapitalizado(dia) {
 }
 
 // Estado de una clase puntual respecto de la hora actual, para el cartel de la tarjeta en
-// "Agenda de hoy": "proximamente" arranca 30' antes del inicio, "en-vivo" mientras dura, y
-// "finalizando" en los últimos 15' antes de terminar (para avisar que ya casi corta).
+// "Agenda de hoy" — siempre da un estado, para que ninguna tarjeta quede sin cartel:
+// "proximamente" antes de que arranque (con un aviso extra en los últimos 30'), "en-vivo"
+// mientras dura, "finalizando" en los últimos 15' antes de terminar, y "finalizada" una vez
+// que ya terminó.
 function estadoDeAgenda(horaMin, duracion) {
   if (horaMin == null) return null;
   const ahora = new Date();
   const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
   const inicio = horaMin, fin = horaMin + (duracion || 90);
-  if (minAhora >= inicio - 30 && minAhora < inicio) return 'proximamente';
+  if (minAhora >= fin) return 'finalizada';
   if (minAhora >= fin - 15 && minAhora < fin) return 'finalizando';
   if (minAhora >= inicio && minAhora < fin) return 'en-vivo';
-  return null;
+  return 'proximamente';
 }
 
 export default function InicioPage() {
@@ -258,6 +260,9 @@ export default function InicioPage() {
                         )}
                         {estadoAgenda === 'finalizando' && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizando-badge">⏳ FINALIZANDO</span>
+                        )}
+                        {estadoAgenda === 'finalizada' && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizada-badge">✓ FINALIZADA</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mb-0.5">

@@ -477,7 +477,14 @@ export default function CronogramaPage() {
                       </td>
                       <td className="p-1.5">{a.edicion || '—'}</td>
                       <td className="p-1.5">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
-                      <td className="p-1.5">{a.sala || '—'}</td>
+                      <td className="p-1.5">
+                        {a.sala ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(a.sala).dot} shrink-0`} />
+                            <span className={colorPorSala(a.sala).text}>{a.sala}</span>
+                          </span>
+                        ) : '—'}
+                      </td>
                       <td className="p-1.5">{a.docente || '—'}</td>
                       <td className="p-1.5">{a.tematica || '—'}</td>
                       <td className="p-1.5">{a.observaciones || '—'}</td>

@@ -196,7 +196,7 @@ export default function EmailsPage() {
     : envios;
 
   return (
-    <div className="max-w-[1000px] mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[1300px] mx-auto px-6 pt-8 pb-20">
       <h1 className="text-xl mb-1">📧 Emails</h1>
       <p className="text-textSec text-sm mb-5">Qué mails automáticos manda el sistema, y el registro real de cada envío.</p>
 
@@ -217,8 +217,8 @@ export default function EmailsPage() {
             <tbody>
               {EMAILS_AUTOMATIZADOS.map((m) => (
                 <tr key={m.id} className="border-b border-border align-top">
-                  <td className="p-1.5 min-w-[140px]">{m.cuando}</td>
-                  <td className="p-1.5 min-w-[160px]">{nombresJoin(m.destinatarios)}</td>
+                  <td className="p-1.5 min-w-[140px] whitespace-nowrap">{m.cuando}</td>
+                  <td className="p-1.5 min-w-[160px] whitespace-nowrap">{nombresJoin(m.destinatarios)}</td>
                   <td className="p-1.5 whitespace-nowrap text-textSec">Cronograma ILCE</td>
                   <td className="p-1.5 min-w-[220px]">{m.asunto}</td>
                   <td className="p-1.5">
