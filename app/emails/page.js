@@ -5,6 +5,7 @@ import { useSession } from '../../lib/useSession';
 import { DESTINATARIOS_RESUMEN } from '../../lib/destinatariosResumen';
 import { DESTINATARIOS_AVISO_FECHAS } from '../../lib/destinatariosAvisoFechas';
 import { DESTINATARIOS_AVISO_ACTIVIDADES } from '../../lib/destinatariosAvisoActividades';
+import { DESTINATARIOS_AVISO_SALA_PENDIENTE } from '../../lib/destinatariosAvisoSalaPendiente';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
@@ -113,6 +114,28 @@ function previsualizarAvisoActividades() {
   </div>`;
 }
 
+function previsualizarAvisoSalaPendiente() {
+  const ej = [
+    { form: 'Coaching Ontológico 55', fecha: '18/11/2026', hora: '19:00', docente: 'Gisela Reyes' },
+    { form: 'Coaching Educativo 63', fecha: 'Sábado (recurrente)', hora: '10:00', docente: '—' }
+  ];
+  const filas = ej.map((c) => `<tr>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${c.form}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${c.fecha}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${c.hora}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${c.docente}</td>
+  </tr>`).join('');
+  return `<div style="font-family:Arial,sans-serif;color:#1f2937;">
+    <p>Hola</p><p>¿cómo estás?</p><p>Hay <b>2</b> actividad(es) reservada(s) sin sala todavía, esperando que se les asigne una:</p>
+    <table style="border-collapse:collapse;width:100%;max-width:680px;font-size:13px;">
+      <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:6px 10px;">Formación</th><th style="padding:6px 10px;">Fecha</th><th style="padding:6px 10px;">Horario</th><th style="padding:6px 10px;">Docente</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    <p style="margin-top:12px;">Se asignan desde Inicio → "Pendientes de asignar sala", o desde Salas Zoom.</p>
+    <p style="margin-top:16px;color:#64748b;font-size:12px;">Este aviso se generó automáticamente desde Cronograma ILCE.</p>
+  </div>`;
+}
+
 // "cuando" es a qué dispara el envío (para la columna "Cuándo se envía", igual criterio
 // que la pantalla de Emails de fichas-ilce: qué acción/cron dispara el mail, no una fecha
 // puntual). "tipo" es la etiqueta corta con su propio color en la tabla, y "asunto" es el
@@ -147,13 +170,24 @@ const EMAILS_AUTOMATIZADOS = [
     destinatarios: DESTINATARIOS_AVISO_ACTIVIDADES,
     descripcion: 'Lista todas las actividades y formaciones agendadas para el próximo mes, con fecha, horario y sala.',
     previsualizar: previsualizarAvisoActividades
+  },
+  {
+    id: 'aviso-sala-pendiente',
+    titulo: '⏳ Pendiente de asignar sala',
+    cuando: 'Todos los días a las 07:00 (automático, solo si hay pendientes)',
+    asunto: 'actividad(es) pendiente(s) de asignar sala — Cronograma ILCE',
+    tipo: 'Sala pendiente',
+    destinatarios: DESTINATARIOS_AVISO_SALA_PENDIENTE,
+    descripcion: 'Lista las actividades que se reservaron sin elegir sala todavía (ver "Guardar sin sala" en Salas Zoom), para que se les asigne una. No se manda nada si no hay ninguna pendiente.',
+    previsualizar: previsualizarAvisoSalaPendiente
   }
 ];
 
 const TIPO_COLOR = {
   'Resumen semanal': 'bg-infoBg text-infoText',
   'Fechas y feriados': 'bg-warningBg text-warningText',
-  'Actividades del mes': 'bg-successBg text-successText'
+  'Actividades del mes': 'bg-successBg text-successText',
+  'Sala pendiente': 'bg-warningBg text-warningText'
 };
 
 function nombresJoin(destinatarios) {

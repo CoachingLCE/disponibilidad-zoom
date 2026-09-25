@@ -24,7 +24,7 @@ export const POST = conManejo(async (request) => {
   if (!tienePermisoEditarCronograma(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const body = await request.json();
-  const { fecha, horaTxt, codigo, edicion, numero, cantidad = 1, sala, docente, staff, tematica, observaciones } = body;
+  const { fecha, horaTxt, codigo, edicion, numero, cantidad = 1, sala, sinSala, docente, staff, tematica, observaciones } = body;
 
   if (!fecha || !horaTxt || !codigo || !DURACIONES[codigo]) {
     return NextResponse.json({ error: 'Faltan datos (fecha, hora o curso no reconocido).' }, { status: 400 });
@@ -46,8 +46,9 @@ export const POST = conManejo(async (request) => {
   const clases = await leerClases();
   const { ocupadas, libres } = chequearDisponibilidad(clases, dia, horaMin, duracion);
 
-  // Modo consulta: no viene sala todavía, solo informar disponibilidad.
-  if (!sala) {
+  // Modo consulta: no viene sala todavía y tampoco se pidió guardar sin sala — solo informar
+  // disponibilidad (el paso normal, antes de elegir dónde reservar).
+  if (!sala && !sinSala) {
     const detalleOcupadas = Object.entries(ocupadas).map(([s, c]) => ({
       sala: s, label: c.label, libera: c.horaMin + c.duracion
     }));
@@ -69,7 +70,9 @@ export const POST = conManejo(async (request) => {
     return NextResponse.json({ libres, ocupadas: detalleOcupadas, dia, conflictoDocente });
   }
 
-  if (!libres.includes(sala)) {
+  // Reservar SIN sala (queda pendiente de que alguien se la asigne después, ver Inicio →
+  // "Pendientes de asignar sala") salta este chequeo — no hay ninguna sala en juego todavía.
+  if (sala && !libres.includes(sala)) {
     return NextResponse.json({ error: `${sala} ya no está libre a esa hora — volvé a consultar.` }, { status: 409 });
   }
 
@@ -98,8 +101,9 @@ export const POST = conManejo(async (request) => {
     }
 
     nuevasClases.push({
-      dia, horaMin, codigo, edicion: edicion || '1', numero: numeroI, sala, label: labelI, duracion,
+      dia, horaMin, codigo, edicion: edicion || '1', numero: numeroI, sala: sala || '', label: labelI, duracion,
       fecha: fechaStr, docente: docente || '', staff: staff || '', tematica: tematica || '', observaciones: observaciones || '',
+      pendienteSala: !sala,
       id: `${codigo}-${edicion || '1'}-${numeroI || 'x'}-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`
     });
   }
@@ -112,7 +116,7 @@ export const POST = conManejo(async (request) => {
   const primerLabel = codigo + (numeroInicial !== null ? ' ' + numeroInicial : '');
   await registrarAccion(
     usuario.email, usuario.nombre, 'Reservó',
-    `${primerLabel}${cantidad > 1 ? ' (serie de ' + agregadas + ')' : ''} — ${sala}, ${dia.toLowerCase()} ${horaTxt}`
+    `${primerLabel}${cantidad > 1 ? ' (serie de ' + agregadas + ')' : ''} — ${sala || 'SIN SALA (pendiente de asignar)'}, ${dia.toLowerCase()} ${horaTxt}`
   );
 
   return NextResponse.json({ ok: true, agregadas, corridas, omitidas });

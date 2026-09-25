@@ -491,6 +491,25 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
     }
   }
 
+  // Guardar la clase sin elegir sala todavía — no pierde el lugar en el cronograma (docente,
+  // horario, edición quedan cargados) y aparece en Inicio → "Pendientes de asignar sala" para
+  // que alguien con permiso le complete la sala más tarde.
+  async function reservarSinSala() {
+    try {
+      const res = await fetchAutenticado('/api/clases/reservar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha, horaTxt, codigo, edicion, numero, cantidad, sinSala: true, docente, staff, tematica, observaciones: obs })
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
+      setMsg({ tipo: 'aviso', texto: `Guardado sin sala (${data.agregadas} clase(s)) — quedó pendiente de asignar en Inicio.${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}` });
+      setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida('');
+      onReservado();
+    } catch (err) {
+      setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
+    }
+  }
+
   async function agregarActividadNoFormacion() {
     setMsg(null);
     if (!fecha || !horaTxt) { setMsg({ tipo: 'error', texto: 'Elegí fecha y hora.' }); return; }
@@ -754,8 +773,13 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
               ⚠️ {resultado.conflictoDocente}
             </div>
           )}
-          <div className={`px-3.5 py-2.5 rounded-lg mb-3 font-semibold text-sm ${resultado.libres.length ? 'bg-successBg text-successText' : 'bg-dangerBg text-dangerText'}`}>
-            {resultado.libres.length ? `Sí hay lugar — ${resultado.libres.length} sala(s) libre(s)` : 'No hay lugar — las 8 salas están ocupadas'}
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+            <div className={`px-3.5 py-2.5 rounded-lg font-semibold text-sm ${resultado.libres.length ? 'bg-successBg text-successText' : 'bg-dangerBg text-dangerText'}`}>
+              {resultado.libres.length ? `Sí hay lugar — ${resultado.libres.length} sala(s) libre(s)` : 'No hay lugar — las 8 salas están ocupadas'}
+            </div>
+            <button className={btnSecCls} onClick={reservarSinSala} title="Reserva el horario y la edición sin sala todavía — queda pendiente de asignar en Inicio.">
+              Guardar sin sala (queda pendiente)
+            </button>
           </div>
           {salaPreferida && (
             resultado.ocupadas.find((o) => o.sala === salaPreferida) ? (

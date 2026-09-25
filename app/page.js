@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../lib/useSession';
+import { tienePermisoEditarCronograma } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
@@ -118,6 +119,15 @@ export default function InicioPage() {
       }))
   ), [formaciones]);
   const alertas = useMemo(() => [...alertasConflictos, ...alertasPorFinalizar], [alertasConflictos, alertasPorFinalizar]);
+
+  // Clases reservadas "sin sala" desde Salas Zoom (para no perder el lugar en el cronograma
+  // cuando en el momento no había ninguna libre, o simplemente se decidió elegirla después) —
+  // quedan acá hasta que alguien con permiso les asigna una sala de verdad.
+  const pendientesSala = useMemo(
+    () => clases.filter((c) => c.pendienteSala).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '')),
+    [clases]
+  );
+  const puedeAsignarSala = tienePermisoEditarCronograma(usuario);
 
   const ahora = new Date();
   const diaHoy = DIAS_JS[ahora.getDay()];
@@ -236,6 +246,15 @@ export default function InicioPage() {
             <Metrica valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} />
             <Metrica valor={formacionesEnCurso} label="Formaciones activas" />
           </div>
+
+          {pendientesSala.length > 0 && (
+            <TarjetaPendientesSala
+              pendientes={pendientesSala}
+              puedeAsignar={puedeAsignarSala}
+              fetchAutenticado={fetchAutenticado}
+              onAsignado={cargarTodo}
+            />
+          )}
 
           <div data-tour="agenda-hoy" className={sectionCls}>
             <h2 className="text-sm font-semibold mb-1">Agenda de hoy</h2>
@@ -590,6 +609,74 @@ function Metrica({ valor, label, acento, chico }) {
     <div className={cardCls}>
       <div className={`${chico ? 'text-lg' : 'text-2xl'} font-bold ${color}`}>{valor}</div>
       <div className="text-[11px] text-textSec mt-0.5 truncate">{label}</div>
+    </div>
+  );
+}
+
+// Clases reservadas sin sala (ver Salas Zoom → "Guardar sin sala") — cualquiera que entra a
+// Inicio las ve, pero solo quien tiene permiso de editar el cronograma (Admin, SuperAdmin,
+// Educativo) puede completarles la sala acá mismo, sin tener que ir a buscarlas a otro lado.
+function TarjetaPendientesSala({ pendientes, puedeAsignar, fetchAutenticado, onAsignado }) {
+  const [asignando, setAsignando] = useState(null); // id de la clase que se está editando
+  const [salaElegida, setSalaElegida] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function confirmar(id) {
+    if (!salaElegida) return;
+    setGuardando(true); setError('');
+    try {
+      const res = await fetchAutenticado(`/api/clases/${encodeURIComponent(id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nuevaSala: salaElegida })
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); return; }
+      setAsignando(null); setSalaElegida('');
+      onAsignado();
+    } catch (e) {
+      setError('Error de conexión: ' + (e.message || 'no se pudo contactar al servidor.'));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className={`${sectionCls} border-warningText/40`}>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-semibold">⏳ Pendientes de asignar sala</h2>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warningBg text-warningText">{pendientes.length}</span>
+      </div>
+      <p className="text-xs text-textMuted mb-3">Se guardaron sin elegir sala todavía — {puedeAsignar ? 'completala acá.' : 'alguien con permiso tiene que completarles la sala.'}</p>
+      <div className="flex flex-col gap-2">
+        {pendientes.map((c) => (
+          <div key={c.id} className="bg-bg border border-border rounded-lg p-2.5 flex items-center justify-between flex-wrap gap-2">
+            <div className="text-sm">
+              <span className="font-semibold">{NOMBRES[c.codigo] || c.codigo}{c.numero ? ' · Edición ' + c.numero : ''}</span>
+              <span className="text-textMuted text-xs ml-2">
+                {c.fecha ? formatFechaCorta(c.fecha) : diaCapitalizado(c.dia) + ' (recurrente)'} · {minutosAHora(c.horaMin)}
+                {c.docente ? ' · ' + c.docente : ''}
+              </span>
+            </div>
+            {puedeAsignar && (
+              asignando === c.id ? (
+                <div className="flex items-center gap-1.5">
+                  <select value={salaElegida} onChange={(e) => setSalaElegida(e.target.value)} className="bg-surface2 border border-border rounded-lg px-2 py-1 text-xs">
+                    <option value="">Elegí sala…</option>
+                    {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <button disabled={!salaElegida || guardando} onClick={() => confirmar(c.id)} className={`${btnCls} px-3 py-1 text-xs`}>
+                    {guardando ? 'Guardando…' : 'Confirmar'}
+                  </button>
+                  <button onClick={() => { setAsignando(null); setSalaElegida(''); setError(''); }} className={btnSecCls}>Cancelar</button>
+                </div>
+              ) : (
+                <button onClick={() => { setAsignando(c.id); setSalaElegida(''); setError(''); }} className={btnSecCls}>Asignar sala</button>
+              )
+            )}
+          </div>
+        ))}
+      </div>
+      {error && <p className="text-dangerText text-xs mt-2">{error}</p>}
     </div>
   );
 }

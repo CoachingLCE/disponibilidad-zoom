@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/aviso-actividades",
       "schedule": "0 12 25 * *"
+    },
+    {
+      "path": "/api/cron/aviso-sala-pendiente",
+      "schedule": "0 10 * * *"
     }
   ]
 }

@@ -38,7 +38,13 @@ export const PATCH = conManejo(async (request, { params }) => {
     if (choque) {
       return NextResponse.json({ error: `${salaFinal} está ocupada ese horario por ${choque.label}.` }, { status: 409 });
     }
-    if (nuevaSala) { patch.Sala = nuevaSala; detalleAccion += `Sala: ${clase.sala} → ${nuevaSala}. `; }
+    if (nuevaSala) {
+      patch.Sala = nuevaSala;
+      // Asignarle sala a una clase que había quedado "pendiente" (reservada sin sala) la saca
+      // de esa lista — ya no hace falta que nadie más la complete.
+      if (clase.pendienteSala) patch.PendienteSala = '';
+      detalleAccion += `Sala: ${clase.sala || 'sin asignar'} → ${nuevaSala}. `;
+    }
     if (nuevoDia) { patch.Dia = nuevoDia; detalleAccion += `Día: ${clase.dia} → ${nuevoDia}. `; }
     if (nuevaHoraMin != null) { patch.HoraMin = String(nuevaHoraMin); detalleAccion += `Horario: ${minutosAHora(clase.horaMin)} → ${minutosAHora(nuevaHoraMin)}. `; }
   }
