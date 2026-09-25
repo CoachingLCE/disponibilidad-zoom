@@ -54,6 +54,8 @@ export default function AuditoriaPage() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const POR_PAGINA = 100;
 
   const puedeVer = tienePermisoAuditoria(usuario);
 
@@ -89,6 +91,18 @@ export default function AuditoriaPage() {
     const q = busqueda.trim().toLowerCase();
     return registros.filter((r) => `${r.usuario} ${r.accion} ${r.detalle}`.toLowerCase().includes(q));
   }, [registros, busqueda]);
+
+  // Con hasta 500 registros cargados, mostrar todo de una sola vez hace pesada la tabla —
+  // se pagina de a 100. El buscador de arriba sigue filtrando sobre TODO lo cargado (no
+  // solo la página actual), así que sigue sirviendo para encontrar algo puntual sin tener
+  // que navegar página por página.
+  const totalPaginas = Math.max(1, Math.ceil(registrosFiltrados.length / POR_PAGINA));
+  useEffect(() => { setPagina(1); }, [busqueda, filtroUsuario, desde, hasta]);
+  useEffect(() => { if (pagina > totalPaginas) setPagina(totalPaginas); }, [pagina, totalPaginas]);
+  const registrosPagina = useMemo(
+    () => registrosFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA),
+    [registrosFiltrados, pagina]
+  );
 
   if (cargando || !usuario) return null;
 
@@ -146,7 +160,7 @@ export default function AuditoriaPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {registrosFiltrados.map((r, i) => (
+                    {registrosPagina.map((r, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
                         <td className="py-2 pr-3 whitespace-nowrap text-textMuted text-xs">{new Date(r.fecha).toLocaleString('es-AR', { hour12: false })}</td>
                         <td className="pr-3 whitespace-nowrap">
@@ -162,7 +176,20 @@ export default function AuditoriaPage() {
                 </table>
               </div>
             )}
-            <p className="text-textMuted text-[11px] mt-3">Se muestran hasta 500 registros que coincidan con el filtro, del más reciente al más antiguo.</p>
+            {totalPaginas > 1 && (
+              <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                <button onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={pagina <= 1}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-surface2 border border-border disabled:opacity-40">
+                  ← Anterior
+                </button>
+                <p className="text-textMuted text-[11px]">Página {pagina} de {totalPaginas} — {registrosFiltrados.length} registro(s){busqueda.trim() ? ' que coinciden con la búsqueda' : ''}</p>
+                <button onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-surface2 border border-border disabled:opacity-40">
+                  Siguiente →
+                </button>
+              </div>
+            )}
+            <p className="text-textMuted text-[11px] mt-3">Se muestran hasta 500 registros que coincidan con el filtro, del más reciente al más antiguo{totalPaginas > 1 ? `, de a ${POR_PAGINA} por página` : ''}.</p>
           </div>
         </>
       )}

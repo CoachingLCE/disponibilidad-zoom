@@ -508,7 +508,7 @@ function TablaProximas({ items, onClick, asignacionesCO }) {
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="border-b border-border text-textMuted text-left">
-            <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Fecha</th>
+            <th className="py-1.5 pr-2 pl-2 font-semibold whitespace-nowrap">Fecha</th>
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Día</th>
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora de inicio</th>
             <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">Hora de finalización</th>
@@ -535,7 +535,7 @@ function TablaProximas({ items, onClick, asignacionesCO }) {
                 onClick={() => onClick(a)}
                 className={`border-b border-border/60 last:border-0 cursor-pointer hover:bg-bg/40 ${banda === 'manana' ? 'fila-manana' : banda === 'pronto' ? 'fila-pronto' : ''}`}
               >
-                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{formatFechaCorta(a.fecha)}</td>
+                <td className="py-1.5 pr-2 pl-2 text-textMuted whitespace-nowrap align-top">{formatFechaCorta(a.fecha)}</td>
                 <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{dia ? dia.charAt(0) + dia.slice(1).toLowerCase() : '—'}</td>
                 <td className="py-1.5 pr-2 font-mono text-textSec whitespace-nowrap align-top">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</td>
                 <td className="py-1.5 pr-2 font-mono text-textSec whitespace-nowrap align-top">{a.horaMin != null ? minutosAHora(a.horaMin + (a.duracion || 90)) : '—'}</td>

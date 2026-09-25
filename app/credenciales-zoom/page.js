@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
+import { colorPorSala } from '../../lib/salasLogic';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 
@@ -59,7 +60,12 @@ export default function CredencialesZoomPage() {
               <tbody>
                 {combinadas.map((c) => (
                   <tr key={c.sala} className="border-b border-border">
-                    <td className="p-2 font-semibold">{c.sala}</td>
+                    <td className="p-2 font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(c.sala).dot} shrink-0`} />
+                        <span className={colorPorSala(c.sala).text}>{c.sala}</span>
+                      </span>
+                    </td>
                     <td className="p-2">{c.usuario}</td>
                     <td className="p-2 font-mono">{c.contrasena}</td>
                     <td className="p-2 font-mono">{c.idReunion || '—'}</td>
