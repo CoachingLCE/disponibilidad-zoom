@@ -9,6 +9,7 @@ import AccionesRapidas from './AccionesRapidas';
 import CambiarPasswordModal from './CambiarPasswordModal';
 import Logo from './Logo';
 import TourGuiado from './TourGuiado';
+import VerComo from './VerComo';
 
 const LINKS = [
   { href: '/', label: 'Inicio' },
@@ -44,7 +45,7 @@ function itemNav(href, label, pathname) {
 }
 
 export default function Nav() {
-  const { usuario, logout } = useSession();
+  const { usuario, verComo, setVerComo, logout } = useSession();
   const pathname = usePathname();
   const [cambiandoPassword, setCambiandoPassword] = useState(false);
 
@@ -62,6 +63,7 @@ export default function Nav() {
         </Link>
 
         <div className="flex items-center gap-2 shrink-0">
+          <VerComo />
           <ThemeSelector />
           <Link href="/buscar" title="Buscar"
             className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
@@ -94,6 +96,13 @@ export default function Nav() {
       <nav className="mb-5 flex items-center gap-1.5 flex-wrap">
         {links.map((l) => itemNav(l.href, l.label, pathname))}
       </nav>
+
+      {verComo && (
+        <div className="flex items-center gap-2 flex-wrap bg-infoBg border border-infoText/40 text-infoText rounded-lg px-3.5 py-2 text-xs mb-4">
+          👁 Modo vista — estás viendo la app como <b>{verComo.nombre}</b> ({verComo.roles.join(', ')}). No se puede guardar ni borrar nada mientras dure la previsualización.
+          <button onClick={() => setVerComo(null)} className="ml-auto underline font-semibold whitespace-nowrap">Salir del modo vista</button>
+        </div>
+      )}
 
       <AccionesRapidas />
 

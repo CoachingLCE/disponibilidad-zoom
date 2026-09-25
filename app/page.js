@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSession } from '../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, calcularEdicionesFinalizadas,
+  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
   calcularNumeroSesion, toISO, buscarPeriodoCO
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
@@ -279,7 +279,12 @@ export default function InicioPage() {
                       {a.esFormacion && a.numeroSesion && a.total && (
                         <p className="text-xs text-textMuted">Clase {a.numeroSesion} de {a.total}</p>
                       )}
-                      {a.sala && <p className="text-xs text-textMuted">{a.sala}</p>}
+                      {a.sala && (
+                        <p className="text-xs flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(a.sala).dot} shrink-0`} />
+                          <span className={colorPorSala(a.sala).text}>{a.sala}</span>
+                        </p>
+                      )}
                     </button>
                   );
                 })}
@@ -549,7 +554,14 @@ function TablaProximas({ items, onClick, asignacionesCO }) {
                     </span>
                   </div>
                 </td>
-                <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{a.sala || '—'}</td>
+                <td className="py-1.5 pr-2 whitespace-nowrap align-top">
+                  {a.sala ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(a.sala).dot} shrink-0`} />
+                      <span className={colorPorSala(a.sala).text}>{a.sala}</span>
+                    </span>
+                  ) : <span className="text-textMuted">—</span>}
+                </td>
                 <td className="py-1.5 pr-2 text-textMuted whitespace-nowrap align-top">{docenteMostrar || '—'}</td>
                 <td className="py-1.5 pl-2 text-textMuted whitespace-nowrap align-top">{staffMostrar || '—'}</td>
               </tr>
