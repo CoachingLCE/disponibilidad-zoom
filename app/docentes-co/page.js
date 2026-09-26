@@ -257,11 +257,16 @@ export default function DocentesCOPage() {
                     const banda = bandaFinalizacion(a.hasta);
                     claseBandaGrupo = banda === 'viejo' ? 'fila-periodo-viejo' : banda === 'reciente' ? 'fila-periodo-reciente' : 'fila-periodo-activo';
                   }
+                  // Además del color de vigencia (que se pinta una sola vez por grupo, en la
+                  // celda de Edición), cada FILA individual se atenúa si ese período puntual
+                  // ya terminó — pedido de Diego: los períodos finalizados tienen que verse
+                  // menos, no con el mismo peso visual que el período en curso.
+                  const filaTerminada = estadoDe(a, hoyISO) === 'finalizada';
                   return (
                   <tr
                     key={i}
                     onClick={() => puedeEditar && setSeleccionado(a)}
-                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''} ${esInicioGrupo ? 'fila-grupo-nuevo' : ''}`}
+                    className={`border-b border-border ${puedeEditar ? 'cursor-pointer hover:bg-bg' : ''} ${esInicioGrupo ? 'fila-grupo-nuevo' : ''} ${filaTerminada ? 'fila-periodo-terminada' : ''}`}
                   >
                     {esInicioGrupo && (
                       <td className={`p-1.5 align-top font-semibold ${claseBandaGrupo}`} rowSpan={tamanoGrupo}>{a.edicion}°</td>

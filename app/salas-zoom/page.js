@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, TOTALES, NOMBRES, ICONOS,
-  minutosAHora, horaAMinutos, formatFechaCorta, agruparParaVista, colorFormacion, calcularNumeroSesion
+  minutosAHora, horaAMinutos, formatFechaCorta, agruparParaVista, colorFormacion, calcularNumeroSesion,
+  calcularRangosCuatrimestresCO
 } from '../../lib/salasLogic';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
 import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
@@ -27,7 +28,9 @@ const seccionTituloCls = 'text-[11px] font-semibold text-textMuted uppercase tra
 const campoCls = 'w-full h-[42px] bg-surface2 border border-border rounded-[12px] px-3 text-sm';
 const campoLabelCls = 'text-[11.5px] text-textSec block mb-1.5 font-medium';
 const btnPrimaryCls = 'inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-[12px] px-5 py-2.5 text-sm font-semibold disabled:opacity-40 shadow-sm shrink-0';
-const botonToggleCls = 'h-9 px-3.5 rounded-[10px] text-xs font-semibold border border-border bg-surface2 text-textSec';
+// Pedido de Diego: el toggle "¿Mismo docente...?" se veía muy grande/pesado para ser una
+// simple elección de sí/no — se achicó (menos alto, menos padding, texto más chico).
+const botonToggleCls = 'h-7 px-2.5 rounded-lg text-[11px] font-medium border border-border bg-surface2 text-textSec';
 const botonToggleOnCls = 'border-transparent bg-gradient-to-r from-accentPurple to-accentMagenta text-white';
 // Un color por cuatrimestre, nada más para diferenciarlos de un vistazo en el formulario.
 const COLORES_CUATRIMESTRE = ['rgb(var(--color-accentTeal))', 'rgb(var(--color-accentPurple))', 'rgb(var(--color-accentMagenta))'];
@@ -434,6 +437,14 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
     setCuatrimestreDocentes((arr) => arr.map((c, idx) => (idx === i ? { ...c, [campo]: valor } : c)));
   }
   const esEdicionNuevaCO = tipo === 'Formación' && codigo === 'CO' && numero.trim() === '1';
+  // Vista previa (estimada) de los 3 rangos de fechas de cuatrimestre, en base a la fecha de
+  // la 1ª clase ya cargada más abajo — para que Diego vea de entrada cuándo arranca/termina
+  // cada bloque sin tener que calcularlo a mano. No descuenta feriados (ver comentario en
+  // calcularRangosCuatrimestresCO).
+  const rangosCuatrimestres = useMemo(
+    () => (esEdicionNuevaCO ? calcularRangosCuatrimestresCO(fecha) : null),
+    [esEdicionNuevaCO, fecha]
+  );
   const [tematica, setTematica] = useState('');
   const [obs, setObs] = useState('');
   // Campos propios de Masterclass (van a Info. técnica, no al cronograma general)
@@ -762,6 +773,18 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
                     <button type="button" onClick={() => setMismoDocenteCuatrimestres(false)}
                       className={`${botonToggleCls} ${!mismoDocenteCuatrimestres ? botonToggleOnCls : ''}`}>No, cambia por cuatrimestre</button>
                   </div>
+                  {rangosCuatrimestres ? (
+                    <div className="grid gap-2 sm:grid-cols-3 mb-3">
+                      {CUATRIMESTRES_CO.map((c, i) => (
+                        <div key={c.id} className="px-2.5 py-2 rounded-lg bg-surface2/60" style={{ borderLeft: `3px solid ${COLORES_CUATRIMESTRE[i]}` }}>
+                          <p className="text-[10px] font-semibold text-textMuted uppercase tracking-wide mb-0.5">{c.label.replace(/ \(.*\)/, '')}</p>
+                          <p className="text-[12px]">{formatFechaCorta(rangosCuatrimestres[i].desde)} – {formatFechaCorta(rangosCuatrimestres[i].hasta)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-textMuted mb-3">Cargá la fecha de la 1ª clase para ver las fechas estimadas de cada cuatrimestre.</p>
+                  )}
                   {mismoDocenteCuatrimestres ? (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>

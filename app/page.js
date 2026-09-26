@@ -6,7 +6,7 @@ import { useSession } from '../lib/useSession';
 import { tienePermisoEditarCronograma } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
-  minutosAHora, formatFechaCorta, agruparParaVista, calcularAlertas, calcularFormaciones, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
+  minutosAHora, formatFechaCorta, calcularAlertas, calcularFormaciones, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
   calcularNumeroSesion, toISO, buscarPeriodoCO
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
@@ -96,7 +96,6 @@ export default function InicioPage() {
     }
   }
 
-  const vista = useMemo(() => agruparParaVista(clases), [clases]);
   // Mismo criterio que la pantalla Docentes C.O.: los períodos fijos del código quedan
   // disponibles siempre, y si el Sheet ya tiene cargado ese mismo período (edición+desde)
   // con cambios, el del Sheet pisa al fijo.
@@ -151,13 +150,18 @@ export default function InicioPage() {
   const puedeAsignarSala = tienePermisoEditarCronograma(usuario);
 
   const ahora = new Date();
-  const diaHoy = DIAS_JS[ahora.getDay()];
   const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
   const hoyISO = ahora.toISOString().slice(0, 10);
 
+  // OJO: antes esto miraba "vista" (agrupado por día de la semana + hora + sala, sin
+  // importar la fecha puntual) — como agruparParaVista colapsa toda una serie recurrente en
+  // UNA fila representativa, terminaba marcando una sala "ocupada" solo porque hoy es el
+  // mismo día de la semana que esa serie, sin chequear si la clase de HOY puntual ya pasó
+  // (Diego reportó salas marcadas ocupadas con las clases de hoy ya finalizadas). Ahora se
+  // mira directamente la clase real con fecha de HOY en esa sala.
   let ocupadasAhora = 0;
   SALAS.forEach((sala) => {
-    const ocupHoy = vista.filter((c) => c.dia === diaHoy && c.sala === sala)
+    const ocupHoy = clases.filter((c) => c.fecha === hoyISO && c.sala === sala)
       .map((c) => ({ inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }));
     if (ocupHoy.some((o) => horaActual >= o.inicio && horaActual < o.fin)) ocupadasAhora++;
   });
