@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta, SALAS, buscarPeriodoCO } from '../../lib/salasLogic';
+import { formatFechaCorta, SALAS, buscarPeriodoCO, colorPorSala } from '../../lib/salasLogic';
 import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 const CUATRIMESTRES_CO = [
@@ -214,7 +214,16 @@ export default function DocentesCOPage() {
                     {a.estado === 'activa' ? '🟢 Activa' : a.estado === 'futura' ? '🔵 Futura' : '⚪ Finalizada'}
                   </span>
                 </div>
-                <p className="text-xs text-textMuted">{a.dia} · {a.horario}{a.sala ? ` · ${a.sala}` : ''}</p>
+                <p className="text-xs text-textMuted flex flex-wrap items-center gap-x-1">
+                  <span>{a.dia} · {a.horario}</span>
+                  {a.sala && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>·</span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(a.sala).dot} shrink-0`} />
+                      <span className={colorPorSala(a.sala).text}>{a.sala}</span>
+                    </span>
+                  )}
+                </p>
                 <p className="text-xs text-textSec mt-1">Docente: {a.docente || '—'}</p>
                 <p className="text-xs text-textSec">Staff: {a.staff || '—'}</p>
                 {a.cuatrimestre && (
@@ -273,7 +282,14 @@ export default function DocentesCOPage() {
                     )}
                     <td className="p-1.5">{a.dia}</td>
                     <td className="p-1.5">{a.horario}</td>
-                    <td className="p-1.5">{a.sala || '—'}</td>
+                    <td className="p-1.5">
+                      {a.sala ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(a.sala).dot} shrink-0`} />
+                          <span className={colorPorSala(a.sala).text}>{a.sala}</span>
+                        </span>
+                      ) : '—'}
+                    </td>
                     <td className="p-1.5">{(a.cuatrimestre || a.cuatrimestreCalculado) ? `${a.cuatrimestre || a.cuatrimestreCalculado}°` : '—'}</td>
                     <td className="p-1.5">{formatFechaCorta(a.desde)}</td>
                     <td className="p-1.5">{formatFechaCorta(a.hasta)}</td>

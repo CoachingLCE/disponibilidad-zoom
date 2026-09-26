@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta } from '../../lib/salasLogic';
+import { formatFechaCorta, toISO, colorPorSala } from '../../lib/salasLogic';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -53,7 +53,10 @@ export default function MasterclassesPage() {
 
   const categorias = useMemo(() => [...new Set(masterclasses.map((m) => m.categoria))].filter(Boolean).sort(), [masterclasses]);
 
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  // Se usa la fecha LOCAL del navegador (no toISOString, que da la fecha en UTC y puede
+  // adelantarse un día entero en Argentina desde las 21:00 en adelante — el mismo bug que
+  // hacía aparecer clases como "finalizada" antes de tiempo en Inicio).
+  const hoyISO = toISO(new Date());
 
   const filtradas = useMemo(() => {
     let out = masterclasses;
@@ -121,24 +124,37 @@ export default function MasterclassesPage() {
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
                   <th className="p-1.5">Fecha</th><th className="p-1.5">Día</th><th className="p-1.5">Horario</th>
-                  <th className="p-1.5">Tema</th><th className="p-1.5">Docente</th><th className="p-1.5">Sala / Mod.</th><th className="p-1.5">Tipo</th>
+                  <th className="p-1.5">Tema</th><th className="p-1.5">Docente</th><th className="p-1.5">Sala</th><th className="p-1.5">Moderador/a</th><th className="p-1.5">Tipo</th>
                 </tr>
               </thead>
               <tbody>
                 {filtradas.map((m) => {
                   const esFutura = m.fecha && m.fecha >= hoyISO;
+                  const colorSala = m.sala ? colorPorSala(m.sala) : null;
                   return (
                     <tr
                       key={m.id}
                       onClick={() => setSeleccionada(m)}
-                      className={`border-b border-border cursor-pointer hover:bg-bg ${esFutura ? 'bg-successBg/10' : 'text-textMuted opacity-70'}`}
+                      // Pedido de Diego: las que todavía no pasaron tienen que verse con un
+                      // color bien visible (antes era un tinte verde muy sutil) — ahora
+                      // llevan además un borde izquierdo de color, igual que el resto de la
+                      // app marca lo "vigente" (ver .fila-masterclass-proxima en globals.css).
+                      className={`border-b border-border cursor-pointer hover:bg-bg ${esFutura ? 'fila-masterclass-proxima' : 'text-textMuted opacity-70'}`}
                     >
                       <td className="p-1.5 whitespace-nowrap">{formatFechaCorta(m.fecha)}</td>
                       <td className="p-1.5 whitespace-nowrap">{m.dia || '—'}</td>
                       <td className="p-1.5 whitespace-nowrap">{m.horario || '—'}</td>
                       <td className="p-1.5 min-w-[220px]">{m.tema || '—'}</td>
                       <td className="p-1.5 whitespace-nowrap">{m.docente || '—'}</td>
-                      <td className="p-1.5 whitespace-nowrap">{m.sala ? `${m.sala}${m.mod ? ' · ' + m.mod : ''}` : '—'}</td>
+                      <td className="p-1.5 whitespace-nowrap">
+                        {m.sala ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${colorSala.dot} shrink-0`} />
+                            <span className={colorSala.text}>{m.sala}</span>
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="p-1.5 whitespace-nowrap">{m.mod || '—'}</td>
                       <td className="p-1.5">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${CATEGORIA_COLOR[m.categoria] || 'bg-surface2 text-textMuted'}`}>
                           {m.categoria}
@@ -240,7 +256,15 @@ function ModalMasterclass({ item, puedeEditar, onCerrar, onGuardado }) {
             <Fila label="Horario" valor={item.horario || '—'} />
             <Fila label="Docente" valor={item.docente || '—'} />
             <Fila label="Categoría" valor={item.categoria || '—'} />
-            <Fila label="Sala" valor={item.sala || '—'} />
+            <Fila
+              label="Sala"
+              valor={item.sala ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(item.sala).dot} shrink-0`} />
+                  <span className={colorPorSala(item.sala).text}>{item.sala}</span>
+                </span>
+              ) : '—'}
+            />
             <Fila label="Moderador/a" valor={item.mod || '—'} />
             <Fila label="Observaciones" valor={item.observaciones || '—'} />
           </div>

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta } from '../../lib/salasLogic';
+import { formatFechaCorta, toISO, colorPorSala } from '../../lib/salasLogic';
 import { INFO_TECNICA_DEFAULT } from '../../lib/infoTecnicaDefaults';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
@@ -53,7 +53,8 @@ export default function InfoTecnicaPage() {
   }, [items]);
 
   const ordenados = [...itemsCombinados].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  // Fecha LOCAL del navegador (ver comentario igual en Inicio/Formaciones/Masterclasses).
+  const hoyISO = toISO(new Date());
 
   if (cargando || !usuario) return null;
 
@@ -91,9 +92,15 @@ export default function InfoTecnicaPage() {
                   {it.disertante && <>Disertante: {it.disertante} · </>}
                   {it.horario}
                 </p>
-                <p className="text-xs text-textSec mt-0.5">
-                  {it.salaZoom && <>{it.salaZoom} · </>}
-                  {it.moderador && <>Moderador: {it.moderador}</>}
+                <p className="text-xs text-textSec mt-0.5 flex items-center flex-wrap gap-x-1">
+                  {it.salaZoom && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(it.salaZoom).dot} shrink-0`} />
+                      <span className={colorPorSala(it.salaZoom).text}>{it.salaZoom}</span>
+                      <span>·</span>
+                    </span>
+                  )}
+                  {it.moderador && <span>Moderador: {it.moderador}</span>}
                 </p>
                 <div className="flex flex-wrap gap-3 mt-1.5">
                   {it.formularioInscripcion && <a href={it.formularioInscripcion} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-infoText hover:underline">Formulario de inscripción</a>}

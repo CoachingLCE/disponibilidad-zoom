@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, TOTALES, NOMBRES, ICONOS,
-  minutosAHora, horaAMinutos, formatFechaCorta, agruparParaVista, colorFormacion, calcularNumeroSesion,
+  minutosAHora, horaAMinutos, formatFechaCorta, agruparParaVista, colorFormacion, colorPorSala, calcularNumeroSesion,
   calcularRangosCuatrimestresCO
 } from '../../lib/salasLogic';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
@@ -194,7 +194,12 @@ export default function SalasZoomPage() {
                 <tbody>
                   {credenciales.map((c) => (
                     <tr key={c.sala} className="border-b border-border">
-                      <td className="p-1.5 font-semibold">{c.sala}</td>
+                      <td className="p-1.5 font-semibold">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(c.sala).dot} shrink-0`} />
+                          <span className={colorPorSala(c.sala).text}>{c.sala}</span>
+                        </span>
+                      </td>
                       <td className="p-1.5">{c.usuario}</td>
                       <td className="p-1.5 font-mono">{c.contrasena}</td>
                     </tr>

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta, calcularAlertas, calcularConflictosDetalle, minutosAHora, NOMBRES } from '../../lib/salasLogic';
+import { formatFechaCorta, calcularAlertas, calcularConflictosDetalle, minutosAHora, NOMBRES, toISO, colorPorSala } from '../../lib/salasLogic';
 import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 // Nombre completo del curso en vez del código corto (CE, CO, CEQUI...) que nadie del
@@ -117,7 +117,8 @@ export default function IncidenciasPage() {
     return [...fijos, ...docentesCO];
   }, [docentesCO]);
   const conflictosDetalle = useMemo(() => calcularConflictosDetalle(clases, asignacionesCODisponibles), [clases, asignacionesCODisponibles]);
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  // Fecha LOCAL del navegador (ver comentario igual en Inicio/Formaciones/Masterclasses).
+  const hoyISO = toISO(new Date());
   // Próximos primero (lo que de verdad importa mirar), los que ya pasaron quedan
   // ocultos atrás de "Ver todas" para no ensuciar la lista con un año entero de feriados.
   const feriadosOrdenados = [...feriados].sort((a, b) => a.fecha.localeCompare(b.fecha));
@@ -188,7 +189,12 @@ export default function IncidenciasPage() {
                 <tbody>
                   {conflictosDetalle.map((c, i) => (
                     <tr key={i} onClick={() => setConflictoSeleccionado(c)} className="border-b border-border cursor-pointer hover:bg-bg">
-                      <td className="p-1.5">{c.sala}</td>
+                      <td className="p-1.5">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(c.sala).dot} shrink-0`} />
+                          <span className={colorPorSala(c.sala).text}>{c.sala}</span>
+                        </span>
+                      </td>
                       <td className="p-1.5">{c.dia.charAt(0) + c.dia.slice(1).toLowerCase()}</td>
                       <td className="p-1.5">{nombreClase(c.claseA)} · {minutosAHora(c.claseA.horaMin)}{c.claseA.fecha ? ' · ' + formatFechaCorta(c.claseA.fecha) : ''}</td>
                       <td className="p-1.5">{nombreClase(c.claseB)} · {minutosAHora(c.claseB.horaMin)}{c.claseB.fecha ? ' · ' + formatFechaCorta(c.claseB.fecha) : ''}</td>
@@ -238,9 +244,20 @@ export default function IncidenciasPage() {
           <table className="w-full text-xs border-collapse">
             <thead><tr className="border-b border-border text-textSec text-left"><th className="p-1.5">Fecha</th><th className="p-1.5">Motivo</th><th className="p-1.5">Estado</th><th></th></tr></thead>
             <tbody>
-              {feriadosVisibles.map((f) => (
+              {feriadosVisibles.map((f) => {
+                // Pedido de Diego: marcar visualmente el feriado de hoy y los que están por
+                // llegar (menos de 30 días), para que salten a la vista en la lista de próximos
+                // sin tener que leer la fecha exacta de cada fila.
+                const diasFaltan = Math.round((new Date(f.fecha + 'T00:00:00') - new Date(hoyISO + 'T00:00:00')) / 86400000);
+                const esHoy = diasFaltan === 0;
+                const esProximo = diasFaltan > 0 && diasFaltan <= 30;
+                return (
                 <tr key={f.id} className={`border-b border-border border-l-2 ${f.bloquea ? 'border-l-dangerText' : 'border-l-infoText'} ${f.fecha < hoyISO ? 'opacity-50' : ''}`}>
-                  <td className="p-1.5">{formatFechaCorta(f.fecha)}</td>
+                  <td className="p-1.5 whitespace-nowrap">
+                    {formatFechaCorta(f.fecha)}
+                    {esHoy && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-successBg text-successText whitespace-nowrap">Hoy</span>}
+                    {esProximo && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-warningBg text-warningText whitespace-nowrap">Próximamente</span>}
+                  </td>
                   <td className="p-1.5">{f.motivo}</td>
                   <td className="p-1.5">
                     <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${f.bloquea ? 'bg-dangerBg text-dangerText' : 'bg-infoBg text-infoText'}`}>
@@ -249,7 +266,8 @@ export default function IncidenciasPage() {
                   </td>
                   <td className="p-1.5">{puedeEditar && <button className={btnSecCls} onClick={() => eliminarFeriado(f.id)}>Eliminar</button>}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

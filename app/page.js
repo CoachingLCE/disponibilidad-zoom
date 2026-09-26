@@ -12,6 +12,7 @@ import {
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
 import { DOCENTES_CO_DEFAULT } from '../lib/docentesCODefaults';
+import { FECHAS_INICIO_REALES } from '../lib/fechasInicioReales';
 
 const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
@@ -64,6 +65,7 @@ export default function InicioPage() {
   const [actividades, setActividades] = useState([]);
   const [postergaciones, setPostergaciones] = useState([]);
   const [docentesCO, setDocentesCO] = useState([]);
+  const [formacionesManual, setFormacionesManual] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [seleccionado, setSeleccionado] = useState(null);
 
@@ -78,19 +80,21 @@ export default function InicioPage() {
   async function cargarTodo() {
     setCargandoDatos(true);
     try {
-      const [rc, rf, ra, rp, rd] = await Promise.all([
+      const [rc, rf, ra, rp, rd, rfm] = await Promise.all([
         fetchAutenticado('/api/clases'),
         fetchAutenticado('/api/feriados'),
         fetchAutenticado('/api/actividades'),
         fetchAutenticado('/api/postergaciones'),
-        fetchAutenticado('/api/docentes-co')
+        fetchAutenticado('/api/docentes-co'),
+        fetchAutenticado('/api/formaciones')
       ]);
-      const [dc, df, da, dp, dd] = await Promise.all([rc.json(), rf.json(), ra.json(), rp.json(), rd.json()]);
+      const [dc, df, da, dp, dd, dfm] = await Promise.all([rc.json(), rf.json(), ra.json(), rp.json(), rd.json(), rfm.json()]);
       if (rc.ok) setClases(dc.clases);
       if (rf.ok) setFeriados(df.feriados);
       if (ra.ok) setActividades(da.actividades);
       if (rp.ok) setPostergaciones(dp.postergaciones);
       if (rd.ok) setDocentesCO(dd.asignaciones);
+      if (rfm.ok) setFormacionesManual(dfm.formaciones);
     } finally {
       setCargandoDatos(false);
     }
@@ -151,7 +155,15 @@ export default function InicioPage() {
 
   const ahora = new Date();
   const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
-  const hoyISO = ahora.toISOString().slice(0, 10);
+  // OJO: antes esto era `ahora.toISOString().slice(0, 10)`, que da la fecha en UTC, no la
+  // fecha LOCAL del navegador — con Argentina en UTC-3, cualquier hora local desde las 21:00
+  // en adelante ya cae en el día siguiente en UTC. Eso hacía que "Agenda de hoy" mostrara el
+  // día de MAÑANA (con sus clases reales) mientras las horas de esas clases se comparaban
+  // contra la hora LOCAL de hoy (`horaActual`, en minutos) — la mezcla de una fecha en UTC
+  // con una hora en horario local hacía que clases que todavía no pasaron (o ni empezaron)
+  // aparecieran como "FINALIZADA". Ahora se usa `toISO`, la misma fecha local que ya usa el
+  // resto de la app (Cronograma, Formaciones, etc.), para que fecha y hora sean consistentes.
+  const hoyISO = toISO(ahora);
 
   // OJO: antes esto miraba "vista" (agrupado por día de la semana + hora + sala, sin
   // importar la fecha puntual) — como agruparParaVista colapsa toda una serie recurrente en
@@ -400,6 +412,7 @@ export default function InicioPage() {
           puedeEditar={puedeEditar}
           asignacionesCO={asignacionesCODisponibles}
           formaciones={formaciones}
+          formacionesManual={formacionesManual}
           onGuardado={cargarTodo}
         />
       )}
@@ -407,7 +420,7 @@ export default function InicioPage() {
   );
 }
 
-function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, formaciones, onGuardado }) {
+function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, formaciones, formacionesManual, onGuardado }) {
   const { fetchAutenticado } = useSession();
   const [editando, setEditando] = useState(false);
   const [docE, setDocE] = useState(item.docente || '');
@@ -425,9 +438,18 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
   const staffMostrar = item.staff || periodoCO?.staff || '';
   const observacionesMostrar = item.observaciones || periodoCO?.observaciones || '';
   const usoPeriodoCO = !!periodoCO && (!item.docente || !item.staff) && (!!periodoCO.docente || !!periodoCO.staff);
-  // Fecha de inicio de la formación (primera clase con fecha de esta misma edición) — viene
-  // de calcularFormaciones, que ya agrupa toda la agenda por curso+edición para Formaciones.
+  // Fecha de inicio de la formación: en orden de confiabilidad, 1) la corrección a mano
+  // hecha desde acá o desde Cronograma (pestaña "Formaciones" del Sheet, vía /api/formaciones),
+  // 2) la confirmada a mano por Diego en lib/fechasInicioReales.js, 3) el cálculo automático
+  // de calcularFormaciones (primera clase con fecha cargada de esta edición) — mismo orden
+  // de prioridad que ya usa Cronograma para esta misma columna.
   const formacionInfo = item.esFormacion ? (formaciones || []).find((f) => f.codigo === item.curso && String(f.numero) === String(item.edicion)) : null;
+  const fechaInicioManual = item.esFormacion && item.curso && item.edicion
+    ? (formacionesManual || []).find((m) => m.codigo === item.curso && String(m.edicion) === String(item.edicion))?.fechaInicio
+    : null;
+  const fechaInicioReal = fechaInicioManual || (item.curso && item.edicion ? FECHAS_INICIO_REALES[`${item.curso}|${item.edicion}`] : null) || formacionInfo?.fechaInicio || null;
+  const puedeEditarFechaInicio = item.esFormacion && !!item.curso && !!item.edicion;
+  const [fechaInicioE, setFechaInicioE] = useState(fechaInicioReal || '');
   // Convierte "HH:MM" a minutos para mandarlo al PATCH (que espera nuevaHoraMin en minutos).
   function horaAMinutos(hhmm) {
     const m = /^(\d{1,2}):(\d{2})$/.exec((hhmm || '').trim());
@@ -435,17 +457,27 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
     return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
   }
   async function guardarTodo() {
-    if (!item.id) return;
     setGuardando(true);
     try {
-      const nuevaHoraMin = horaAMinutos(horaE);
-      const body = { docente: docE, tematica: tematicaE, observaciones: observacionesE };
-      if (item.esFormacion) body.staff = staffE;
-      if (salaE && salaE !== item.sala) body.nuevaSala = salaE;
-      if (nuevaHoraMin != null && nuevaHoraMin !== item.horaMin) body.nuevaHoraMin = nuevaHoraMin;
-      const r = await fetchAutenticado(`/api/clases/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (r.ok) { setEditando(false); if (onGuardado) await onGuardado(); }
-      else { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo guardar.'); }
+      if (item.id) {
+        const nuevaHoraMin = horaAMinutos(horaE);
+        const body = { docente: docE, tematica: tematicaE, observaciones: observacionesE };
+        if (item.esFormacion) body.staff = staffE;
+        if (salaE && salaE !== item.sala) body.nuevaSala = salaE;
+        if (nuevaHoraMin != null && nuevaHoraMin !== item.horaMin) body.nuevaHoraMin = nuevaHoraMin;
+        const r = await fetchAutenticado(`/api/clases/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'No se pudo guardar.'); }
+      }
+      // La fecha de inicio de la formación vive aparte (pestaña "Formaciones" del Sheet,
+      // por curso+edición) — no en la clase puntual — así que va a un endpoint distinto.
+      if (puedeEditarFechaInicio && fechaInicioE !== (fechaInicioReal || '')) {
+        const r2 = await fetchAutenticado('/api/formaciones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: item.curso, edicion: item.edicion, fechaInicio: fechaInicioE }) });
+        if (!r2.ok) { const d = await r2.json().catch(() => ({})); throw new Error(d.error || 'No se pudo guardar la fecha de inicio.'); }
+      }
+      setEditando(false);
+      if (onGuardado) await onGuardado();
+    } catch (e) {
+      alert(e.message || 'No se pudo guardar.');
     } finally { setGuardando(false); }
   }
   return (
@@ -457,8 +489,15 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
         {!item.esFormacion && <p className="text-textSec text-xs mb-4">{item.nombreCurso}</p>}
         <div className="space-y-1.5 text-sm mb-4">
           <Fila label={item.esFormacion ? 'Fecha de la clase' : 'Fecha'} valor={formatFechaCorta(item.fecha)} />
-          {item.esFormacion && formacionInfo?.fechaInicio && (
-            <Fila label="Fecha de inicio de la formación" valor={formatFechaCorta(formacionInfo.fechaInicio)} />
+          {puedeEditarFechaInicio && (
+            editando ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-textMuted">Fecha de inicio de la formación</span>
+                <input type="date" className="bg-bg border border-border rounded-lg px-2 py-1 text-sm" value={fechaInicioE} onChange={(e) => setFechaInicioE(e.target.value)} />
+              </div>
+            ) : (
+              <Fila label="Fecha de inicio de la formación" valor={fechaInicioReal ? formatFechaCorta(fechaInicioReal) : '—'} />
+            )
           )}
           {item.esFormacion && item.numeroSesion && item.total && (
             <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
@@ -477,7 +516,7 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
               {item.esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Staff</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={staffE} onChange={(e) => setStaffE(e.target.value)} placeholder="Staff" /></div>}
               {!item.esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Temática</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={tematicaE} onChange={(e) => setTematicaE(e.target.value)} placeholder="Temática" /></div>}
               <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Observaciones</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={observacionesE} onChange={(e) => setObservacionesE(e.target.value)} placeholder="Observaciones" /></div>
-              <p className="text-[10.5px] text-textMuted">La fecha y el curso/edición no se editan desde acá — para eso usá "Cambiar sala, postergar o cancelar esta clase" o cargala de nuevo.</p>
+              <p className="text-[10.5px] text-textMuted">La fecha de esta clase puntual y el curso/edición no se editan desde acá — para eso usá "Cambiar sala, postergar o cancelar esta clase" o cargala de nuevo.</p>
             </>
           ) : (
             <>
@@ -502,6 +541,7 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
                 setEditando(false); setDocE(item.docente || ''); setStaffE(item.staff || '');
                 setSalaE(item.sala || ''); setHoraE(item.horaMin != null ? minutosAHora(item.horaMin) : '');
                 setTematicaE(item.tematica || ''); setObservacionesE(item.observaciones || '');
+                setFechaInicioE(fechaInicioReal || '');
               }}>Cancelar</button>
             </div>
           ) : (

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, ICONOS, NOMBRES, BUFFER_MIN, DURACIONES,
-  agruparParaVista, calcularConflictosDetalle, minutosAHora, colorFormacion
+  agruparParaVista, calcularConflictosDetalle, minutosAHora, colorFormacion, colorPorSala
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { tienePermisoAuditoria } from '../../lib/permisos';
@@ -541,7 +541,11 @@ export default function AnalisisPage() {
                   {ocupacionSalas.map((s, i) => (
                     <div key={s.sala}>
                       <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-semibold flex items-center gap-1.5"><RangoBadge i={i} />{s.sala}</span>
+                        <span className="font-semibold flex items-center gap-1.5">
+                          <RangoBadge i={i} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(s.sala).dot} shrink-0`} />
+                          <span className={colorPorSala(s.sala).text}>{s.sala}</span>
+                        </span>
                         <span className="text-textMuted">{s.horasOcupadas.toFixed(1)}hs / {s.horasDisponibles.toFixed(0)}hs · {s.cantidad} clase(s) · {s.pct}%</span>
                       </div>
                       <Barra pct={s.pct} />
