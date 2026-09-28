@@ -105,11 +105,16 @@ export default function DocentesCOPage() {
   // edición+fecha de inicio: si alguien edita uno de estos (aunque cambie docente/staff/
   // hasta/observaciones) y lo guarda, la versión del Sheet pisa a la fija automáticamente.
   const asignacionesCombinadas = useMemo(() => {
-    const clavesSheet = new Set(asignaciones.map((a) => `${a.edicion}|${a.desde}`));
+    const clave = (a) => `${String(a.edicion || '').trim()}|${String(a.desde || '').trim()}`;
+    const clavesSheet = new Set(asignaciones.map(clave));
     const fijos = DOCENTES_CO_DEFAULT
-      .filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}`))
+      .filter((a) => !clavesSheet.has(clave(a)))
       .map((a, idx) => ({ ...a, id: `fijo-doc-${idx}`, esFijo: true }));
-    return [...fijos, ...asignaciones].map((a) => ({ ...a, sala: a.sala || salaPorEdicionCO[a.edicion] || '' }));
+    // La planilla va primero (tiene prioridad); luego se deduplica por edicion+fecha de inicio
+    // para que no aparezcan filas repetidas (ej. ediciones viejas cargadas dos veces sin fecha).
+    const combinadas = [...asignaciones, ...fijos].map((a) => ({ ...a, sala: a.sala || salaPorEdicionCO[a.edicion] || '' }));
+    const vistos = new Set();
+    return combinadas.filter((a) => { const k = clave(a); if (vistos.has(k)) return false; vistos.add(k); return true; });
   }, [asignaciones, salaPorEdicionCO]);
 
   const hoyISO = toISO(new Date());
