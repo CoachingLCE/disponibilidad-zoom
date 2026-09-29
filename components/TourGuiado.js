@@ -1,9 +1,11 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from '../lib/useSession';
 import { TOUR_PASOS, TAREAS_AYUDA } from '../lib/tourSteps';
 
 export default function TourGuiado() {
+  const { usuario } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -13,9 +15,15 @@ export default function TourGuiado() {
   const [rect, setRect] = useState(null);
   const [buscando, setBuscando] = useState(false);
 
-  const idx = pasoId ? TOUR_PASOS.findIndex((p) => p.id === pasoId) : -1;
-  const pasoActual = idx >= 0 ? TOUR_PASOS[idx] : null;
-  const total = TOUR_PASOS.length;
+  // Los pasos/tareas marcados "soloAdmin" (Accesos, Historial de acciones) solo se muestran
+  // a quien realmente puede ver esas secciones — mismo criterio que usa Nav.js.
+  const esAdmin = !!(usuario && (usuario.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r)));
+  const pasos = useMemo(() => TOUR_PASOS.filter((p) => !p.soloAdmin || esAdmin), [esAdmin]);
+  const tareas = useMemo(() => TAREAS_AYUDA.filter((t) => !t.soloAdmin || esAdmin), [esAdmin]);
+
+  const idx = pasoId ? pasos.findIndex((p) => p.id === pasoId) : -1;
+  const pasoActual = idx >= 0 ? pasos[idx] : null;
+  const total = pasos.length;
 
   const ubicarElemento = useCallback(() => {
     if (!pasoActual || !pasoActual.selector) { setRect(null); return; }
@@ -64,7 +72,7 @@ export default function TourGuiado() {
     setMenuAbierto(false);
     setModoTarea(false);
     setActivo(true);
-    setPasoId(TOUR_PASOS[0].id);
+    setPasoId(pasos[0].id);
   }
   function iniciarTarea(tarea) {
     setMenuAbierto(false);
@@ -74,12 +82,12 @@ export default function TourGuiado() {
   }
   function siguiente() {
     if (modoTarea) { cerrar(); return; }
-    const next = TOUR_PASOS[idx + 1];
+    const next = pasos[idx + 1];
     if (!next) { cerrar(); return; }
     setPasoId(next.id);
   }
   function anterior() {
-    const prev = TOUR_PASOS[idx - 1];
+    const prev = pasos[idx - 1];
     if (prev) setPasoId(prev.id);
   }
   function cerrar() {
@@ -110,7 +118,7 @@ export default function TourGuiado() {
             </button>
             <p className="text-[11px] text-textMuted mb-1.5 font-semibold">O elegí una tarea puntual:</p>
             <div className="flex flex-col gap-1">
-              {TAREAS_AYUDA.map((t) => (
+              {tareas.map((t) => (
                 <button
                   key={t.id}
                   className="text-left text-xs text-textSec hover:text-text bg-bg border border-border rounded-lg px-2.5 py-1.5"

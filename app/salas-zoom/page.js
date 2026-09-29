@@ -819,7 +819,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
               {esFormacion ? (
                 <div><label className={campoLabelCls}>Sala de Zoom preferida (opcional)</label>
                   <select value={salaPreferida} onChange={(e) => setSalaPreferida(e.target.value)} className={campoCls}>
-                    <option value="">Elegir al buscar disponibilidad</option>
+                    <option value="">Se define al buscar</option>
                     {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>

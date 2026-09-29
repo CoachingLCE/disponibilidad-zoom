@@ -266,13 +266,25 @@ export default function CronogramaPage() {
     const datados = todas.filter((a) => fechasSemana.includes(a.fecha));
     // Las recurrentes (sin fecha puntual) se proyectan sobre la fecha real que les toca
     // en la semana que se está mirando — así se ven en el calendario, sea cual sea la semana.
+    // Antes esta proyección ignoraba el filtro de fecha (filtroRango) porque en `todas` las
+    // recurrentes quedan siempre afuera del filtro (no tienen una única fecha propia) — acá,
+    // una vez que ya tienen la fecha proyectada de esta semana puntual, sí corresponde
+    // aplicarles el mismo filtro que al resto.
     const recurrentesProyectadas = todas.filter((a) => a.recurrente).map((a) => {
       const idx = DIAS_SEMANA.indexOf(a.dia);
       if (idx === -1) return null;
       return { ...a, fecha: fechasSemana[idx] };
-    }).filter(Boolean);
+    }).filter(Boolean).filter((a) => dentroDeRango(a.fecha, filtroRango));
     return datados.concat(recurrentesProyectadas);
-  }, [todas, fechasSemana]);
+  }, [todas, fechasSemana, filtroRango]);
+
+  // Si se elige un rango puntual (Hoy / Esta semana / Próxima semana), la vista Calendario
+  // salta sola a la semana que corresponde — antes el filtro no tenía ningún efecto visible
+  // acá porque el Calendario siempre mostraba la semana en la que ya se estaba parado.
+  useEffect(() => {
+    if (filtroRango === 'hoy' || filtroRango === 'estaSemana') setSemanaOffset(0);
+    else if (filtroRango === 'proximaSemana') setSemanaOffset(1);
+  }, [filtroRango]);
   const horasSemana = [...new Set(itemsSemana.map((a) => a.horaMin).filter((h) => h != null))].sort((a, b) => a - b);
   const ahora = new Date();
   const horaActualMin = ahora.getHours() * 60 + ahora.getMinutes();
@@ -457,7 +469,7 @@ export default function CronogramaPage() {
                   const color = colorDe(a);
                   const dia = a.dia || (a.fecha ? fechaToDia(a.fecha) : '');
                   return (
-                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha)]} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
+                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha || a.fechaInicioEdicion)]} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
                       <td className="p-1.5">
                         {a.fecha ? formatFechaCorta(a.fecha) : a.fechaInicioEdicion ? (
                           <span title="Fecha de inicio de la edición (horario semanal fijo, sin clase puntual todavía)">
