@@ -112,11 +112,16 @@ export default function FormacionesPage() {
         // respetan los 2 recesos de 2 semanas de Ontológico (clase 16→17 y 32→33) — antes
         // se asumía 1 clase por semana corrida, lo que adelantaba varias semanas la fecha
         // de fin estimada de cada edición de CO.
-        const fechaFinalEstimada = calcularFechaFinCurso(f.codigo, historico.fechaInicio, total);
-        const cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(f.codigo, historico.fechaInicio, total, hoyISO) || 0);
-        const finalPasado = fechaFinalEstimada < hoyISO;
+        // Prioridad de la fecha de fin: manual (pestaña Formaciones, contempla feriados/excepciones)
+        // > fechas reales de las clases cargadas > estimación por fórmula de recesos.
+        const fechaFinalEstimada = manual?.fechaFinal || f.fechaFinal || calcularFechaFinCurso(f.codigo, historico.fechaInicio, total);
+        const finalPasado = fechaFinalEstimada ? fechaFinalEstimada < hoyISO : false;
+        let cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(f.codigo, historico.fechaInicio, total, hoyISO) || 0);
+        // Si hay una fecha de fin (manual o real) que todavia no paso, la edicion sigue en curso:
+        // la formula de recesos pudo adelantar la cuenta, asi que no la dejamos llegar al total.
+        if ((manual?.fechaFinal || f.fechaFinal) && !finalPasado) cargadasEstimadas = Math.min(cargadasEstimadas, total - 1);
         const completo = total && cargadasEstimadas >= total;
-        const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
+        const estado = manual?.estado === 'Finalizó' || finalPasado || (!(manual?.fechaFinal || f.fechaFinal) && completo) ? 'Finalizó' : 'En proceso';
         const pct = total ? Math.min(100, Math.round((cargadasEstimadas / total) * 100)) : null;
         // El cuatrimestre hay que recalcularlo acá con cargadasEstimadas (la cantidad real,
         // ajustada por histórico/fecha) — antes se dejaba el que traía `f` de calcularFormaciones,
