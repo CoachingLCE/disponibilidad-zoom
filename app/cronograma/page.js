@@ -599,6 +599,7 @@ function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
   const [docE, setDocE] = useState(item.docente || '');
   const [staffE, setStaffE] = useState(item.staff || '');
   const [salaE, setSalaE] = useState(item.sala || '');
+  const [diaE, setDiaE] = useState(item.dia || '');
   const [fechaInicioE, setFechaInicioE] = useState(item.fechaInicioEdicion || '');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -614,6 +615,7 @@ function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
         if (docE !== (item.docente || '')) cambios.docente = docE;
         if (esFormacion && staffE !== (item.staff || '')) cambios.staff = staffE;
         if (salaE && salaE !== (item.sala || '')) cambios.nuevaSala = salaE;
+        if (!item.fecha && diaE && diaE !== (item.dia || '')) cambios.nuevoDia = diaE;
         if (Object.keys(cambios).length > 0) {
           const r = await fetchAutenticado(`/api/clases/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios) });
           if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'No se pudo guardar la clase.'); }
@@ -634,7 +636,7 @@ function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
 
   function cancelar() {
     setEditando(false); setError('');
-    setDocE(item.docente || ''); setStaffE(item.staff || ''); setSalaE(item.sala || ''); setFechaInicioE(item.fechaInicioEdicion || '');
+    setDocE(item.docente || ''); setStaffE(item.staff || ''); setSalaE(item.sala || ''); setDiaE(item.dia || ''); setFechaInicioE(item.fechaInicioEdicion || '');
   }
 
   return (
@@ -658,6 +660,14 @@ function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
             <Fila label="Fecha" valor={formatFechaCorta(item.fecha)} />
           )}
           <Fila label="Horario" valor={item.horaMin != null ? minutosAHora(item.horaMin) : '—'} />
+          {editando && !item.fecha && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-textMuted">Día</span>
+              <select className="bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={diaE} onChange={(e) => setDiaE(e.target.value)}>
+                {DIAS.map((d) => <option key={d} value={d}>{d.charAt(0) + d.slice(1).toLowerCase()}</option>)}
+              </select>
+            </div>
+          )}
           {editando ? (
             <div className="flex items-center justify-between gap-2">
               <span className="text-textMuted">Sala</span>
@@ -697,7 +707,7 @@ function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
               <button className={btnSecCls} onClick={cancelar} disabled={guardando}>Cancelar</button>
             </div>
           ) : (
-            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar {puedeEditarFechaInicio ? 'fecha de inicio, docente, staff o sala' : 'docente, staff o sala'}</button>
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar {puedeEditarFechaInicio ? 'día, fecha de inicio, docente, staff o sala' : 'docente, staff o sala'}</button>
           )
         )}
         {puedeEditar && (
