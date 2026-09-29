@@ -422,7 +422,9 @@ export default function CronogramaPage() {
                                   >
                                     {conChoque && <span className="text-dangerText">⚠ </span>}
                                     {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
-                                    <span className="block font-normal text-[10px] opacity-80">{a.sala || a.nombreCurso || ''}</span>
+                                    <span className="block font-normal text-[10px] opacity-80">
+                                      {a.sala ? a.sala : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold">⚠ Sin sala</span> : (a.nombreCurso || ''))}
+                                    </span>
                                   </div>
                                 );
                               })}
