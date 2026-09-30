@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase, calcularFormacionesEnriquecidas, entradaHoyFormacionSinLive
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
@@ -246,8 +246,17 @@ export default function CronogramaPage() {
     // clases YA están representadas en `deClasesConFecha`/`deClasesRecurrentes` (la fuente
     // real, con sala asignada). Si las mezclamos, la misma edición aparece dos veces.
     const deOtras = actividades.filter((a) => a.tipo !== 'Formación').map((a) => ({ ...a, duracion: 90, pasada: esPasada(a.fecha) }));
+    // Formaciones sin NINGUNA fila viva en Salas Zoom (ej: Coaching Deportivo, que nunca se
+    // migra ahí) pero con clase HOY según su cadencia semanal real — mismo mecanismo que
+    // Inicio (ver comentario en entradaHoyFormacionSinLive), para que el cronograma tampoco
+    // las muestre en blanco. Pedido de Diego (30/09/2026): "TODAS DEBERIAN APARECER EN HOY".
+    const formacionesCalc = calcularFormacionesEnriquecidas(clases, formacionesManual);
+    const hoyDeFormacionesSinLive = formacionesCalc
+      .map((f) => entradaHoyFormacionSinLive(f, toISO(new Date())))
+      .filter(Boolean)
+      .map((a) => ({ ...a, tipo: 'Formación', pasada: false }));
     const claveOrden = (a) => a.fecha || a.fechaInicioEdicion || '';
-    const completo = deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)) || (b.horaMin || 0) - (a.horaMin || 0));
+    const completo = deClasesConFecha.concat(deClasesRecurrentes, deOtras, hoyDeFormacionesSinLive).sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)) || (b.horaMin || 0) - (a.horaMin || 0));
     let out = completo;
     if (filtroTipo) out = out.filter((a) => a.tipo === filtroTipo);
     if (filtroCurso) out = out.filter((a) => a.curso === filtroCurso);
@@ -646,7 +655,7 @@ function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
       // Docente/Staff/Sala viven en la clase puntual (pestaña Clases) — solo se manda si
       // hay una fila real (item.id). La Fecha de inicio vive en la pestaña Formaciones,
       // por curso+edición, así que va a un endpoint aparte.
-      if (item.id) {
+      if (item.id && !item.sinRepresentacionViva) {
         const cambios = {};
         if (docE !== (item.docente || '')) cambios.docente = docE;
         if (esFormacion && staffE !== (item.staff || '')) cambios.staff = staffE;

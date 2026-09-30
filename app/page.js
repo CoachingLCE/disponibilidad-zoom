@@ -7,7 +7,7 @@ import { tienePermisoEditarCronograma } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, calcularAlertas, calcularFormacionesEnriquecidas, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
-  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase
+  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase, entradaHoyFormacionSinLive
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
@@ -405,7 +405,14 @@ export default function InicioPage() {
       edicion: '', numero: '', horaMin: a.horaMin, duracion: 90, sala: a.sala || '', esFormacion: false,
       docente: a.docente || '', staff: '', tematica: a.tematica || '', observaciones: a.observaciones || ''
     }));
-    return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
+    // Formaciones que ya no tienen NINGUNA fila viva en Salas Zoom (ej: Coaching Deportivo,
+    // que nunca se migra ahí) pero sí tienen clase HOY según su cadencia semanal real — sin
+    // esto, quedaban totalmente invisibles acá aunque estuvieran "En proceso" de verdad.
+    // Pedido explícito de Diego (30/09/2026): "TODAS DEBERIAN APARECER EN HOY".
+    const hoyDeFormacionesSinLive = formaciones
+      .map((f) => entradaHoyFormacionSinLive(f, hoyISO))
+      .filter(Boolean);
+    return deClasesConFecha.concat(deClasesRecurrentes, deOtras, hoyDeFormacionesSinLive).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades, edicionesFinalizadas, formaciones]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO)
