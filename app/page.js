@@ -388,7 +388,14 @@ export default function InicioPage() {
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
     // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
-    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => {
+    const deClasesRecurrentes = clases.filter((c) => {
+      if (c.fecha || !c.dia) return false;
+      // Una clase del horario recurrente que cae HOY es una clase agendada para hoy: se muestra
+      // SIEMPRE, aunque la formula de recesos crea la edicion terminada (la formula subestima el
+      // fin real — ver ed. 36 CO). Sin esto desaparecian clases reales de hoy de la Agenda.
+      if (proximaFechaParaDia(c.dia) === hoyISO) return true;
+      return noFinalizada(c);
+    }).map((c) => {
       const cargadas = cargadasPorEdicion[`${c.codigo}|${c.numero}`];
       const total = TOTALES[c.codigo] || null;
       // +1 sobre lo ya dado — pero nunca más que el total (una edición al borde del cierre
