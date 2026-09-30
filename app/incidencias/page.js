@@ -68,21 +68,9 @@ export default function IncidenciasPage() {
       if (rd.ok) setDocentesCO(dd.asignaciones);
       if (rc.ok) {
         setClases(dc.clases);
-        // Limpieza automática de clases duplicadas, en silencio, cada vez que se entra acá
-        // (no hace falta ningún botón — es segura de correr aunque no haya nada para borrar).
-        if (dc.clases.length > 0 && puedeEditar) {
-          try {
-            const rl = await fetchAutenticado('/api/clases/limpiar-duplicados', { method: 'POST' });
-            const dl = await rl.json();
-            if (rl.ok && dl.borradas > 0) {
-              const rc2 = await fetchAutenticado('/api/clases');
-              const dc2 = await rc2.json();
-              if (rc2.ok) setClases(dc2.clases);
-            }
-          } catch {
-            // silencioso: si falla, simplemente no se limpia esta vez
-          }
-        }
+        // Se quitó (30/09/2026) la limpieza automática de duplicados que corría sola acá,
+        // sin que nadie la pidiera, cada vez que se entraba a esta pantalla — ver el
+        // comentario en app/salas-zoom/page.js con el detalle de por qué era riesgosa.
       }
       if (rp.ok) setPostergaciones(dp.postergaciones);
       if (rf.ok) {

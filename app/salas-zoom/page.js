@@ -8,7 +8,6 @@ import {
   calcularRangosCuatrimestresCO
 } from '../../lib/salasLogic';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
-import { HORARIO_EJEMPLO } from '../../lib/horarioEjemplo';
 import { interpretarTexto } from '../../lib/lecturaInteligente';
 import { tienePermisoEditarDocentesCO } from '../../lib/permisos';
 
@@ -118,36 +117,14 @@ function SalasZoomPageInterna() {
       if (rf.ok) setFeriados(df.feriados); else setErrorCarga(df.error);
       if (rc.ok) {
         setClases(dc.clases);
-        // Auto-carga por código, en silencio: si todavía no hay ninguna clase cargada
-        // y el usuario puede editar, importa el horario de ejemplo una sola vez.
-        // El textarea de abajo sigue disponible para cargar el horario real cuando haga falta.
-        const totalEjemplo = HORARIO_EJEMPLO.split('\n').map((l) => l.trim()).filter(Boolean).length;
-        if (dc.clases.length < totalEjemplo && puedeEditar) {
-          try {
-            await fetchAutenticado('/api/clases/importar', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: HORARIO_EJEMPLO })
-            });
-            const rc2 = await fetchAutenticado('/api/clases');
-            const dc2 = await rc2.json();
-            if (rc2.ok) setClases(dc2.clases);
-          } catch {
-            // silencioso: si falla, el usuario ve la grilla vacía y puede cargar el horario a mano
-          }
-        }
-        // Limpieza automática de clases duplicadas, en silencio — sin botón, corre sola cada vez.
-        if (dc.clases.length > 0 && puedeEditar) {
-          try {
-            const rl = await fetchAutenticado('/api/clases/limpiar-duplicados', { method: 'POST' });
-            const dl = await rl.json();
-            if (rl.ok && dl.borradas > 0) {
-              const rc3 = await fetchAutenticado('/api/clases');
-              const dc3 = await rc3.json();
-              if (rc3.ok) setClases(dc3.clases);
-            }
-          } catch {
-            // silencioso: si falla, simplemente no se limpia esta vez
-          }
-        }
+        // Se quitó (30/09/2026) la auto-carga silenciosa del horario de EJEMPLO y la
+        // limpieza automática de duplicados que corrían acá solas, sin que nadie las pidiera,
+        // cada vez que se entraba a esta pantalla. La auto-carga llegó a escribir datos de
+        // ejemplo (Oratoria 19, CE 65, CO 46, CO 42, CDEP 14, con salas inventadas) DIRECTO
+        // en el Google Sheet real de Diego cuando la cantidad de clases cargadas bajaba de 41
+        // (el tamaño del horario de ejemplo) — se vieron como si fueran clases reales de hoy
+        // y generaron mucha confusión. Ninguna de las dos vuelve a correr sola; si hace falta
+        // limpiar duplicados de verdad, se hace a pedido explícito (ver /api/clases/limpiar-duplicados).
       } else {
         setErrorCarga(dc.error);
       }

@@ -353,16 +353,7 @@ export default function InicioPage() {
       return toISO(d);
     }
 
-    // Una edicion con CUALQUIER clase de fecha real hoy o futura esta ACTIVA, aunque la formula
-    // de recesos crea que ya termino (la formula subestima el fin real — ver ed. 36 CO). Sin esto,
-    // clases de hoy desaparecian de la Agenda apenas la formula marcaba la edicion como finalizada.
-    const edicionesActivasPorFecha = new Set();
-    clases.forEach((c) => { if (c.fecha && c.fecha >= hoyISO) edicionesActivasPorFecha.add(`${c.codigo}|${c.numero}`); });
-    const noFinalizada = (c) => {
-      const key = `${c.codigo}|${c.numero}`;
-      if ((c.fecha && c.fecha >= hoyISO) || edicionesActivasPorFecha.has(key)) return true;
-      return !edicionesFinalizadas.has(key);
-    };
+    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
     // El campo Numero de la clase identifica la EDICIÓN (ej: "CO 51"), no qué sesión
     // semanal es dentro de ella — calcularNumeroSesion cuenta la posición real entre las
     // clases con fecha de esa misma edición (mismo criterio que ya usa Cronograma), para
@@ -388,14 +379,7 @@ export default function InicioPage() {
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
     // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
-    const deClasesRecurrentes = clases.filter((c) => {
-      if (c.fecha || !c.dia) return false;
-      // Una clase del horario recurrente que cae HOY es una clase agendada para hoy: se muestra
-      // SIEMPRE, aunque la formula de recesos crea la edicion terminada (la formula subestima el
-      // fin real — ver ed. 36 CO). Sin esto desaparecian clases reales de hoy de la Agenda.
-      if (proximaFechaParaDia(c.dia) === hoyISO) return true;
-      return noFinalizada(c);
-    }).map((c) => {
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => {
       const cargadas = cargadasPorEdicion[`${c.codigo}|${c.numero}`];
       const total = TOTALES[c.codigo] || null;
       // +1 sobre lo ya dado — pero nunca más que el total (una edición al borde del cierre
