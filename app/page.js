@@ -139,9 +139,32 @@ export default function InicioPage() {
           : `En ${diasFaltan} día${diasFaltan === 1 ? '' : 's'} comienza: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} (${formatFechaCorta(f.fechaInicio)}).`
       }));
   }, [formaciones]);
+  // Avisa de las clases que se postergaron o se cancelaron ESTA semana (lunes a domingo),
+  // tomando la fecha en que se hizo el cambio (FechaRegistro) — no la fecha original de la
+  // clase — para que el aviso aparezca la semana en la que realmente se postergó/canceló.
+  const alertasPostergaciones = useMemo(() => {
+    const hoyDia = new Date(); hoyDia.setHours(0, 0, 0, 0);
+    const diaSemana = hoyDia.getDay(); // 0=domingo … 6=sábado
+    const inicioSemana = new Date(hoyDia);
+    inicioSemana.setDate(hoyDia.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1));
+    const finSemana = new Date(inicioSemana);
+    finSemana.setDate(inicioSemana.getDate() + 6);
+    const inicioISO = toISO(inicioSemana), finISO = toISO(finSemana);
+
+    return postergaciones
+      .filter((p) => p.fechaRegistro && p.fechaRegistro >= inicioISO && p.fechaRegistro <= finISO)
+      .map((p) => {
+        const nombre = NOMBRES[p.codigo] || p.codigo;
+        const fueCancelada = !p.fechaNueva;
+        const texto = fueCancelada
+          ? `Esta semana se canceló: ${nombre} edición ${p.edicion} — clase ${p.numero} del ${formatFechaCorta(p.fechaOriginal)}${p.motivo ? ` (${p.motivo})` : ''}.`
+          : `Esta semana se postergó: ${nombre} edición ${p.edicion} — clase ${p.numero} pasó del ${formatFechaCorta(p.fechaOriginal)} al ${formatFechaCorta(p.fechaNueva)}${p.motivo ? ` (${p.motivo})` : ''}.`;
+        return { tipo: 'postergacion', texto };
+      });
+  }, [postergaciones]);
   const alertas = useMemo(
-    () => [...alertasConflictos, ...alertasPorFinalizar, ...alertasPorComenzar],
-    [alertasConflictos, alertasPorFinalizar, alertasPorComenzar]
+    () => [...alertasConflictos, ...alertasPostergaciones, ...alertasPorFinalizar, ...alertasPorComenzar],
+    [alertasConflictos, alertasPostergaciones, alertasPorFinalizar, alertasPorComenzar]
   );
 
   // Clases reservadas "sin sala" desde Salas Zoom (para no perder el lugar en el cronograma
@@ -380,7 +403,11 @@ export default function InicioPage() {
             ) : (
               <div className="flex flex-col gap-1.5">
                 {alertas.map((a, i) => {
-                  const cls = `rounded-lg px-3 py-2 text-xs font-medium ${a.tipo === 'warn' ? 'bg-dangerBg text-dangerText' : 'bg-warningBg text-warningText'}`;
+                  const cls = `rounded-lg px-3 py-2 text-xs font-medium ${
+                    a.tipo === 'warn' ? 'bg-dangerBg text-dangerText'
+                      : a.tipo === 'postergacion' ? 'bg-infoBg text-infoText'
+                      : 'bg-warningBg text-warningText'
+                  }`;
                   // Los conflictos de sala/feriado (tipo "warn") tienen su detalle completo en
                   // /incidencias — clickeable para ir directo ahí en vez de solo avisar acá.
                   return a.tipo === 'warn' ? (

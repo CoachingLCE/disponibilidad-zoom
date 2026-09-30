@@ -4,7 +4,8 @@ import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditar, tienePermisoEditarCronograma } from '../../../../lib/permisos';
 import { leerClases, actualizarClase, eliminarClasePorId } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
-import { BUFFER_MIN, minutosAHora } from '../../../../lib/salasLogic';
+import { appendRow } from '../../../../lib/sheets';
+import { BUFFER_MIN, minutosAHora, toISO } from '../../../../lib/salasLogic';
 
 // PATCH /api/clases/[id] -> { nuevaSala?, nuevoDia?, nuevaHoraMin?, docente?, tematica?, observaciones? }
 // Cambiar sala / día / horario revisa choques (los tres pueden venir juntos o por separado,
@@ -75,6 +76,20 @@ export const DELETE = conManejo(async (request, { params }) => {
 
   await eliminarClasePorId(id);
   await registrarAccion(usuario.email, usuario.nombre, 'Canceló clase', `${clase.label} — ${clase.sala}, ${clase.dia.toLowerCase()}`);
+
+  // Además del log genérico de auditoría (que no se puede consultar por clase/edición), se
+  // deja un registro estructurado en la misma hoja "Postergaciones" que ya se usa para las
+  // reprogramaciones — con FechaNueva vacía, para distinguir "se canceló" de "se postergó" —
+  // así la cancelación también puede mostrarse en "Alertas activas" como se hace con las
+  // postergaciones, en vez de quedar solo en el historial de auditoría general.
+  if (clase.fecha) {
+    await appendRow('Postergaciones', {
+      Codigo: clase.codigo, Edicion: clase.edicion || '1', Numero: clase.numero,
+      Dia: clase.dia, HoraMin: String(clase.horaMin), Sala: clase.sala, Duracion: String(clase.duracion),
+      FechaOriginal: clase.fecha, FechaNueva: '', Motivo: 'Cancelada', Observaciones: '',
+      Usuario: usuario.nombre, FechaRegistro: toISO(new Date())
+    });
+  }
 
   return NextResponse.json({ ok: true });
 })

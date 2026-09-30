@@ -54,6 +54,14 @@ body {
   transition: background-color .25s ease, color .25s ease;
 }
 
+/* El ícono de calendario de <input type="date"> lo dibuja el navegador, no CSS — por
+   defecto asume fondo claro y lo pinta negro, así que en el tema oscuro (default de esta
+   app) quedaba invisible sobre el fondo oscuro en los muchos campos de fecha (Cronograma,
+   Incidencias, Auditoría, Salas Zoom, etc.). "color-scheme" le avisa al navegador qué
+   paleta usar para sus propios controles nativos (fecha, hora, scrollbars). */
+html[data-theme='dark'] { color-scheme: dark; }
+html[data-theme='light'] { color-scheme: light; }
+
 /* Cartel "EN VIVO" (clase ocurriendo ahora) — rojo parpadeante. */
 @keyframes envivoBlink { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 .en-vivo-badge { background: rgba(239, 68, 68, .22); color: #f87171; border: 1px solid rgba(239, 68, 68, .5); animation: envivoBlink 1.1s ease-in-out infinite; }
