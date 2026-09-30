@@ -162,9 +162,28 @@ export default function InicioPage() {
         return { tipo: 'postergacion', texto };
       });
   }, [postergaciones]);
+  // Avisa cuando un período de Docentes C.O. ya está vigente (arrancó hoy o antes, y no
+  // terminó) pero todavía no tiene ninguna clase real cargada en Salas Zoom con esa edición
+  // — para no depender de acordarse de mirar Docentes C.O. a mano; el mismo cálculo de "Sala"
+  // que usa esa pantalla (clase más reciente con esa edición y con sala cargada).
+  const alertasActividadFaltante = useMemo(() => {
+    const hoyISO = toISO(new Date());
+    const salaPorEdicionCO = {};
+    clases.filter((c) => c.codigo === 'CO' && c.numero && c.sala).forEach((c) => {
+      const actual = salaPorEdicionCO[c.numero];
+      if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[c.numero] = c;
+    });
+    return asignacionesCODisponibles
+      .filter((a) => a.desde && a.desde <= hoyISO && (!a.hasta || a.hasta >= hoyISO))
+      .filter((a) => !salaPorEdicionCO[a.edicion])
+      .map((a) => ({
+        tipo: 'actividadFaltante',
+        texto: `Falta cargar la clase: Coaching Ontológico edición ${a.edicion} ya está vigente (desde el ${formatFechaCorta(a.desde)}) pero no tiene ninguna clase creada en Salas Zoom todavía.`
+      }));
+  }, [asignacionesCODisponibles, clases]);
   const alertas = useMemo(
-    () => [...alertasConflictos, ...alertasPostergaciones, ...alertasPorFinalizar, ...alertasPorComenzar],
-    [alertasConflictos, alertasPostergaciones, alertasPorFinalizar, alertasPorComenzar]
+    () => [...alertasConflictos, ...alertasActividadFaltante, ...alertasPostergaciones, ...alertasPorFinalizar, ...alertasPorComenzar],
+    [alertasConflictos, alertasActividadFaltante, alertasPostergaciones, alertasPorFinalizar, alertasPorComenzar]
   );
 
   // Clases reservadas "sin sala" desde Salas Zoom (para no perder el lugar en el cronograma
@@ -405,18 +424,28 @@ export default function InicioPage() {
                 {alertas.map((a, i) => {
                   const cls = `rounded-lg px-3 py-2 text-xs font-medium ${
                     a.tipo === 'warn' ? 'bg-dangerBg text-dangerText'
+                      : a.tipo === 'actividadFaltante' ? 'bg-dangerBg text-dangerText'
                       : a.tipo === 'postergacion' ? 'bg-infoBg text-infoText'
                       : 'bg-warningBg text-warningText'
                   }`;
                   // Los conflictos de sala/feriado (tipo "warn") tienen su detalle completo en
-                  // /incidencias — clickeable para ir directo ahí en vez de solo avisar acá.
-                  return a.tipo === 'warn' ? (
-                    <Link key={i} href="/incidencias" className={`${cls} block hover:brightness-125 transition-[filter]`}>
-                      {a.texto} <span className="underline">Ver detalle →</span>
-                    </Link>
-                  ) : (
-                    <div key={i} className={cls}>{a.texto}</div>
-                  );
+                  // /incidencias, y una actividad de C.O. sin cargar se completa desde Salas
+                  // Zoom → Agregar actividad — clickeable para ir directo ahí en vez de solo avisar acá.
+                  if (a.tipo === 'warn') {
+                    return (
+                      <Link key={i} href="/incidencias" className={`${cls} block hover:brightness-125 transition-[filter]`}>
+                        {a.texto} <span className="underline">Ver detalle →</span>
+                      </Link>
+                    );
+                  }
+                  if (a.tipo === 'actividadFaltante') {
+                    return (
+                      <Link key={i} href="/salas-zoom" className={`${cls} block hover:brightness-125 transition-[filter]`}>
+                        {a.texto} <span className="underline">Cargar actividad →</span>
+                      </Link>
+                    );
+                  }
+                  return <div key={i} className={cls}>{a.texto}</div>;
                 })}
               </div>
             )}
