@@ -22,13 +22,16 @@ export default function AccionesRapidas() {
   return (
     // Los 3 botones flotantes (badge de versión, este "+", "❓ Necesito ayuda") comparten
     // right-4 y quedan apilados con espacio entre sí, de abajo hacia arriba: badge (bottom-3)
-    // → ayuda (bottom-12, ver TourGuiado.js) → "+" (bottom-28) — pedido de Diego: el "+"
-    // tiene que quedar arriba de "Necesito ayuda" (antes era al revés).
+    // → ayuda (bottom-12, ver TourGuiado.js) → "+" (bottom-24) — pedido de Diego: el "+"
+    // tiene que quedar arriba de "Necesito ayuda" (antes era al revés). bottom-24 en vez de
+    // bottom-28 (v3.57.0): quedaba demasiado espacio vacío entre los dos botones — se achicó
+    // el hueco sin llegar a que se toquen (con bottom-12 + su alto, "Necesito ayuda" termina
+    // bastante antes de los 96px del "+").
     // z-[95] cuando está abierto: el botón "❓ Necesito ayuda" y el badge de versión son
     // fixed con su propio z-index (90 y 40 respectivamente) — al comparar stacking contexts
     // distintos gana el de mayor z-index del contenedor "fixed" entero, no el de sus hijos,
     // así que había que subir ACÁ (no solo en el menú) para que no tapen los botones del menú.
-    <div className={`fixed bottom-28 right-4 ${abierto ? 'z-[95]' : 'z-40'}`}>
+    <div className={`fixed bottom-24 right-4 ${abierto ? 'z-[95]' : 'z-40'}`}>
       {abierto && (
         <div className="absolute bottom-32 right-0 bg-surface2 border border-border rounded-xl p-1.5 w-48 shadow-lg">
           {ACCIONES.map((a, i) => (

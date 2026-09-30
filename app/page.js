@@ -409,11 +409,17 @@ export default function InicioPage() {
     // que nunca se migra ahí) pero sí tienen clase HOY según su cadencia semanal real — sin
     // esto, quedaban totalmente invisibles acá aunque estuvieran "En proceso" de verdad.
     // Pedido explícito de Diego (30/09/2026): "TODAS DEBERIAN APARECER EN HOY".
+    // Coaching Ontológico queda afuera de este mecanismo genérico: ya tiene el suyo propio
+    // más arriba (agendaSinteticaHoy, basado en Docentes C.O., no en la cadencia semanal
+    // estimada) — sin este filtro, una edición de CO que arranca justo hoy terminaba
+    // duplicada (una tarjeta por cada mecanismo, ambas iguales).
+    const cubiertasPorAgendaSintetica = new Set(agendaSinteticaHoy.map((a) => `${a.curso}|${a.edicion}`));
     const hoyDeFormacionesSinLive = formaciones
       .map((f) => entradaHoyFormacionSinLive(f, hoyISO))
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((a) => !cubiertasPorAgendaSintetica.has(`${a.curso}|${a.edicion}`));
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras, hoyDeFormacionesSinLive).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
-  }, [clases, actividades, edicionesFinalizadas, formaciones]);
+  }, [clases, actividades, edicionesFinalizadas, formaciones, agendaSinteticaHoy]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO)
     .concat(agendaSinteticaHoy)

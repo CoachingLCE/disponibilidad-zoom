@@ -98,9 +98,9 @@ export default function TourGuiado() {
 
   return (
     <>
-      {/* Alineado con el badge de versión (bottom-3) y el "+" de Acciones rápidas (bottom-28)
+      {/* Alineado con el badge de versión (bottom-3) y el "+" de Acciones rápidas (bottom-24)
           — ver comentario en components/AccionesRapidas.js. Pedido de Diego: el "+" queda
-          arriba de este botón (antes era al revés). */}
+          arriba de este botón (antes era al revés), pero sin dejar tanto hueco entre los dos. */}
       <button
         onClick={() => setMenuAbierto((v) => !v)}
         className="fixed bottom-12 right-4 z-[90] bg-gradient-to-r from-accentPurple to-accentMagenta text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity no-print"
