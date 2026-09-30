@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
@@ -196,7 +196,7 @@ export default function CronogramaPage() {
     const sesionPorId = {};
     const gruposPorEdicion = {};
     clases.filter((c) => c.fecha).forEach((c) => {
-      const clave = `${c.codigo}|${c.numero}`;
+      const clave = `${c.codigo}|${edicionRealDeClase(c)}`;
       (gruposPorEdicion[clave] = gruposPorEdicion[clave] || []).push(c);
     });
     Object.values(gruposPorEdicion).forEach((grupo) => {
@@ -212,12 +212,13 @@ export default function CronogramaPage() {
       const periodo = buscarPeriodoCO(asignacionesCODisponibles, edicion, fecha || null);
       return periodo ? { docente: periodo.docente || '', staff: periodo.staff || '' } : null;
     };
-    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
+    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${edicionRealDeClase(c)}`);
     const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => {
-      const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(c.numero, c.fecha) : null;
+      const edicion = edicionRealDeClase(c);
+      const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(edicion, c.fecha) : null;
       return {
         id: c.id, fecha: c.fecha, dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-        edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala,
+        edicion, numeroSesion: sesionPorId[c.id] || null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala,
         docente: c.docente || (ds ? ds.docente : ''), staff: c.staff || (ds ? ds.staff : ''),
         total: TOTALES[c.codigo], tematica: c.tematica,
         observaciones: c.observaciones, pasada: esPasada(c.fecha)
@@ -227,15 +228,18 @@ export default function CronogramaPage() {
     // incluyen igual, con fecha vacía — el calendario las proyecta sobre la semana que se
     // esté mirando (más abajo), y en la vista Lista aparecen con fecha "—". Sin fecha
     // puntual no hay forma de saber qué sesión es, así que no se le asigna número.
-    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => { const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(c.numero, '9999-12-31') : null; return ({
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => {
+      const edicion = edicionRealDeClase(c);
+      const ds = (c.codigo === 'CO' && (!c.docente || !c.staff)) ? docenteStaffCO(edicion, '9999-12-31') : null;
+      return ({
       id: c.id, fecha: '', dia: c.dia, tipo: 'Formación', curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numeroSesion: null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente || (ds ? ds.docente : ''), staff: c.staff || (ds ? ds.staff : ''),
+      edicion, numeroSesion: null, horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, docente: c.docente || (ds ? ds.docente : ''), staff: c.staff || (ds ? ds.staff : ''),
       total: TOTALES[c.codigo], tematica: c.tematica,
       // Sin fecha puntual todavía (horario semanal fijo) — como referencia se guarda la
       // fecha de inicio real de la edición. Una corrección cargada a mano desde el detalle
       // de esta clase (pestaña "Formaciones" del Sheet, editable desde acá mismo) tiene
       // prioridad sobre el valor fijo del código en fechasInicioReales.js.
-      fechaInicioEdicion: (formacionesManual.find((m) => m.codigo === c.codigo && String(m.edicion) === String(c.numero))?.fechaInicio) || FECHAS_INICIO_REALES[`${c.codigo}|${c.numero}`] || null,
+      fechaInicioEdicion: (formacionesManual.find((m) => m.codigo === c.codigo && String(m.edicion) === String(edicion))?.fechaInicio) || FECHAS_INICIO_REALES[`${c.codigo}|${edicion}`] || null,
       observaciones: c.observaciones, pasada: false, recurrente: true
     }); });
     // Importante: las entradas históricas de tipo "Formación" quedan afuera acá — esas
@@ -313,8 +317,12 @@ export default function CronogramaPage() {
 
   if (cargando || !usuario) return null;
 
+  // Pedido de Diego: la tabla de la vista Lista (y el calendario semanal) quedaban con mucho
+  // espacio vacío a los costados en pantallas anchas — Cronograma es la única pantalla con
+  // tablas de tantas columnas, así que solo acá se amplía el ancho máximo (las demás
+  // pantallas, con tarjetas en vez de tablas anchas, quedan como estaban).
   return (
-    <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[1900px] mx-auto px-6 pt-8 pb-20">
       <div className="flex items-start justify-between flex-wrap gap-3 mb-1">
         <div>
           <h1 className="text-xl mb-1">Cronograma</h1>
@@ -511,7 +519,7 @@ export default function CronogramaPage() {
         )}
       </div>
 
-      {seleccionado && <ModalDetalle item={seleccionado} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} onGuardado={cargarDatos} />}
+      {seleccionado && <ModalDetalle item={seleccionado} clases={clases} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} onGuardado={cargarDatos} />}
     </div>
   );
 }
@@ -600,9 +608,23 @@ function VistaMes({ todas, onClick, colorPor }) {
   );
 }
 
-function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
+function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
   const { fetchAutenticado } = useSession();
   const esFormacion = item.tipo === 'Formación';
+  // Pedido de Diego: que el detalle de la clase también diga qué número de clase es "a la
+  // fecha" — se recalcula acá mismo contra TODAS las clases con fecha de la misma edición
+  // (curso + edición), en vez de depender de un numeroSesion que le llega ya armado desde
+  // afuera (que en la vista Calendario, al proyectar clases recurrentes o venir de distintos
+  // armados de la lista, podía llegar vacío aunque el dato sí se pueda calcular).
+  const numeroClaseAFecha = useMemo(() => {
+    if (!esFormacion || !item.fecha || !item.curso || !item.edicion || !Array.isArray(clases)) return null;
+    const mismaEdicion = clases
+      .filter((c) => c.fecha && c.codigo === item.curso && String(edicionRealDeClase(c)) === String(item.edicion))
+      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+    if (mismaEdicion.length === 0) return item.numeroSesion || null;
+    const idx = mismaEdicion.findIndex((c) => c.id === item.id);
+    return idx >= 0 ? idx + 1 : (item.numeroSesion || null);
+  }, [clases, esFormacion, item]);
   // La "Fecha de inicio" solo tiene sentido para una Formación que todavía no tiene
   // clases con fecha puntual cargadas (horario recurrente) — para una clase ya fechada,
   // esa fecha puntual es la de la sesión, no la de inicio de la edición.
@@ -696,8 +718,11 @@ function ModalDetalle({ item, onCerrar, puedeEditar, onGuardado }) {
             />
           )}
           {idReunion && <Fila label="ID de reunión" valor={idReunion} />}
-          {esFormacion && item.numeroSesion && item.total && (
-            <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
+          {esFormacion && item.fecha && (
+            <Fila
+              label="Número de clase a la fecha"
+              valor={numeroClaseAFecha ? (item.total ? `${numeroClaseAFecha} de ${item.total}` : String(numeroClaseAFecha)) : '—'}
+            />
           )}
           {editando ? (
             <>

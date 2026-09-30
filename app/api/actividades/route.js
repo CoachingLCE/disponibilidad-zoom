@@ -4,7 +4,7 @@ import { requireUsuario } from '../../../lib/requireUsuario';
 import { tienePermisoEditarCronograma } from '../../../lib/permisos';
 import { leerActividades, agregarActividad, leerClases } from '../../../lib/datosClases';
 import { registrarAccion } from '../../../lib/auditoria';
-import { nombreCurso, fechaToDia, BUFFER_MIN } from '../../../lib/salasLogic';
+import { nombreCurso, fechaToDia, BUFFER_MIN, buscarChoqueSala, buscarChoqueDocente } from '../../../lib/salasLogic';
 
 export const GET = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
@@ -34,17 +34,19 @@ export const POST = conManejo(async (request) => {
   const dia = fechaToDia(fecha);
   const duracion = 90; // duración estimada por defecto para espacios especiales
 
-  if (sala) {
-    const inicioProp = horaMin - BUFFER_MIN, finProp = horaMin + duracion;
-    const [clases, actividades] = await Promise.all([leerClases(), leerActividades()]);
+  // Una sola lectura de Clases/Actividades para los dos chequeos de abajo (antes se leía
+  // Clases dos veces, una por cada chequeo, por separado).
+  const [clases, actividades] = await Promise.all([leerClases(), leerActividades()]);
 
-    const choqueClase = clases.find((c) =>
-      c.sala === sala && c.dia === dia && (!c.fecha || c.fecha === fecha) &&
-      inicioProp < (c.horaMin + c.duracion) && (c.horaMin - BUFFER_MIN) < finProp
-    );
+  if (sala) {
+    // Choque de sala: usa la MISMA función que reservar una Formación o mover una clase
+    // existente (buscarChoqueSala, en lib/salasLogic.js) — antes esta pantalla reimplementaba
+    // el cálculo de solapamiento horario a mano, por su cuenta.
+    const choqueClase = buscarChoqueSala(clases, sala, dia, horaMin, duracion, { fecha });
     if (choqueClase) {
       return NextResponse.json({ error: `${sala} está ocupada ese horario por ${choqueClase.label}.` }, { status: 409 });
     }
+    const inicioProp = horaMin - BUFFER_MIN, finProp = horaMin + duracion;
     const choqueActividad = actividades.find((a) =>
       a.sala === sala && a.fecha === fecha && a.horaMin != null &&
       inicioProp < (a.horaMin + duracion) && (a.horaMin - BUFFER_MIN) < finProp
@@ -54,16 +56,10 @@ export const POST = conManejo(async (request) => {
     }
   }
 
+  // Choque de docente: misma función compartida que usa reservar una Formación.
   let avisoDocente = null;
-  if (docente && docente.trim()) {
-    const inicioProp = horaMin - BUFFER_MIN, finProp = horaMin + duracion;
-    const clases = await leerClases();
-    const choque = clases.find((c) =>
-      c.dia === dia && (c.docente || '').trim().toLowerCase() === docente.trim().toLowerCase() &&
-      inicioProp < (c.horaMin + c.duracion) && (c.horaMin - BUFFER_MIN) < finProp
-    );
-    if (choque) avisoDocente = `${docente} ya tiene "${choque.label}" en ${choque.sala} a esa hora — revisá que no se pise.`;
-  }
+  const choqueDoc = buscarChoqueDocente(clases, docente, dia, horaMin, duracion, { fecha });
+  if (choqueDoc) avisoDocente = `${docente} ya tiene "${choqueDoc.label}" en ${choqueDoc.sala} a esa hora — revisá que no se pise.`;
 
   await agregarActividad({
     fecha, dia, tipo, curso: curso || '', nombreCurso: nombreCurso(curso),

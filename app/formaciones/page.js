@@ -2,9 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { ICONOS, NOMBRES, TOTALES, formatFechaCorta, calcularFormaciones, colorFormacion, ESTADOS, calcularFechaFinCurso, claseActualPorFecha } from '../../lib/salasLogic';
-import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
-import { FECHAS_INICIO_REALES } from '../../lib/fechasInicioReales';
+import { ICONOS, NOMBRES, TOTALES, formatFechaCorta, calcularFormacionesEnriquecidas, colorFormacion, ESTADOS } from '../../lib/salasLogic';
 
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
@@ -56,160 +54,14 @@ export default function FormacionesPage() {
     }
   }
 
-  // El histórico (mismo Excel que ya se importó como referencia) tiene, para cada clase de
-  // Formación que realmente pasó, su fecha real y a qué Edición pertenece — es la fuente más
-  // confiable de todas para saber cuándo arrancó y cuántas clases lleva cada edición puntual.
-  const historicoPorEdicion = useMemo(() => {
-    const grupos = {};
-    CRONOGRAMA_HISTORICO.filter((h) => h.tipo === 'Formación' && h.edicion && h.fecha).forEach((h) => {
-      const key = `${h.curso}|${h.edicion}`;
-      (grupos[key] = grupos[key] || []).push(h);
-    });
-    const out = {};
-    Object.keys(grupos).forEach((key) => {
-      const grupo = grupos[key];
-      const fechas = grupo.map((h) => h.fecha).sort();
-      out[key] = {
-        fechaInicio: fechas[0], fechaFinal: fechas[fechas.length - 1],
-        cargadas: grupo.length, total: parseInt(grupo[0].clasesTotal, 10) || null
-      };
-    });
-    // Las fechas de inicio confirmadas a mano por Diego (lib/fechasInicioReales.js) son más
-    // confiables que las que salen de mirar qué clases se llegaron a cargar en el horario
-    // — cuando existen, pisan la fecha de inicio de acá (no tocan cargadas/total).
-    Object.keys(FECHAS_INICIO_REALES).forEach((key) => {
-      out[key] = { cargadas: 0, total: null, ...out[key], fechaInicio: FECHAS_INICIO_REALES[key] };
-    });
-    // La pestaña "Formaciones" del Sheet es editable en vivo desde el detalle de una clase en
-    // Cronograma (POST /api/formaciones) — por eso es la fuente MÁS confiable de todas: si
-    // alguien corrigió ahí una fecha de inicio, tiene que pisar tanto al histórico como al
-    // hardcodeado de fechasInicioReales.js (antes, una corrección hecha desde Cronograma no
-    // se veía reflejada acá porque fechasInicioReales.js siempre ganaba).
-    formacionesManual.forEach((m) => {
-      if (!m.fechaInicio) return;
-      const key = `${m.codigo}|${m.edicion}`;
-      out[key] = { cargadas: 0, total: null, ...out[key], fechaInicio: m.fechaInicio };
-    });
-    return out;
-  }, [formacionesManual]);
-
-  // Combina lo calculado automáticamente desde el horario (calcularFormaciones) con, en
-  // orden de confiabilidad: 1) el histórico real (fechas verdaderas de clases que ya
-  // pasaron), 2) las fechas cargadas a mano en la pestaña "Formaciones" del Sheet.
-  const formaciones = useMemo(() => {
-    const base = calcularFormaciones(clases);
-    const hoyISO = new Date().toISOString().slice(0, 10);
-    const enriquecidas = base.map((f) => {
-      const historico = historicoPorEdicion[`${f.codigo}|${f.numero}`];
-      const manual = formacionesManual.find((m) => m.codigo === f.codigo && m.edicion === f.numero);
-
-      if (historico) {
-        const total = historico.total || f.total;
-        // El histórico puede tener registrada solo ALGUNA de las clases de esta edición
-        // (no necesariamente todas) — por eso la fecha de inicio real SÍ es confiable, pero
-        // "cuántas ya pasaron" se estima mejor por tiempo transcurrido que por cuántas filas
-        // quedaron logueadas en ese Excel puntual. calcularFechaFinCurso/claseActualPorFecha
-        // respetan los 2 recesos de 2 semanas de Ontológico (clase 16→17 y 32→33) — antes
-        // se asumía 1 clase por semana corrida, lo que adelantaba varias semanas la fecha
-        // de fin estimada de cada edición de CO.
-        // Prioridad de la fecha de fin: manual (pestaña Formaciones, contempla feriados/excepciones)
-        // > fechas reales de las clases cargadas > estimación por fórmula de recesos.
-        const fechaFinalEstimada = manual?.fechaFinal || f.fechaFinal || calcularFechaFinCurso(f.codigo, historico.fechaInicio, total);
-        const finalPasado = fechaFinalEstimada ? fechaFinalEstimada < hoyISO : false;
-        let cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(f.codigo, historico.fechaInicio, total, hoyISO) || 0);
-        // Si hay una fecha de fin (manual o real) que todavia no paso, la edicion sigue en curso:
-        // la formula de recesos pudo adelantar la cuenta, asi que no la dejamos llegar al total.
-        if ((manual?.fechaFinal || f.fechaFinal) && !finalPasado) cargadasEstimadas = Math.min(cargadasEstimadas, total - 1);
-        const completo = total && cargadasEstimadas >= total;
-        const estado = manual?.estado === 'Finalizó' || finalPasado || (!(manual?.fechaFinal || f.fechaFinal) && completo) ? 'Finalizó' : 'En proceso';
-        const pct = total ? Math.min(100, Math.round((cargadasEstimadas / total) * 100)) : null;
-        // El cuatrimestre hay que recalcularlo acá con cargadasEstimadas (la cantidad real,
-        // ajustada por histórico/fecha) — antes se dejaba el que traía `f` de calcularFormaciones,
-        // calculado con la cantidad "cruda" del horario, que no siempre coincide y hacía
-        // aparecer, por ej., una edición en la clase 21/48 (2do cuatrimestre) marcada como 3ro.
-        const cuatrimestre = total === 48 ? Math.min(Math.ceil(cargadasEstimadas / 16), 3) || 1 : null;
-        return {
-          ...f, fechaInicio: historico.fechaInicio, fechaFinal: fechaFinalEstimada,
-          cargadas: Math.min(cargadasEstimadas, total), total, estado, pct, cuatrimestre,
-          proximaTxt: estado === 'Finalizó' ? '—' : f.proximaTxt
-        };
-      }
-
-      if (!manual) return f;
-
-      let fechaFinal = manual.fechaFinal || f.fechaFinal;
-      if (!fechaFinal && manual.fechaInicio && f.total) {
-        const est = new Date(manual.fechaInicio + 'T00:00:00');
-        est.setDate(est.getDate() + (f.total - 1) * 7);
-        fechaFinal = est.toISOString().slice(0, 10);
-      }
-      const finalPasado = fechaFinal ? fechaFinal < hoyISO : false;
-      const estado = manual.estado === 'Finalizó' || finalPasado ? 'Finalizó' : f.estado;
-
-      return {
-        ...f,
-        fechaInicio: manual.fechaInicio || f.fechaInicio,
-        fechaFinal: fechaFinal || f.fechaFinal,
-        estado,
-        pct: estado === 'Finalizó' ? 100 : f.pct
-      };
-    });
-
-    // Las de arriba son las que TODAVÍA ocupan una sala en el horario en vivo. Pero una
-    // edición que ya terminó hace tiempo generalmente deja de tener sala asignada — y
-    // sin embargo el histórico SÍ la tiene registrada. Sin este paso, esas ediciones
-    // nunca aparecían como tarjeta (ni "Finalizó" ni ninguna otra), aunque el dato
-    // exista. Acá se agregan como tarjetas propias, calculadas 100% desde el histórico.
-    const presentes = new Set(enriquecidas.map((f) => `${f.codigo}|${f.numero}`));
-    const soloHistoricas = Object.entries(historicoPorEdicion)
-      .filter(([key]) => !presentes.has(key))
-      .map(([key, historico]) => {
-        const [codigo, numero] = key.split('|');
-        // Si el histórico no trae total (típico de una edición que todavía no arrancó y
-        // por eso nunca se cargó ninguna clase suya), se usa el total fijo del curso — antes
-        // esto hacía que la tarjeta se descartara entera y la edición nunca apareciera.
-        const total = historico.total || TOTALES[codigo] || null;
-        if (!total) return null; // sin total no se puede estimar nada con confianza
-        const fechaFinalEstimada = calcularFechaFinCurso(codigo, historico.fechaInicio, total);
-        const cargadasEstimadas = Math.max(historico.cargadas, claseActualPorFecha(codigo, historico.fechaInicio, total, hoyISO) || 0);
-        const finalPasado = fechaFinalEstimada < hoyISO;
-        const completo = cargadasEstimadas >= total;
-        const estado = completo || finalPasado ? 'Finalizó' : 'En proceso';
-        const pct = Math.min(100, Math.round((cargadasEstimadas / total) * 100));
-        // El cuatrimestre solo aplica a Coaching Ontológico (único curso de 48 clases) —
-        // el resto no tiene concepto de cuatrimestre y no debe entrar en ese filtro.
-        const cuatrimestre = total === 48 ? Math.min(Math.ceil(cargadasEstimadas / 16), 3) || 1 : null;
-        return {
-          codigo, numero, edicion: numero,
-          fechaInicio: historico.fechaInicio, fechaFinal: fechaFinalEstimada,
-          cargadas: Math.min(cargadasEstimadas, total), total, estado, pct,
-          proximaTxt: estado === 'Finalizó' ? '—' : 'Sin sala asignada actualmente',
-          cuatrimestre
-        };
-      })
-      .filter(Boolean);
-
-    return [...enriquecidas, ...soloHistoricas].map((f) => {
-      // Una edición con fecha de inicio confirmada pero que todavía no arrancó (fecha en
-      // el futuro) es "Próximamente" — antes se la mostraba como "En proceso" con progreso
-      // en 0% (o directamente no aparecía, ver el fallback de total más arriba).
-      if (f.estado !== 'Finalizó' && f.fechaInicio && f.fechaInicio > hoyISO) {
-        f = { ...f, estado: 'Próximamente', cargadas: 0, pct: 0, proximaTxt: `Comienza ${formatFechaCorta(f.fechaInicio)}` };
-      }
-      // Vencimiento del proceso de certificación: 1 mes después de finalizar para
-      // formaciones cortas (16 clases). Para Coaching Ontológico son 4 meses hasta la
-      // edición 29 y 2 meses desde la edición 30 en adelante (cambio de política real,
-      // indicado por Diego) — se puede seguir ajustando puntualmente por edición cargando
-      // "MesesCertificacion" en la pestaña Formaciones del Sheet.
-      if (!f.fechaFinal) return f;
-      const manual = formacionesManual.find((m) => m.codigo === f.codigo && m.edicion === f.numero);
-      const defaultCO = parseInt(f.numero, 10) >= 30 ? 2 : 4;
-      const meses = manual?.mesesCertificacion ?? (f.codigo === 'CO' ? defaultCO : 1);
-      const venc = new Date(f.fechaFinal + 'T00:00:00');
-      venc.setMonth(venc.getMonth() + meses);
-      return { ...f, vencimientoCertificacion: venc.toISOString().slice(0, 10), mesesCertificacion: meses };
-    });
-  }, [clases, formacionesManual, historicoPorEdicion]);
+  // Antes esta pantalla armaba a mano la mezcla de fuentes (histórico + fechas confirmadas
+  // + pestaña Formaciones del Sheet) — ahora llama a la ÚNICA función compartida en
+  // lib/salasLogic.js, la misma que usa Inicio, para que las dos pantallas SIEMPRE digan lo
+  // mismo de una edición (pedido de Diego: que esta información viva en un solo lugar).
+  const formaciones = useMemo(
+    () => calcularFormacionesEnriquecidas(clases, formacionesManual),
+    [clases, formacionesManual]
+  );
 
   const filtradas = useMemo(() => {
     let out = formaciones;

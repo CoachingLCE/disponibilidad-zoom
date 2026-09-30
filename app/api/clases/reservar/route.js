@@ -6,7 +6,7 @@ import { leerClases, agregarClases, leerFeriados, feriadoEnFecha } from '../../.
 import { agregarDocentesCOBulk } from '../../../../lib/datosDocentesCO';
 import { registrarAccion } from '../../../../lib/auditoria';
 import {
-  DURACIONES, BUFFER_MIN, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad, minutosAHora, diaLindo
+  DURACIONES, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad, buscarChoqueDocente, minutosAHora, diaLindo
 } from '../../../../lib/salasLogic';
 
 // Coaching Ontológico: una edición completa son 48 clases en 3 cuatrimestres de 16, con un
@@ -78,15 +78,9 @@ export const POST = conManejo(async (request) => {
     // Choque de docente: mismo día/horario, sin importar la sala — un docente no puede
     // dar dos clases en simultáneo aunque sean en salas distintas.
     let conflictoDocente = null;
-    if (docente && docente.trim()) {
-      const inicioProp = horaMin - BUFFER_MIN, finProp = horaMin + duracion;
-      const choque = clases.find((c) =>
-        c.dia === dia && (c.docente || '').trim().toLowerCase() === docente.trim().toLowerCase() &&
-        inicioProp < (c.horaMin + c.duracion) && (c.horaMin - BUFFER_MIN) < finProp
-      );
-      if (choque) {
-        conflictoDocente = `${docente} ya tiene "${choque.label}" en ${choque.sala} a esa hora — revisá antes de reservar.`;
-      }
+    const choqueDoc = buscarChoqueDocente(clases, docente, dia, horaMin, duracion);
+    if (choqueDoc) {
+      conflictoDocente = `${docente} ya tiene "${choqueDoc.label}" en ${choqueDoc.sala} a esa hora — revisá antes de reservar.`;
     }
 
     return NextResponse.json({ libres, ocupadas: detalleOcupadas, dia, conflictoDocente });

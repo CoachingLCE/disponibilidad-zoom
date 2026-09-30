@@ -6,8 +6,8 @@ import { useSession } from '../lib/useSession';
 import { tienePermisoEditarCronograma } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
-  minutosAHora, formatFechaCorta, calcularAlertas, calcularFormaciones, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
-  calcularNumeroSesion, toISO, buscarPeriodoCO
+  minutosAHora, formatFechaCorta, calcularAlertas, calcularFormacionesEnriquecidas, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
+  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
@@ -112,7 +112,16 @@ export default function InicioPage() {
     return [...fijos, ...docentesCO];
   }, [docentesCO]);
   const alertasConflictos = useMemo(() => calcularAlertas(clases, feriados), [clases, feriados]);
-  const formaciones = useMemo(() => calcularFormaciones(clases), [clases]);
+  // Antes esta pantalla calculaba las formaciones solo desde las clases reales (sin
+  // histórico/fechas confirmadas/pestaña Formaciones), mientras que la pantalla Formaciones sí
+  // mezclaba las 4 fuentes — por eso una misma edición podía mostrar datos distintos según en
+  // qué pantalla se la mirara. Ahora Inicio llama a la misma función compartida en
+  // lib/salasLogic.js, así las dos pantallas SIEMPRE dicen lo mismo (pedido de Diego: que esta
+  // información viva en un solo lugar).
+  const formaciones = useMemo(
+    () => calcularFormacionesEnriquecidas(clases, formacionesManual),
+    [clases, formacionesManual]
+  );
   // Avisa cuando a una edición en curso le quedan exactamente 2 clases para terminar —
   // así el equipo puede empezar a coordinar el cierre (certificación, próxima edición, etc.)
   // con un poco de anticipación en vez de enterarse el día de la última clase.
@@ -193,11 +202,15 @@ export default function InicioPage() {
     // más arriba en esta misma página, ahí se asigna).
     const existeClasePorEdicion = {}; // alguna clase (con o sin sala)
     const salaPorEdicionCO = {}; // la más reciente que además tenga sala
-    clases.filter((c) => c.codigo === 'CO' && c.numero).forEach((c) => {
-      existeClasePorEdicion[c.numero] = true;
+    // Edición real (edicionRealDeClase) — no c.numero directo, que en una edición cargada
+    // "completa" (varias filas, una por clase) es el Nº de sesión, no el Nº de edición.
+    clases.filter((c) => c.codigo === 'CO').forEach((c) => {
+      const edicion = edicionRealDeClase(c);
+      if (!edicion) return;
+      existeClasePorEdicion[edicion] = true;
       if (c.sala) {
-        const actual = salaPorEdicionCO[c.numero];
-        if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[c.numero] = c;
+        const actual = salaPorEdicionCO[edicion];
+        if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[edicion] = c;
       }
     });
     return asignacionesCODisponibles
@@ -311,6 +324,20 @@ export default function InicioPage() {
   // Formaciones ya detecta como "Finalizó" a partir del histórico real, para que las dos
   // pantallas digan lo mismo y una clase de un curso ya terminado no siga apareciendo acá.
   const edicionesFinalizadas = useMemo(() => calcularEdicionesFinalizadas(CRONOGRAMA_HISTORICO), []);
+  // Fecha real de inicio de cada edición, según el histórico (mismo Excel que ya usa la
+  // pantalla Formaciones para esto — ver `historicoPorEdicion` en app/formaciones/page.js).
+  // El modal de detalle de acá abajo (Inicio → click en una clase) no lo tenía en cuenta y
+  // por eso mostraba "—" en "Fecha de inicio de la formación" aunque ya estuviera cargada
+  // en el histórico — Diego lo notó con Coaching Educativo 65 (si en Formaciones decía
+  // "Inicio: 26/08/2026", acá también tiene que decirlo).
+  const fechaInicioHistorico = useMemo(() => {
+    const out = {};
+    CRONOGRAMA_HISTORICO.filter((h) => h.tipo === 'Formación' && h.edicion && h.fecha).forEach((h) => {
+      const key = `${h.curso}|${h.edicion}`;
+      if (!out[key] || h.fecha < out[key]) out[key] = h.fecha;
+    });
+    return out;
+  }, []);
 
   const actividadesTodas = useMemo(() => {
     function toISO(d) {
@@ -330,30 +357,47 @@ export default function InicioPage() {
       return toISO(d);
     }
 
-    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
+    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${edicionRealDeClase(c)}`);
     // El campo Numero de la clase identifica la EDICIÓN (ej: "CO 51"), no qué sesión
     // semanal es dentro de ella — calcularNumeroSesion cuenta la posición real entre las
     // clases con fecha de esa misma edición (mismo criterio que ya usa Cronograma), para
     // no mostrar "Clase 51 de 48" para la edición 51.
     const sesionPorId = calcularNumeroSesion(clases);
+    // Para una clase del horario RECURRENTE (todavía sin fecha puntual — ver más abajo) no
+    // hay ninguna fila propia que contar con calcularNumeroSesion. Pero `formaciones` (mismo
+    // cálculo que ya usan "Agenda de hoy"/Alertas) sí sabe cuántas clases de esa edición ya
+    // se dieron (`cargadas`) contando las clases anteriores que SÍ tienen fecha — la próxima
+    // en el horario recurrente es, entonces, esa cantidad + 1. Pedido de Diego: "Próximas
+    // clases" mostraba "—" en Nº Clase para estas filas en vez de usar ese dato.
+    const cargadasPorEdicion = {};
+    formaciones.forEach((f) => { cargadasPorEdicion[`${f.codigo}|${f.numero}`] = f.cargadas; });
 
-    // OJO: el campo Edicion de la clase quedó pisado en "1" desde que se armó el Sheet —
-    // el número de edición real que el staff sí actualiza es el campo Numero (mismo
-    // criterio ya usado en Cronograma). Por eso acá edicion se toma de c.numero.
+    // Edición real de cada clase (edicionRealDeClase, ver comentario en calcularFormaciones):
+    // usa el campo Edicion cuando está cargado de verdad, y si no cae al viejo criterio
+    // (Numero) — así una edición cargada "completa" (varias filas, una por clase) no se
+    // parte en tantas ediciones falsas como clases tiene.
     const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => ({
       id: c.id, fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
+      edicion: edicionRealDeClase(c), numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
       horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, esFormacion: true,
       docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
     // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
-    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => ({
-      id: c.id, fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: c.numero, numeroSesion: null, total: TOTALES[c.codigo] || null,
-      horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, esFormacion: true,
-      docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
-    })).filter((c) => c.fecha);
+    const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => {
+      const edicion = edicionRealDeClase(c);
+      const cargadas = cargadasPorEdicion[`${c.codigo}|${edicion}`];
+      const total = TOTALES[c.codigo] || null;
+      // +1 sobre lo ya dado — pero nunca más que el total (una edición al borde del cierre
+      // no debería mostrar "Clase 49 de 48" por este cálculo aproximado).
+      const numeroSesion = cargadas != null ? Math.min(cargadas + 1, total || cargadas + 1) : null;
+      return {
+        id: c.id, fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
+        edicion, numeroSesion, total,
+        horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, esFormacion: true,
+        docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
+      };
+    }).filter((c) => c.fecha);
     // Mismo criterio que en Cronograma: las Formación históricas se excluyen acá,
     // porque ya están representadas (con sala real) en deClases.
     const deOtras = actividades.filter((a) => a.fecha && a.tipo !== 'Formación').map((a) => ({
@@ -362,7 +406,7 @@ export default function InicioPage() {
       docente: a.docente || '', staff: '', tematica: a.tematica || '', observaciones: a.observaciones || ''
     }));
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
-  }, [clases, actividades, edicionesFinalizadas]);
+  }, [clases, actividades, edicionesFinalizadas, formaciones]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO)
     .concat(agendaSinteticaHoy)
@@ -378,7 +422,7 @@ export default function InicioPage() {
     .filter((c) => c.fecha && c.fecha >= inicioSemana && c.fecha <= finSemana)
     .filter((c) => TOTALES[c.codigo] && sesionPorIdSemana[c.id] === TOTALES[c.codigo])
     .map((c) => ({
-      codigo: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo, edicion: c.numero,
+      codigo: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo, edicion: edicionRealDeClase(c),
       total: TOTALES[c.codigo], fecha: c.fecha, dia: c.dia, horaMin: c.horaMin, sala: c.sala
     }))
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
@@ -618,6 +662,7 @@ export default function InicioPage() {
           asignacionesCO={asignacionesCODisponibles}
           formaciones={formaciones}
           formacionesManual={formacionesManual}
+          fechaInicioHistorico={fechaInicioHistorico}
           onGuardado={cargarTodo}
         />
       )}
@@ -625,7 +670,7 @@ export default function InicioPage() {
   );
 }
 
-function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, formaciones, formacionesManual, onGuardado }) {
+function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, formaciones, formacionesManual, fechaInicioHistorico, onGuardado }) {
   const { fetchAutenticado } = useSession();
   const [editando, setEditando] = useState(false);
   const [docE, setDocE] = useState(item.docente || '');
@@ -645,14 +690,20 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
   const usoPeriodoCO = !!periodoCO && (!item.docente || !item.staff) && (!!periodoCO.docente || !!periodoCO.staff);
   // Fecha de inicio de la formación: en orden de confiabilidad, 1) la corrección a mano
   // hecha desde acá o desde Cronograma (pestaña "Formaciones" del Sheet, vía /api/formaciones),
-  // 2) la confirmada a mano por Diego en lib/fechasInicioReales.js, 3) el cálculo automático
-  // de calcularFormaciones (primera clase con fecha cargada de esta edición) — mismo orden
-  // de prioridad que ya usa Cronograma para esta misma columna.
+  // 2) la confirmada a mano por Diego en lib/fechasInicioReales.js, 3) el histórico real
+  // (mismo Excel que ya usa la pantalla Formaciones para este mismo dato — antes faltaba
+  // acá, por eso una edición como Coaching Educativo 65 mostraba "—" en este modal aunque
+  // en Formaciones sí tuviera su fecha de inicio), 4) el cálculo automático de
+  // calcularFormaciones (primera clase con fecha cargada de esta edición).
   const formacionInfo = item.esFormacion ? (formaciones || []).find((f) => f.codigo === item.curso && String(f.numero) === String(item.edicion)) : null;
   const fechaInicioManual = item.esFormacion && item.curso && item.edicion
     ? (formacionesManual || []).find((m) => m.codigo === item.curso && String(m.edicion) === String(item.edicion))?.fechaInicio
     : null;
-  const fechaInicioReal = fechaInicioManual || (item.curso && item.edicion ? FECHAS_INICIO_REALES[`${item.curso}|${item.edicion}`] : null) || formacionInfo?.fechaInicio || null;
+  const fechaInicioReal = fechaInicioManual
+    || (item.curso && item.edicion ? FECHAS_INICIO_REALES[`${item.curso}|${item.edicion}`] : null)
+    || (item.curso && item.edicion ? (fechaInicioHistorico || {})[`${item.curso}|${item.edicion}`] : null)
+    || formacionInfo?.fechaInicio
+    || null;
   const puedeEditarFechaInicio = item.esFormacion && !!item.curso && !!item.edicion;
   const [fechaInicioE, setFechaInicioE] = useState(fechaInicioReal || '');
   // Convierte "HH:MM" a minutos para mandarlo al PATCH (que espera nuevaHoraMin en minutos).
@@ -929,7 +980,7 @@ function TarjetaPendientesSala({ pendientes, puedeAsignar, fetchAutenticado, onA
         {pendientes.map((c) => (
           <div key={c.id} className="bg-bg border border-border rounded-lg p-2.5 flex items-center justify-between flex-wrap gap-2">
             <div className="text-sm">
-              <span className="font-semibold">{NOMBRES[c.codigo] || c.codigo}{c.numero ? ' · Edición ' + c.numero : ''}</span>
+              <span className="font-semibold">{NOMBRES[c.codigo] || c.codigo}{edicionRealDeClase(c) ? ' · Edición ' + edicionRealDeClase(c) : ''}</span>
               <span className="text-textMuted text-xs ml-2">
                 {c.fecha ? formatFechaCorta(c.fecha) : diaCapitalizado(c.dia) + ' (recurrente)'} · {minutosAHora(c.horaMin)}
                 {c.docente ? ' · ' + c.docente : ''}

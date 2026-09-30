@@ -5,7 +5,7 @@ import { tienePermisoEditar, tienePermisoEditarCronograma } from '../../../../li
 import { leerClases, actualizarClase, eliminarClasePorId } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 import { appendRow } from '../../../../lib/sheets';
-import { BUFFER_MIN, minutosAHora, toISO } from '../../../../lib/salasLogic';
+import { minutosAHora, toISO, buscarChoqueSala } from '../../../../lib/salasLogic';
 
 // PATCH /api/clases/[id] -> { nuevaSala?, nuevoDia?, nuevaHoraMin?, docente?, tematica?, observaciones? }
 // Cambiar sala / día / horario revisa choques (los tres pueden venir juntos o por separado,
@@ -31,11 +31,11 @@ export const PATCH = conManejo(async (request, { params }) => {
     const salaFinal = nuevaSala || clase.sala;
     const diaFinal = nuevoDia || clase.dia;
     const horaFinal = nuevaHoraMin != null ? nuevaHoraMin : clase.horaMin;
-    const inicioProp = horaFinal - BUFFER_MIN, finProp = horaFinal + clase.duracion;
-    const choque = clases.find((c) =>
-      c.id !== id && c.sala === salaFinal && c.dia === diaFinal &&
-      inicioProp < (c.horaMin + c.duracion) && (c.horaMin - BUFFER_MIN) < finProp
-    );
+    // Misma función compartida que usan reservar una Formación y agregar una Actividad —
+    // si esta clase ya tiene fecha puntual (una sesión ya dada), el choque se chequea solo
+    // contra esa fecha; si es un horario recurrente (sin fecha), se chequea contra cualquier
+    // ocurrencia futura de ese día de la semana.
+    const choque = buscarChoqueSala(clases, salaFinal, diaFinal, horaFinal, clase.duracion, { fecha: clase.fecha, excluirId: id });
     if (choque) {
       return NextResponse.json({ error: `${salaFinal} está ocupada ese horario por ${choque.label}.` }, { status: 409 });
     }
