@@ -113,14 +113,31 @@ export default function InicioPage() {
   // Avisa cuando a una edición en curso le quedan exactamente 2 clases para terminar —
   // así el equipo puede empezar a coordinar el cierre (certificación, próxima edición, etc.)
   // con un poco de anticipación en vez de enterarse el día de la última clase.
-  const alertasPorFinalizar = useMemo(() => (
-    formaciones
-      .filter((f) => f.estado === 'En proceso' && f.total && f.total - f.cargadas === 2)
-      .map((f) => ({
-        tipo: 'aviso',
-        texto: `Finaliza en breve: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} — va por la clase ${f.cargadas} de ${f.total}.`
-      }))
-  ), [formaciones]);
+  // A pedido de Diego: la intensidad sube a medida que se acerca la última clase — 3
+  // restantes es solo informativo (neutro), 2 restantes es "en breve" (amarillo, como ya
+  // estaba), 1 restante ya es urgente (rojo), y si finalizó AYER puntualmente (no "hace
+  // un tiempo") también es rojo, para no perder la ventana de coordinar cierre/certificación.
+  const alertasPorFinalizar = useMemo(() => {
+    const ayerISO = toISO(new Date(Date.now() - 86400000));
+    const salientes = [];
+    formaciones.forEach((f) => {
+      if (!f.total) return;
+      const nombre = NOMBRES[f.codigo] || f.codigo;
+      if (f.estado === 'En proceso') {
+        const restan = f.total - f.cargadas;
+        if (restan === 3) {
+          salientes.push({ tipo: 'neutro', texto: `En 3 clases finaliza: ${nombre} edición ${f.numero} — va por la clase ${f.cargadas} de ${f.total}.` });
+        } else if (restan === 2) {
+          salientes.push({ tipo: 'finaliza', texto: `Finaliza en breve: ${nombre} edición ${f.numero} — va por la clase ${f.cargadas} de ${f.total}.` });
+        } else if (restan === 1) {
+          salientes.push({ tipo: 'urgente', texto: `¡Última clase próxima!: ${nombre} edición ${f.numero} — va por la clase ${f.cargadas} de ${f.total}.` });
+        }
+      } else if (f.estado === 'Finalizó' && f.fechaFinal === ayerISO) {
+        salientes.push({ tipo: 'urgente', texto: `Finalizó ayer: ${nombre} edición ${f.numero} — coordinar cierre (certificación, próxima edición, etc.).` });
+      }
+    });
+    return salientes;
+  }, [formaciones]);
   // Avisa cuando a una edición todavía sin ninguna clase dictada (cargadas === 0) le quedan
   // 15 días o menos para su primera clase — para poder ir coordinando antes de que arranque.
   const alertasPorComenzar = useMemo(() => {
@@ -133,7 +150,7 @@ export default function InicioPage() {
       })
       .filter(({ diasFaltan }) => diasFaltan >= 0 && diasFaltan <= 15)
       .map(({ f, diasFaltan }) => ({
-        tipo: 'aviso',
+        tipo: 'neutro',
         texto: diasFaltan === 0
           ? `Hoy comienza: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} (${formatFechaCorta(f.fechaInicio)}).`
           : `En ${diasFaltan} día${diasFaltan === 1 ? '' : 's'} comienza: ${NOMBRES[f.codigo] || f.codigo} edición ${f.numero} (${formatFechaCorta(f.fechaInicio)}).`
@@ -159,7 +176,7 @@ export default function InicioPage() {
         const texto = fueCancelada
           ? `Esta semana se canceló: ${nombre} edición ${p.edicion} — clase ${p.numero} del ${formatFechaCorta(p.fechaOriginal)}${p.motivo ? ` (${p.motivo})` : ''}.`
           : `Esta semana se postergó: ${nombre} edición ${p.edicion} — clase ${p.numero} pasó del ${formatFechaCorta(p.fechaOriginal)} al ${formatFechaCorta(p.fechaNueva)}${p.motivo ? ` (${p.motivo})` : ''}.`;
-        return { tipo: 'postergacion', texto };
+        return { tipo: 'neutro', texto };
       });
   }, [postergaciones]);
   // Avisa cuando un período de Docentes C.O. ya está vigente (arrancó hoy o antes, y no
@@ -168,18 +185,31 @@ export default function InicioPage() {
   // que usa esa pantalla (clase más reciente con esa edición y con sala cargada).
   const alertasActividadFaltante = useMemo(() => {
     const hoyISO = toISO(new Date());
-    const salaPorEdicionCO = {};
-    clases.filter((c) => c.codigo === 'CO' && c.numero && c.sala).forEach((c) => {
-      const actual = salaPorEdicionCO[c.numero];
-      if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[c.numero] = c;
+    // Dos cosas distintas, para no decir "no tiene ninguna clase creada" cuando en realidad
+    // la clase ya existe y solo le falta la sala (caso "pendienteSala" — ver TarjetaPendientesSala
+    // más arriba en esta misma página, ahí se asigna).
+    const existeClasePorEdicion = {}; // alguna clase (con o sin sala)
+    const salaPorEdicionCO = {}; // la más reciente que además tenga sala
+    clases.filter((c) => c.codigo === 'CO' && c.numero).forEach((c) => {
+      existeClasePorEdicion[c.numero] = true;
+      if (c.sala) {
+        const actual = salaPorEdicionCO[c.numero];
+        if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[c.numero] = c;
+      }
     });
     return asignacionesCODisponibles
       .filter((a) => a.desde && a.desde <= hoyISO && (!a.hasta || a.hasta >= hoyISO))
       .filter((a) => !salaPorEdicionCO[a.edicion])
-      .map((a) => ({
-        tipo: 'actividadFaltante',
-        texto: `Falta cargar la clase: Coaching Ontológico edición ${a.edicion} ya está vigente (desde el ${formatFechaCorta(a.desde)}) pero no tiene ninguna clase creada en Salas Zoom todavía.`
-      }));
+      .map((a) => existeClasePorEdicion[a.edicion]
+        ? {
+            tipo: 'actividadFaltante', accion: 'asignarSala',
+            texto: `Falta asignar sala: Coaching Ontológico edición ${a.edicion} ya tiene la clase cargada, pero todavía sin sala — asignásela en "Salas pendientes de asignar", arriba de "Agenda de hoy".`
+          }
+        : {
+            tipo: 'actividadFaltante', accion: 'cargarClase',
+            texto: `Falta cargar la clase: Coaching Ontológico edición ${a.edicion} ya está vigente (desde el ${formatFechaCorta(a.desde)}) pero no tiene ninguna clase creada en Salas Zoom todavía.`
+          }
+      );
   }, [asignacionesCODisponibles, clases]);
   const alertas = useMemo(
     () => [...alertasConflictos, ...alertasActividadFaltante, ...alertasPostergaciones, ...alertasPorFinalizar, ...alertasPorComenzar],
@@ -336,7 +366,10 @@ export default function InicioPage() {
           )}
 
           <div data-tour="agenda-hoy" className={sectionCls}>
-            <h2 className="text-sm font-semibold mb-1">Agenda de hoy</h2>
+            <h2 className="text-sm font-semibold mb-1 flex items-center gap-2">
+              Agenda de hoy
+              <span className="dot-en-vivo" title="Se actualiza sola" />
+            </h2>
             <p className="text-xs text-textMuted mb-3">{formatFechaCorta(hoyISO)}</p>
             {agendaHoy.length === 0 ? (
               <p className="text-textSec text-sm py-2">Sin actividades cargadas para hoy.</p>
@@ -345,9 +378,12 @@ export default function InicioPage() {
                 {agendaHoy.map((a, i) => {
                   const estadoAgenda = estadoDeAgenda(a.horaMin, a.duracion);
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;
+                  // Pedido de Diego: una clase ya finalizada no debe verse igual de "viva" que
+                  // las que todavía vienen — se le baja el brillo a toda la tarjeta.
+                  const yaFinalizada = estadoAgenda === 'finalizada';
                   return (
                     <button key={i} onClick={() => setSeleccionado(a)}
-                      className={`text-left border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3 transition-colors hover:border-accentTeal/60 hover:bg-bg/40`}>
+                      className={`text-left border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3 transition-colors hover:border-accentTeal/60 hover:bg-bg/40 ${yaFinalizada ? 'opacity-55' : ''}`}>
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <span className="font-mono text-xs text-textSec">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
                         {estadoAgenda === 'en-vivo' && (
@@ -422,11 +458,16 @@ export default function InicioPage() {
             ) : (
               <div className="flex flex-col gap-1.5">
                 {alertas.map((a, i) => {
+                  // Pedido de Diego: que el color llame la atención solo en lo urgente de
+                  // verdad — rojo en "Falta cargar la clase"/"urgente" (última clase próxima o
+                  // finalizó ayer) y amarillo únicamente en "Finaliza en breve". Todo lo demás
+                  // (incidencias, postergaciones/cancelaciones, "comienza en X días", "en 3
+                  // clases finaliza") queda con un gris neutro, sin perder el link a su detalle
+                  // cuando lo tiene.
                   const cls = `rounded-lg px-3 py-2 text-xs font-medium ${
-                    a.tipo === 'warn' ? 'bg-dangerBg text-dangerText'
-                      : a.tipo === 'actividadFaltante' ? 'bg-dangerBg text-dangerText'
-                      : a.tipo === 'postergacion' ? 'bg-infoBg text-infoText'
-                      : 'bg-warningBg text-warningText'
+                    a.tipo === 'actividadFaltante' || a.tipo === 'urgente' ? 'bg-dangerBg text-dangerText'
+                      : a.tipo === 'finaliza' ? 'bg-warningBg text-warningText'
+                      : 'bg-surface2 text-textSec border border-border'
                   }`;
                   // Los conflictos de sala/feriado (tipo "warn") tienen su detalle completo en
                   // /incidencias, y una actividad de C.O. sin cargar se completa desde Salas
@@ -438,12 +479,17 @@ export default function InicioPage() {
                       </Link>
                     );
                   }
-                  if (a.tipo === 'actividadFaltante') {
+                  if (a.tipo === 'actividadFaltante' && a.accion === 'cargarClase') {
                     return (
                       <Link key={i} href="/salas-zoom" className={`${cls} block hover:brightness-125 transition-[filter]`}>
                         {a.texto} <span className="underline">Cargar actividad →</span>
                       </Link>
                     );
+                  }
+                  // "Falta asignar sala": la acción está en esta misma página (más arriba,
+                  // en "Salas pendientes de asignar"), así que no hace falta ningún link.
+                  if (a.tipo === 'actividadFaltante') {
+                    return <div key={i} className={cls}>{a.texto}</div>;
                   }
                   return <div key={i} className={cls}>{a.texto}</div>;
                 })}
