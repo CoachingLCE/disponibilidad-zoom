@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase, calcularFormacionesEnriquecidas, entradaHoyFormacionSinLive
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase, calcularFormacionesEnriquecidas, entradasFuturasFormacionSinLive
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
@@ -247,13 +247,14 @@ export default function CronogramaPage() {
     // real, con sala asignada). Si las mezclamos, la misma edición aparece dos veces.
     const deOtras = actividades.filter((a) => a.tipo !== 'Formación').map((a) => ({ ...a, duracion: 90, pasada: esPasada(a.fecha) }));
     // Formaciones sin NINGUNA fila viva en Salas Zoom (ej: Coaching Deportivo, que nunca se
-    // migra ahí) pero con clase HOY según su cadencia semanal real — mismo mecanismo que
-    // Inicio (ver comentario en entradaHoyFormacionSinLive), para que el cronograma tampoco
-    // las muestre en blanco. Pedido de Diego (30/09/2026): "TODAS DEBERIAN APARECER EN HOY".
+    // migra ahí) — se arma acá TODA la serie de clases que le quedan (no solo la de hoy: acá
+    // en el cronograma, a diferencia de Agenda de hoy, hace falta ver las próximas también.
+    // Pedido de Diego: "Porque no aparecen todas las clases? Coaching Deportivo Edición 14
+    // Clase 15 de 16" — antes solo se armaba la de hoy, y la semana siguiente desaparecía).
     const formacionesCalc = calcularFormacionesEnriquecidas(clases, formacionesManual);
+    const hoyISOparaFormaciones = toISO(new Date());
     const hoyDeFormacionesSinLive = formacionesCalc
-      .map((f) => entradaHoyFormacionSinLive(f, toISO(new Date())))
-      .filter(Boolean)
+      .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISOparaFormaciones))
       .map((a) => ({ ...a, tipo: 'Formación', pasada: false }));
     const claveOrden = (a) => a.fecha || a.fechaInicioEdicion || '';
     const completo = deClasesConFecha.concat(deClasesRecurrentes, deOtras, hoyDeFormacionesSinLive).sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)) || (b.horaMin || 0) - (a.horaMin || 0));
@@ -452,7 +453,16 @@ export default function CronogramaPage() {
                                     {conChoque && <span className="text-dangerText">⚠ </span>}
                                     {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
                                     <span className="block font-normal text-[10px] opacity-80">
-                                      {a.sala ? a.sala : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold">⚠ Sin sala</span> : (a.nombreCurso || ''))}
+                                      {a.sala
+                                        ? a.sala
+                                        // sinRepresentacionViva (ver lib/salasLogic.js): este curso nunca se carga
+                                        // en Salas Zoom por diseño (ej. Coaching Deportivo) — no tiene sala NI
+                                        // la va a tener nunca, así que "⚠ Sin sala" es un aviso falso acá (esa
+                                        // alerta es para una Formación real que sí debería tener sala asignada).
+                                        // Mismo criterio que ya se corrigió en Agenda de hoy (v3.60.2).
+                                        : a.sinRepresentacionViva
+                                          ? (a.nombreCurso || '')
+                                          : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold">⚠ Sin sala</span> : (a.nombreCurso || ''))}
                                     </span>
                                   </div>
                                 );

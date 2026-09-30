@@ -7,7 +7,7 @@ import { tienePermisoEditarCronograma } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, calcularAlertas, calcularFormacionesEnriquecidas, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
-  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase, entradaHoyFormacionSinLive
+  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase, entradasFuturasFormacionSinLive
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
@@ -414,9 +414,11 @@ export default function InicioPage() {
     // estimada) — sin este filtro, una edición de CO que arranca justo hoy terminaba
     // duplicada (una tarjeta por cada mecanismo, ambas iguales).
     const cubiertasPorAgendaSintetica = new Set(agendaSinteticaHoy.map((a) => `${a.curso}|${a.edicion}`));
+    // Acá (Agenda de hoy) solo hace falta la clase de HOY de cada una — el resto de las
+    // futuras (para "Próximas clases"/Cronograma) se arman aparte en app/cronograma/page.js.
     const hoyDeFormacionesSinLive = formaciones
-      .map((f) => entradaHoyFormacionSinLive(f, hoyISO))
-      .filter(Boolean)
+      .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISO))
+      .filter((a) => a.fecha === hoyISO)
       .filter((a) => !cubiertasPorAgendaSintetica.has(`${a.curso}|${a.edicion}`));
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras, hoyDeFormacionesSinLive).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades, edicionesFinalizadas, formaciones, agendaSinteticaHoy]);
