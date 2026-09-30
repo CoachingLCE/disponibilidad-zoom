@@ -7,7 +7,7 @@ import { tienePermisoEditarCronograma } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, calcularAlertas, calcularFormacionesEnriquecidas, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
-  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase
+  calcularNumeroSesion, toISO, buscarPeriodoCO
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
@@ -202,15 +202,11 @@ export default function InicioPage() {
     // más arriba en esta misma página, ahí se asigna).
     const existeClasePorEdicion = {}; // alguna clase (con o sin sala)
     const salaPorEdicionCO = {}; // la más reciente que además tenga sala
-    // Edición real (edicionRealDeClase) — no c.numero directo, que en una edición cargada
-    // "completa" (varias filas, una por clase) es el Nº de sesión, no el Nº de edición.
-    clases.filter((c) => c.codigo === 'CO').forEach((c) => {
-      const edicion = edicionRealDeClase(c);
-      if (!edicion) return;
-      existeClasePorEdicion[edicion] = true;
+    clases.filter((c) => c.codigo === 'CO' && c.numero).forEach((c) => {
+      existeClasePorEdicion[c.numero] = true;
       if (c.sala) {
-        const actual = salaPorEdicionCO[edicion];
-        if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[edicion] = c;
+        const actual = salaPorEdicionCO[c.numero];
+        if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[c.numero] = c;
       }
     });
     return asignacionesCODisponibles
@@ -357,7 +353,7 @@ export default function InicioPage() {
       return toISO(d);
     }
 
-    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${edicionRealDeClase(c)}`);
+    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
     // El campo Numero de la clase identifica la EDICIÓN (ej: "CO 51"), no qué sesión
     // semanal es dentro de ella — calcularNumeroSesion cuenta la posición real entre las
     // clases con fecha de esa misma edición (mismo criterio que ya usa Cronograma), para
@@ -372,28 +368,26 @@ export default function InicioPage() {
     const cargadasPorEdicion = {};
     formaciones.forEach((f) => { cargadasPorEdicion[`${f.codigo}|${f.numero}`] = f.cargadas; });
 
-    // Edición real de cada clase (edicionRealDeClase, ver comentario en calcularFormaciones):
-    // usa el campo Edicion cuando está cargado de verdad, y si no cae al viejo criterio
-    // (Numero) — así una edición cargada "completa" (varias filas, una por clase) no se
-    // parte en tantas ediciones falsas como clases tiene.
+    // OJO: el campo Edicion de la clase quedó pisado en "1" desde que se armó el Sheet —
+    // el número de edición real que el staff sí actualiza es el campo Numero (mismo
+    // criterio ya usado en Cronograma). Por eso acá edicion se toma de c.numero.
     const deClasesConFecha = clases.filter((c) => c.fecha && noFinalizada(c)).map((c) => ({
       id: c.id, fecha: c.fecha, dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-      edicion: edicionRealDeClase(c), numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
+      edicion: c.numero, numeroSesion: sesionPorId[c.id] || null, total: TOTALES[c.codigo] || null,
       horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, esFormacion: true,
       docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
     }));
     // Clases del horario recurrente (Grilla de Salas Zoom, sin fecha puntual todavía):
     // se muestran igual, proyectadas a su próxima fecha real según el día que les toca.
     const deClasesRecurrentes = clases.filter((c) => !c.fecha && c.dia && noFinalizada(c)).map((c) => {
-      const edicion = edicionRealDeClase(c);
-      const cargadas = cargadasPorEdicion[`${c.codigo}|${edicion}`];
+      const cargadas = cargadasPorEdicion[`${c.codigo}|${c.numero}`];
       const total = TOTALES[c.codigo] || null;
       // +1 sobre lo ya dado — pero nunca más que el total (una edición al borde del cierre
       // no debería mostrar "Clase 49 de 48" por este cálculo aproximado).
       const numeroSesion = cargadas != null ? Math.min(cargadas + 1, total || cargadas + 1) : null;
       return {
         id: c.id, fecha: proximaFechaParaDia(c.dia), dia: c.dia, curso: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo,
-        edicion, numeroSesion, total,
+        edicion: c.numero, numeroSesion, total,
         horaMin: c.horaMin, duracion: c.duracion, sala: c.sala, esFormacion: true,
         docente: c.docente || '', staff: c.staff || '', tematica: c.tematica || '', observaciones: c.observaciones || ''
       };
@@ -422,7 +416,7 @@ export default function InicioPage() {
     .filter((c) => c.fecha && c.fecha >= inicioSemana && c.fecha <= finSemana)
     .filter((c) => TOTALES[c.codigo] && sesionPorIdSemana[c.id] === TOTALES[c.codigo])
     .map((c) => ({
-      codigo: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo, edicion: edicionRealDeClase(c),
+      codigo: c.codigo, nombreCurso: NOMBRES[c.codigo] || c.codigo, edicion: c.numero,
       total: TOTALES[c.codigo], fecha: c.fecha, dia: c.dia, horaMin: c.horaMin, sala: c.sala
     }))
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
@@ -980,7 +974,7 @@ function TarjetaPendientesSala({ pendientes, puedeAsignar, fetchAutenticado, onA
         {pendientes.map((c) => (
           <div key={c.id} className="bg-bg border border-border rounded-lg p-2.5 flex items-center justify-between flex-wrap gap-2">
             <div className="text-sm">
-              <span className="font-semibold">{NOMBRES[c.codigo] || c.codigo}{edicionRealDeClase(c) ? ' · Edición ' + edicionRealDeClase(c) : ''}</span>
+              <span className="font-semibold">{NOMBRES[c.codigo] || c.codigo}{c.numero ? ' · Edición ' + c.numero : ''}</span>
               <span className="text-textMuted text-xs ml-2">
                 {c.fecha ? formatFechaCorta(c.fecha) : diaCapitalizado(c.dia) + ' (recurrente)'} · {minutosAHora(c.horaMin)}
                 {c.docente ? ' · ' + c.docente : ''}

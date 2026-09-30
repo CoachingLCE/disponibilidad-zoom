@@ -22,12 +22,13 @@ export default function AccionesRapidas() {
   return (
     // Los 3 botones flotantes (badge de versión, este "+", "❓ Necesito ayuda") comparten
     // right-4 y quedan apilados con espacio entre sí, de abajo hacia arriba: badge (bottom-3)
-    // → "+" (bottom-12) → ayuda (bottom-28, ver TourGuiado.js) — antes se pisaban entre sí.
+    // → ayuda (bottom-12, ver TourGuiado.js) → "+" (bottom-28) — pedido de Diego: el "+"
+    // tiene que quedar arriba de "Necesito ayuda" (antes era al revés).
     // z-[95] cuando está abierto: el botón "❓ Necesito ayuda" y el badge de versión son
     // fixed con su propio z-index (90 y 40 respectivamente) — al comparar stacking contexts
     // distintos gana el de mayor z-index del contenedor "fixed" entero, no el de sus hijos,
     // así que había que subir ACÁ (no solo en el menú) para que no tapen los botones del menú.
-    <div className={`fixed bottom-12 right-4 ${abierto ? 'z-[95]' : 'z-40'}`}>
+    <div className={`fixed bottom-28 right-4 ${abierto ? 'z-[95]' : 'z-40'}`}>
       {abierto && (
         <div className="absolute bottom-32 right-0 bg-surface2 border border-border rounded-xl p-1.5 w-48 shadow-lg">
           {ACCIONES.map((a, i) => (
