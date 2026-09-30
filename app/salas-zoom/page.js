@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, TOTALES, NOMBRES, ICONOS,
@@ -41,7 +41,18 @@ const HORAS_OPCIONES = (() => {
   return out;
 })();
 
+// useSearchParams (para precargar el formulario desde el link "Cargar actividad →" de
+// Inicio) obliga a Next a envolver la página en un Suspense — si no, falla el build al
+// intentar generar la página estáticamente ("should be wrapped in a suspense boundary").
 export default function SalasZoomPage() {
+  return (
+    <Suspense fallback={null}>
+      <SalasZoomPageInterna />
+    </Suspense>
+  );
+}
+
+function SalasZoomPageInterna() {
   const { usuario, cargando, fetchAutenticado } = useSession();
   const router = useRouter();
   const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
@@ -57,6 +68,24 @@ export default function SalasZoomPage() {
   const [diaSala, setDiaSala] = useState('LUNES');
 
   const [accion, setAccion] = useState(null);
+
+  // Al venir del link "Cargar actividad →" de una alerta de Inicio (edición de C.O. vigente
+  // pero sin clase creada todavía), se manda la edición/fecha/docente por query params para
+  // precargar el formulario de "Nueva clase" de acá abajo, en vez de que Diego tenga que
+  // volver a tipear todo lo que ya se sabe.
+  const searchParams = useSearchParams();
+  const prefill = useMemo(() => {
+    const curso = searchParams.get('prefillCurso');
+    if (!curso) return null;
+    return {
+      curso,
+      edicion: searchParams.get('prefillEdicion') || '',
+      fecha: searchParams.get('prefillFecha') || '',
+      docente: searchParams.get('prefillDocente') || '',
+      staff: searchParams.get('prefillStaff') || '',
+      horario: searchParams.get('prefillHorario') || ''
+    };
+  }, [searchParams]);
 
   useEffect(() => {
     if (!cargando && !usuario) router.push('/login');
@@ -231,7 +260,7 @@ export default function SalasZoomPage() {
       </div>
 
       {puedeEditar && (
-        <PanelReservar fetchAutenticado={fetchAutenticado} onReservado={cargarDatos} usuario={usuario} />
+        <PanelReservar fetchAutenticado={fetchAutenticado} onReservado={cargarDatos} usuario={usuario} prefill={prefill} />
       )}
 
       {accion && (
@@ -415,7 +444,27 @@ const CURSOS_MATERIA = [
   ['OTRO_Formador', 'Formador para formadores'], ['OTRO_PNL', 'PNL'], ['', '— Ninguno / no aplica —']
 ];
 
-function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
+// El campo "Horario" de Docentes C.O. es texto libre cargado a mano (ej: "19.00 a 21.00
+// horas", "19:00 a 21:00hs") — para precargar la hora del formulario de acá abajo se intenta
+// leer el primer número que aparece, tolerando "." o ":" como separador de minutos. Si no
+// se puede interpretar, no rompe nada: el campo queda con su valor por defecto (18:00).
+function horaDesdeTextoHorario(horario) {
+  if (!horario) return null;
+  const m = String(horario).match(/(\d{1,2})[.:hH](\d{2})/);
+  if (!m) return null;
+  const hh = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  if (Number.isNaN(hh) || Number.isNaN(mm) || hh > 23 || mm > 59) return null;
+  // Los horarios del formulario van en pasos de 30' (08:00, 08:30, …) — se redondea al más
+  // cercano para que la hora parseada siempre matchee una opción real del selector.
+  let totalMin = hh * 60 + mm;
+  totalMin = Math.round(totalMin / 30) * 30;
+  const hFinal = Math.floor(totalMin / 60);
+  const mFinal = totalMin % 60;
+  return `${String(hFinal).padStart(2, '0')}:${String(mFinal).padStart(2, '0')}`;
+}
+
+function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
   const puedeEditarDocentesCO = tienePermisoEditarDocentesCO(usuario);
   // Sofía, Paula y SuperAdmin además ven la opción para cargar un período de Docentes C.O
   // desde acá — el resto del equipo con acceso a Salas Zoom no la ve, porque no tiene
@@ -464,6 +513,27 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
   const [hastaPeriodo, setHastaPeriodo] = useState('');
   const [salaPeriodo, setSalaPeriodo] = useState('');
   const [cuatrimestrePeriodo, setCuatrimestrePeriodo] = useState('');
+
+  // Al venir del link "Cargar actividad →" de una alerta de Inicio, precarga acá el
+  // formulario con lo que ya se sabe de esa edición (curso, edición, fecha de inicio del
+  // período vigente, docente/staff) — Diego solo tiene que revisar y elegir sala/horario.
+  // Se aplica una sola vez (guardado en `prefillAplicado`) para no pisar cambios que el
+  // usuario haga a mano después si el componente se vuelve a renderizar.
+  const [prefillAplicado, setPrefillAplicado] = useState(false);
+  useEffect(() => {
+    if (!prefill || prefillAplicado) return;
+    setPrefillAplicado(true);
+    setTipo('Formación');
+    setCodigo(prefill.curso);
+    setEdicion(prefill.edicion || '');
+    setNumero('1'); // primera clase de la edición — dispara el flujo de edición completa para C.O.
+    setCantidad(TOTALES[prefill.curso] || 1);
+    if (prefill.fecha) setFecha(prefill.fecha);
+    if (prefill.docente) setDocente(prefill.docente);
+    if (prefill.staff) setStaff(prefill.staff);
+    const horaDetectada = horaDesdeTextoHorario(prefill.horario);
+    if (horaDetectada) setHoraTxt(horaDetectada);
+  }, [prefill, prefillAplicado]);
 
   // Vuelca lo que detectó la Lectura Inteligente en los campos normales del formulario —
   // el operador siempre puede revisar/corregir antes de guardar, nunca se guarda solo.
@@ -649,6 +719,12 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
         Un solo lugar para cargar todo — Formaciones buscan sala disponible; el resto de los tipos se agrega directo al cronograma.
       </p>
 
+      {prefillAplicado && (
+        <p className="text-xs bg-infoBg text-infoText border border-infoText/40 rounded-lg px-3 py-2 mb-3">
+          ✓ Precargado desde la alerta de Inicio — revisá los datos y elegí sala/horario antes de guardar.
+        </p>
+      )}
+
       <LecturaInteligente onAplicar={aplicarLectura} />
 
       <div className={`${seccionCls} mb-3`}>
@@ -819,7 +895,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario }) {
               {esFormacion ? (
                 <div><label className={campoLabelCls}>Sala de Zoom preferida (opcional)</label>
                   <select value={salaPreferida} onChange={(e) => setSalaPreferida(e.target.value)} className={campoCls}>
-                    <option value="">Se define al buscar</option>
+                    <option value="">Automática</option>
                     {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>

@@ -20,9 +20,15 @@ export default function AccionesRapidas() {
   if (!puedeEditar) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-40">
+    // z-[95] cuando está abierto: el botón "❓ Necesito ayuda" (bottom-16) y el badge de
+    // versión (bottom-3) son fixed con su propio z-index (90 y 40 respectivamente) — al
+    // comparar stacking contexts distintos gana el de mayor z-index del contenedor "fixed"
+    // entero, no el de sus hijos, así que había que subir ACÁ (no solo en el menú) para que
+    // no tapen los botones del menú. También se corrió el menú más arriba (bottom-24 en vez
+    // de bottom-14) para que quede por completo arriba de "Necesito ayuda".
+    <div className={`fixed bottom-5 right-5 ${abierto ? 'z-[95]' : 'z-40'}`}>
       {abierto && (
-        <div className="absolute bottom-14 right-0 bg-surface2 border border-border rounded-xl p-1.5 w-48 shadow-lg">
+        <div className="absolute bottom-24 right-0 bg-surface2 border border-border rounded-xl p-1.5 w-48 shadow-lg">
           {ACCIONES.map((a, i) => (
             <button
               key={i}

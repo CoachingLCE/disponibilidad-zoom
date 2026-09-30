@@ -302,8 +302,16 @@ export default function FormacionesPage() {
                       <span>Clase {Math.max(0, Math.min(f.cargadas, f.total) - (claseHoyNoTerminada(f) ? 1 : 0))} / {f.total}</span>
                       <span>{f.pct}%</span>
                     </div>
-                    <div className="w-full h-2 bg-bg border border-border rounded-full overflow-hidden mb-3">
-                      <div className={`h-full ${color.dot}`} style={{ width: f.pct + '%' }} />
+                    {/* Pedido de Diego: que la barra se vea "creciendo" — fina al arrancar la
+                        edición, cada vez más gruesa a medida que se completa — en vez de una
+                        franja pareja de punta a punta. Se logra con un clip-path en cuña: el
+                        propio relleno (ancho = pct%) va de fino en su borde izquierdo a full
+                        alto en el derecho, así cuanto más avanzada la edición, más gruesa se ve. */}
+                    <div className="w-full h-2.5 bg-bg border border-border rounded-full overflow-hidden mb-3">
+                      <div
+                        className={`h-full ${color.dot}`}
+                        style={{ width: f.pct + '%', clipPath: 'polygon(0% 35%, 100% 0%, 100% 100%, 0% 65%)' }}
+                      />
                     </div>
                     {f.cargadas > f.total && f.estado !== 'Finalizó' && (
                       <p className="text-[10.5px] text-warningText mb-2">

@@ -207,14 +207,34 @@ export default function InicioPage() {
           }
         : {
             tipo: 'actividadFaltante', accion: 'cargarClase',
-            texto: `Falta cargar la clase: Coaching Ontológico edición ${a.edicion} ya está vigente (desde el ${formatFechaCorta(a.desde)}) pero no tiene ninguna clase creada en Salas Zoom todavía.`
+            texto: `Falta cargar la clase: Coaching Ontológico edición ${a.edicion} ya está vigente (desde el ${formatFechaCorta(a.desde)}) pero no tiene ninguna clase creada en Salas Zoom todavía.`,
+            // Se manda a "Cargar actividad →" para precargar el formulario de Salas Zoom con
+            // estos datos (edición, fecha de inicio, docente/staff del período vigente) — así
+            // Diego solo tiene que confirmar sala/horario en vez de tipear todo de nuevo.
+            prefillHref: `/salas-zoom?prefillCurso=CO&prefillEdicion=${encodeURIComponent(a.edicion)}&prefillFecha=${encodeURIComponent(a.desde || '')}&prefillDocente=${encodeURIComponent(a.docente || '')}&prefillStaff=${encodeURIComponent(a.staff || '')}&prefillHorario=${encodeURIComponent(a.horario || '')}`
           }
       );
   }, [asignacionesCODisponibles, clases]);
+  // Pedido de Diego: separar "Alertas activas" en sub-grupos en vez de una sola lista
+  // mezclada — así "Falta cargar/asignar sala" (lo urgente y accionable) no se pierde
+  // entre "Finaliza en breve" de otras ediciones. Cada alerta se etiqueta con `categoria`
+  // acá (sin tocar las funciones que las calculan) y el render más abajo arma una
+  // sub-tabla por categoría, en este mismo orden, mostrando solo las que tengan alertas.
   const alertas = useMemo(
-    () => [...alertasConflictos, ...alertasActividadFaltante, ...alertasPostergaciones, ...alertasPorFinalizar, ...alertasPorComenzar],
+    () => [
+      ...alertasActividadFaltante.map((a) => ({ ...a, categoria: 'cargas' })),
+      ...alertasPorFinalizar.map((a) => ({ ...a, categoria: 'finalizacion' })),
+      ...alertasConflictos.map((a) => ({ ...a, categoria: 'otras' })),
+      ...alertasPostergaciones.map((a) => ({ ...a, categoria: 'otras' })),
+      ...alertasPorComenzar.map((a) => ({ ...a, categoria: 'otras' }))
+    ],
     [alertasConflictos, alertasActividadFaltante, alertasPostergaciones, alertasPorFinalizar, alertasPorComenzar]
   );
+  const GRUPOS_ALERTAS = [
+    { categoria: 'cargas', titulo: 'Cargas de Zoom' },
+    { categoria: 'finalizacion', titulo: 'Finalización de ediciones' },
+    { categoria: 'otras', titulo: 'Otras' }
+  ];
 
   // Clases reservadas "sin sala" desde Salas Zoom (para no perder el lugar en el cronograma
   // cuando en el momento no había ninguna libre, o simplemente se decidió elegirla después) —
@@ -456,42 +476,53 @@ export default function InicioPage() {
             {alertas.length === 0 ? (
               <p className="text-textSec text-sm py-1">Sin conflictos detectados por ahora.</p>
             ) : (
-              <div className="flex flex-col gap-1.5">
-                {alertas.map((a, i) => {
-                  // Pedido de Diego: que el color llame la atención solo en lo urgente de
-                  // verdad — rojo en "Falta cargar la clase"/"urgente" (última clase próxima o
-                  // finalizó ayer) y amarillo únicamente en "Finaliza en breve". Todo lo demás
-                  // (incidencias, postergaciones/cancelaciones, "comienza en X días", "en 3
-                  // clases finaliza") queda con un gris neutro, sin perder el link a su detalle
-                  // cuando lo tiene.
-                  const cls = `rounded-lg px-3 py-2 text-xs font-medium ${
-                    a.tipo === 'actividadFaltante' || a.tipo === 'urgente' ? 'bg-dangerBg text-dangerText'
-                      : a.tipo === 'finaliza' ? 'bg-warningBg text-warningText'
-                      : 'bg-surface2 text-textSec border border-border'
-                  }`;
-                  // Los conflictos de sala/feriado (tipo "warn") tienen su detalle completo en
-                  // /incidencias, y una actividad de C.O. sin cargar se completa desde Salas
-                  // Zoom → Agregar actividad — clickeable para ir directo ahí en vez de solo avisar acá.
-                  if (a.tipo === 'warn') {
-                    return (
-                      <Link key={i} href="/incidencias" className={`${cls} block hover:brightness-125 transition-[filter]`}>
-                        {a.texto} <span className="underline">Ver detalle →</span>
-                      </Link>
-                    );
-                  }
-                  if (a.tipo === 'actividadFaltante' && a.accion === 'cargarClase') {
-                    return (
-                      <Link key={i} href="/salas-zoom" className={`${cls} block hover:brightness-125 transition-[filter]`}>
-                        {a.texto} <span className="underline">Cargar actividad →</span>
-                      </Link>
-                    );
-                  }
-                  // "Falta asignar sala": la acción está en esta misma página (más arriba,
-                  // en "Salas pendientes de asignar"), así que no hace falta ningún link.
-                  if (a.tipo === 'actividadFaltante') {
-                    return <div key={i} className={cls}>{a.texto}</div>;
-                  }
-                  return <div key={i} className={cls}>{a.texto}</div>;
+              <div className="flex flex-col gap-3">
+                {GRUPOS_ALERTAS.map((grupo) => {
+                  const items = alertas.filter((a) => a.categoria === grupo.categoria);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={grupo.categoria}>
+                      <p className="text-[10.5px] font-semibold text-textMuted uppercase tracking-wide mb-1">{grupo.titulo}</p>
+                      <div className="flex flex-col gap-1.5">
+                        {items.map((a, i) => {
+                          // Pedido de Diego: que el color llame la atención solo en lo urgente de
+                          // verdad — rojo en "Falta cargar la clase"/"urgente" (última clase próxima o
+                          // finalizó ayer) y amarillo únicamente en "Finaliza en breve". Todo lo demás
+                          // (incidencias, postergaciones/cancelaciones, "comienza en X días", "en 3
+                          // clases finaliza") queda con un gris neutro, sin perder el link a su detalle
+                          // cuando lo tiene.
+                          const cls = `rounded-lg px-3 py-2 text-xs font-medium ${
+                            a.tipo === 'actividadFaltante' || a.tipo === 'urgente' ? 'bg-dangerBg text-dangerText'
+                              : a.tipo === 'finaliza' ? 'bg-warningBg text-warningText'
+                              : 'bg-surface2 text-textSec border border-border'
+                          }`;
+                          // Los conflictos de sala/feriado (tipo "warn") tienen su detalle completo en
+                          // /incidencias, y una actividad de C.O. sin cargar se completa desde Salas
+                          // Zoom → Agregar actividad — clickeable para ir directo ahí en vez de solo avisar acá.
+                          if (a.tipo === 'warn') {
+                            return (
+                              <Link key={i} href="/incidencias" className={`${cls} block no-underline hover:brightness-125 transition-[filter]`}>
+                                {a.texto} <span className="underline">Ver detalle →</span>
+                              </Link>
+                            );
+                          }
+                          if (a.tipo === 'actividadFaltante' && a.accion === 'cargarClase') {
+                            return (
+                              <Link key={i} href={a.prefillHref || '/salas-zoom'} className={`${cls} block no-underline hover:brightness-125 transition-[filter]`}>
+                                {a.texto} <span className="underline">Cargar actividad →</span>
+                              </Link>
+                            );
+                          }
+                          // "Falta asignar sala": la acción está en esta misma página (más arriba,
+                          // en "Salas pendientes de asignar"), así que no hace falta ningún link.
+                          if (a.tipo === 'actividadFaltante') {
+                            return <div key={i} className={cls}>{a.texto}</div>;
+                          }
+                          return <div key={i} className={cls}>{a.texto}</div>;
+                        })}
+                      </div>
+                    </div>
+                  );
                 })}
               </div>
             )}
