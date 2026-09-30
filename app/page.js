@@ -211,10 +211,43 @@ export default function InicioPage() {
             // Se manda a "Cargar actividad →" para precargar el formulario de Salas Zoom con
             // estos datos (edición, fecha de inicio, docente/staff del período vigente) — así
             // Diego solo tiene que confirmar sala/horario en vez de tipear todo de nuevo.
-            prefillHref: `/salas-zoom?prefillCurso=CO&prefillEdicion=${encodeURIComponent(a.edicion)}&prefillFecha=${encodeURIComponent(a.desde || '')}&prefillDocente=${encodeURIComponent(a.docente || '')}&prefillStaff=${encodeURIComponent(a.staff || '')}&prefillHorario=${encodeURIComponent(a.horario || '')}`
+            prefillHref: `/salas-zoom?prefillCurso=CO&prefillEdicion=${encodeURIComponent(a.edicion)}&prefillFecha=${encodeURIComponent(a.desde || '')}&prefillDocente=${encodeURIComponent(a.docente || '')}&prefillStaff=${encodeURIComponent(a.staff || '')}&prefillHorario=${encodeURIComponent(a.horario || '')}`,
+            // Se llevan estos datos crudos también acá (no solo en el texto) para poder armar
+            // más abajo una tarjeta "de mentira" en Agenda de hoy cuando el período arranca
+            // justo hoy — ver `agendaSinteticaHoy`.
+            edicion: a.edicion, desde: a.desde, docente: a.docente || '', staff: a.staff || '', horario: a.horario || ''
           }
       );
   }, [asignacionesCODisponibles, clases]);
+  // Si un período de C.O. arranca justo HOY pero todavía no tiene clase real cargada (caso
+  // de arriba, accion "cargarClase"), Diego quiere que igual aparezca en "Agenda de hoy" —
+  // aunque sea sin sala — en vez de estar solamente como alerta. Se arma una tarjeta con la
+  // misma forma que las reales (ver `actividadesTodas` más abajo), marcada `sinCrear: true`
+  // para no llevar a "detalle de clase" (no existe todavía) sino directo al formulario
+  // precargado de Salas Zoom.
+  const agendaSinteticaHoy = useMemo(() => {
+    const hoyISO = toISO(new Date());
+    return alertasActividadFaltante
+      .filter((a) => a.accion === 'cargarClase' && a.desde === hoyISO)
+      .map((a) => {
+        // "19.00 a 21.00 horas" → horaMin=1140, duracion=120 (best-effort; si no se puede
+        // leer, queda sin hora puntual — la tarjeta igual se muestra, sin cartel de horario).
+        const m = String(a.horario || '').match(/(\d{1,2})[.:hH](\d{2}).*?(\d{1,2})[.:hH](\d{2})/);
+        let horaMin = null, duracion = null;
+        if (m) {
+          const inicio = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+          const fin = parseInt(m[3], 10) * 60 + parseInt(m[4], 10);
+          if (!Number.isNaN(inicio)) horaMin = inicio;
+          if (!Number.isNaN(fin) && fin > inicio) duracion = fin - inicio;
+        }
+        return {
+          id: `sin-crear-CO-${a.edicion}`, fecha: hoyISO, dia: null, curso: 'CO', nombreCurso: NOMBRES.CO || 'Coaching Ontológico',
+          edicion: a.edicion, numeroSesion: 1, total: TOTALES.CO || null, horaMin, duracion,
+          sala: '', esFormacion: true, docente: a.docente, staff: a.staff, tematica: '', observaciones: '',
+          sinCrear: true, prefillHref: a.prefillHref
+        };
+      });
+  }, [alertasActividadFaltante]);
   // Pedido de Diego: separar "Alertas activas" en sub-grupos en vez de una sola lista
   // mezclada — así "Falta cargar/asignar sala" (lo urgente y accionable) no se pierde
   // entre "Finaliza en breve" de otras ediciones. Cada alerta se etiqueta con `categoria`
@@ -328,7 +361,9 @@ export default function InicioPage() {
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades, edicionesFinalizadas]);
 
-  const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
+  const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO)
+    .concat(agendaSinteticaHoy)
+    .sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
   const proximas = actividadesTodas
     .filter((a) => a.fecha > hoyISO || (a.fecha === hoyISO && a.horaMin != null && a.horaMin > horaActual))
     .slice(0, 20);
@@ -401,23 +436,26 @@ export default function InicioPage() {
                   // Pedido de Diego: una clase ya finalizada no debe verse igual de "viva" que
                   // las que todavía vienen — se le baja el brillo a toda la tarjeta.
                   const yaFinalizada = estadoAgenda === 'finalizada';
-                  return (
-                    <button key={i} onClick={() => setSeleccionado(a)}
-                      className={`text-left border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3 transition-colors hover:border-accentTeal/60 hover:bg-bg/40 ${yaFinalizada ? 'opacity-55' : ''}`}>
+                  const cardCls = `text-left border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3 transition-colors hover:border-accentTeal/60 hover:bg-bg/40 block no-underline ${yaFinalizada ? 'opacity-55' : ''}`;
+                  const contenido = (
+                    <>
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <span className="font-mono text-xs text-textSec">{a.horaMin != null ? minutosAHora(a.horaMin) : '—'}</span>
-                        {estadoAgenda === 'en-vivo' && (
+                        {/* Pedido de Diego: una edición vigente hoy pero sin clase cargada
+                            todavía (ver `agendaSinteticaHoy`) igual aparece acá, sin sala —
+                            con su propio cartel en vez de los de arriba (no hay clase real
+                            todavía como para decir "EN VIVO"/"PRÓXIMAMENTE"). */}
+                        {a.sinCrear ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-dangerBg text-dangerText">FALTA CARGAR</span>
+                        ) : estadoAgenda === 'en-vivo' ? (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
-                        )}
-                        {estadoAgenda === 'proximamente' && (
+                        ) : estadoAgenda === 'proximamente' ? (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 proximamente-badge">🕐 PRÓXIMAMENTE</span>
-                        )}
-                        {estadoAgenda === 'finalizando' && (
+                        ) : estadoAgenda === 'finalizando' ? (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizando-badge">⏳ FINALIZANDO</span>
-                        )}
-                        {estadoAgenda === 'finalizada' && (
+                        ) : estadoAgenda === 'finalizada' ? (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizada-badge">✓ FINALIZADA</span>
-                        )}
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-1.5 mb-0.5">
                         {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
@@ -439,7 +477,15 @@ export default function InicioPage() {
                           <span className={colorPorSala(a.sala).text}>{a.sala}</span>
                         </p>
                       )}
-                    </button>
+                      {a.sinCrear && (
+                        <p className="text-xs text-dangerText underline">Sin sala — cargar actividad →</p>
+                      )}
+                    </>
+                  );
+                  return a.sinCrear ? (
+                    <Link key={i} href={a.prefillHref || '/salas-zoom'} className={cardCls}>{contenido}</Link>
+                  ) : (
+                    <button key={i} onClick={() => setSeleccionado(a)} className={cardCls}>{contenido}</button>
                   );
                 })}
               </div>
@@ -485,40 +531,49 @@ export default function InicioPage() {
                       <p className="text-[10.5px] font-semibold text-textMuted uppercase tracking-wide mb-1">{grupo.titulo}</p>
                       <div className="flex flex-col gap-1.5">
                         {items.map((a, i) => {
-                          // Pedido de Diego: que el color llame la atención solo en lo urgente de
-                          // verdad — rojo en "Falta cargar la clase"/"urgente" (última clase próxima o
-                          // finalizó ayer) y amarillo únicamente en "Finaliza en breve". Todo lo demás
-                          // (incidencias, postergaciones/cancelaciones, "comienza en X días", "en 3
-                          // clases finaliza") queda con un gris neutro, sin perder el link a su detalle
-                          // cuando lo tiene.
-                          const cls = `rounded-lg px-3 py-2 text-xs font-medium ${
-                            a.tipo === 'actividadFaltante' || a.tipo === 'urgente' ? 'bg-dangerBg text-dangerText'
-                              : a.tipo === 'finaliza' ? 'bg-warningBg text-warningText'
-                              : 'bg-surface2 text-textSec border border-border'
-                          }`;
+                          // Pedido de Diego: el color/negrita tiene que llamar la atención SOLO
+                          // sobre la etiqueta inicial ("Falta cargar la clase", "Finaliza en
+                          // breve", etc.) — el resto de la oración (el detalle) va en texto
+                          // normal, no coloreado entero como antes. Se corta en los ":" primeros
+                          // (todas las alertas se arman como "Etiqueta: detalle…" — ver arriba).
+                          const idxDosPuntos = a.texto.indexOf(':');
+                          const etiqueta = idxDosPuntos >= 0 ? a.texto.slice(0, idxDosPuntos) : a.texto;
+                          const detalle = idxDosPuntos >= 0 ? a.texto.slice(idxDosPuntos + 1).trim() : '';
+                          const colorEtiqueta =
+                            a.tipo === 'actividadFaltante' || a.tipo === 'urgente' ? 'text-dangerText'
+                              : a.tipo === 'finaliza' ? 'text-warningText'
+                              : 'text-text';
+                          const colorBorde =
+                            a.tipo === 'actividadFaltante' || a.tipo === 'urgente' ? 'border-dangerText/60'
+                              : a.tipo === 'finaliza' ? 'border-warningText/60'
+                              : 'border-border';
+                          const cls = `rounded-lg pl-3 pr-3 py-2 text-xs bg-surface2 border border-border border-l-4 ${colorBorde}`;
+                          const contenido = (
+                            <>
+                              <span className={`font-semibold ${colorEtiqueta}`}>{etiqueta}</span>
+                              {detalle && <span className="text-textSec">: {detalle}</span>}
+                            </>
+                          );
                           // Los conflictos de sala/feriado (tipo "warn") tienen su detalle completo en
                           // /incidencias, y una actividad de C.O. sin cargar se completa desde Salas
                           // Zoom → Agregar actividad — clickeable para ir directo ahí en vez de solo avisar acá.
                           if (a.tipo === 'warn') {
                             return (
                               <Link key={i} href="/incidencias" className={`${cls} block no-underline hover:brightness-125 transition-[filter]`}>
-                                {a.texto} <span className="underline">Ver detalle →</span>
+                                {contenido} <span className="underline text-textSec">Ver detalle →</span>
                               </Link>
                             );
                           }
                           if (a.tipo === 'actividadFaltante' && a.accion === 'cargarClase') {
                             return (
                               <Link key={i} href={a.prefillHref || '/salas-zoom'} className={`${cls} block no-underline hover:brightness-125 transition-[filter]`}>
-                                {a.texto} <span className="underline">Cargar actividad →</span>
+                                {contenido} <span className="underline text-textSec">Cargar actividad →</span>
                               </Link>
                             );
                           }
                           // "Falta asignar sala": la acción está en esta misma página (más arriba,
                           // en "Salas pendientes de asignar"), así que no hace falta ningún link.
-                          if (a.tipo === 'actividadFaltante') {
-                            return <div key={i} className={cls}>{a.texto}</div>;
-                          }
-                          return <div key={i} className={cls}>{a.texto}</div>;
+                          return <div key={i} className={cls}>{contenido}</div>;
                         })}
                       </div>
                     </div>
