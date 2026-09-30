@@ -353,7 +353,16 @@ export default function InicioPage() {
       return toISO(d);
     }
 
-    const noFinalizada = (c) => !edicionesFinalizadas.has(`${c.codigo}|${c.numero}`);
+    // Una edicion con CUALQUIER clase de fecha real hoy o futura esta ACTIVA, aunque la formula
+    // de recesos crea que ya termino (la formula subestima el fin real — ver ed. 36 CO). Sin esto,
+    // clases de hoy desaparecian de la Agenda apenas la formula marcaba la edicion como finalizada.
+    const edicionesActivasPorFecha = new Set();
+    clases.forEach((c) => { if (c.fecha && c.fecha >= hoyISO) edicionesActivasPorFecha.add(`${c.codigo}|${c.numero}`); });
+    const noFinalizada = (c) => {
+      const key = `${c.codigo}|${c.numero}`;
+      if ((c.fecha && c.fecha >= hoyISO) || edicionesActivasPorFecha.has(key)) return true;
+      return !edicionesFinalizadas.has(key);
+    };
     // El campo Numero de la clase identifica la EDICIÓN (ej: "CO 51"), no qué sesión
     // semanal es dentro de ella — calcularNumeroSesion cuenta la posición real entre las
     // clases con fecha de esa misma edición (mismo criterio que ya usa Cronograma), para
