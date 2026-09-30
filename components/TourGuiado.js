@@ -98,9 +98,12 @@ export default function TourGuiado() {
 
   return (
     <>
+      {/* Alineado con el badge de versión (bottom-3) y el "+" de Acciones rápidas (bottom-12)
+          — ver comentario en components/AccionesRapidas.js. Antes estaba en bottom-16 y el
+          "+" le pisaba una franja. */}
       <button
         onClick={() => setMenuAbierto((v) => !v)}
-        className="fixed bottom-16 right-5 z-[90] bg-gradient-to-r from-accentPurple to-accentMagenta text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity no-print"
+        className="fixed bottom-28 right-4 z-[90] bg-gradient-to-r from-accentPurple to-accentMagenta text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity no-print"
       >
         ❓ Necesito ayuda
       </button>

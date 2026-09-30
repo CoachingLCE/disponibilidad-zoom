@@ -30,6 +30,10 @@ export default function VersionBadge() {
 
   return (
     <>
+      {/* Pedido de Diego: alinear los 3 botones flotantes (badge de versión, "+" de Acciones
+          rápidas, "❓ Necesito ayuda") en una sola columna prolija, sin que ninguno tape a
+          otro — los tres ahora comparten right-4 y quedan apilados con espacio entre sí (ver
+          también components/AccionesRapidas.js y TourGuiado.js). */}
       <button onClick={abrir} title="Ver novedades"
         className={'fixed bottom-3 right-4 text-[11px] text-textMuted bg-surface2 border border-border rounded-full px-3 py-1 z-40 no-print hover:text-text hover:border-accentTeal transition-colors' + (hayNovedades ? ' version-badge-novedad' : '')}>
         v{APP_VERSION} · Actualizado {fecha}
