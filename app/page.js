@@ -406,21 +406,27 @@ export default function InicioPage() {
       docente: a.docente || '', staff: '', tematica: a.tematica || '', observaciones: a.observaciones || ''
     }));
     // Formaciones que ya no tienen NINGUNA fila viva en Salas Zoom (ej: Coaching Deportivo,
-    // que nunca se migra ahí) pero sí tienen clase HOY según su cadencia semanal real — sin
-    // esto, quedaban totalmente invisibles acá aunque estuvieran "En proceso" de verdad.
+    // que nunca se migra ahí) pero sí tienen clases pendientes según su cadencia semanal real
+    // — sin esto, quedaban totalmente invisibles acá aunque estuvieran "En proceso" de verdad.
     // Pedido explícito de Diego (30/09/2026): "TODAS DEBERIAN APARECER EN HOY".
     // Coaching Ontológico queda afuera de este mecanismo genérico: ya tiene el suyo propio
     // más arriba (agendaSinteticaHoy, basado en Docentes C.O., no en la cadencia semanal
     // estimada) — sin este filtro, una edición de CO que arranca justo hoy terminaba
     // duplicada (una tarjeta por cada mecanismo, ambas iguales).
     const cubiertasPorAgendaSintetica = new Set(agendaSinteticaHoy.map((a) => `${a.curso}|${a.edicion}`));
-    // Acá (Agenda de hoy) solo hace falta la clase de HOY de cada una — el resto de las
-    // futuras (para "Próximas clases"/Cronograma) se arman aparte en app/cronograma/page.js.
-    const hoyDeFormacionesSinLive = formaciones
+    // Esta misma lista (actividadesTodas) alimenta tanto "Agenda de hoy" (filtra fecha ===
+    // hoyISO más abajo) como "Próximas clases" (filtra fecha > hoyISO) — por eso acá hace
+    // falta la SERIE COMPLETA de clases futuras de estas formaciones, no solo la de hoy.
+    // Antes se generaba nada más la de hoy, y por eso cursos como Coaching Deportivo nunca
+    // mostraban sus próximas clases (solo la más próxima) en "Próximas clases" del Inicio —
+    // reportado por Diego con "Coaching Deportivo · Edición 14 Clase 15 de 16" faltando.
+    // El dedup contra agendaSinteticaHoy solo tiene sentido para el día de hoy (es el único
+    // día en que ese mecanismo puede generar una tarjeta duplicada); las clases futuras de
+    // la misma edición no chocan con nada y deben quedar.
+    const entradasFormacionesSinLive = formaciones
       .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISO))
-      .filter((a) => a.fecha === hoyISO)
-      .filter((a) => !cubiertasPorAgendaSintetica.has(`${a.curso}|${a.edicion}`));
-    return deClasesConFecha.concat(deClasesRecurrentes, deOtras, hoyDeFormacionesSinLive).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
+      .filter((a) => !(a.fecha === hoyISO && cubiertasPorAgendaSintetica.has(`${a.curso}|${a.edicion}`)));
+    return deClasesConFecha.concat(deClasesRecurrentes, deOtras, entradasFormacionesSinLive).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   }, [clases, actividades, edicionesFinalizadas, formaciones, agendaSinteticaHoy]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO)

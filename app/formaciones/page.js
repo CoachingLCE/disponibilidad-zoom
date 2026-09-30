@@ -3,8 +3,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { ICONOS, NOMBRES, TOTALES, formatFechaCorta, calcularFormacionesEnriquecidas, colorFormacion, ESTADOS } from '../../lib/salasLogic';
+import { tienePermisoEditarCronograma } from '../../lib/permisos';
 
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
+const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
+const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
 
 const DIAS_SEMANA = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const _normDia = (d) => (d || '').toString().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -35,6 +38,12 @@ export default function FormacionesPage() {
   const [filtro, setFiltro] = useState('enCurso');
   const [filtroCurso, setFiltroCurso] = useState('');
   const [filtroCuatrimestre, setFiltroCuatrimestre] = useState('');
+  // Pedido de Diego: "TE DIJE SI HAGO CLIC ACA TENGO QUE PODER EDITAR LA INFO" — la tarjeta
+  // de una formación abre este modal con sus datos cargados a mano (fecha de inicio, fecha
+  // de finalización, estado y meses para certificación), igual que ya se puede corregir la
+  // fecha de inicio desde el detalle de una clase en Cronograma.
+  const [seleccionada, setSeleccionada] = useState(null);
+  const puedeEditar = tienePermisoEditarCronograma(usuario);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargar(); }, [usuario]);
@@ -133,7 +142,11 @@ export default function FormacionesPage() {
             const estado = f.estado === 'Finalizó' ? ESTADOS.finalizada : f.estado === 'Próximamente' ? ESTADOS.proximamente : ESTADOS.normal;
             const enVivo = formacionEnVivo(f);
             return (
-              <div key={f.codigo + f.edicion} className={`bg-surface2 border-l-4 ${color.border} border-t border-r border-b border-border rounded-xl p-4`}>
+              <div
+                key={f.codigo + f.edicion}
+                onClick={() => setSeleccionada(f)}
+                className={`bg-surface2 border-l-4 ${color.border} border-t border-r border-b border-border rounded-xl p-4 cursor-pointer hover:brightness-110 transition`}
+              >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />
@@ -188,6 +201,130 @@ export default function FormacionesPage() {
           })}
         </div>
       )}
+
+      {seleccionada && (
+        <ModalEditarFormacion
+          formacion={seleccionada}
+          manual={formacionesManual.find((m) => m.codigo === seleccionada.codigo && String(m.edicion) === String(seleccionada.numero))}
+          puedeEditar={puedeEditar}
+          fetchAutenticado={fetchAutenticado}
+          onCerrar={() => setSeleccionada(null)}
+          onGuardado={cargar}
+        />
+      )}
+    </div>
+  );
+}
+
+function Fila({ label, valor }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-textMuted">{label}</span>
+      <span className="text-right">{valor}</span>
+    </div>
+  );
+}
+
+function ModalEditarFormacion({ formacion: f, manual, puedeEditar, fetchAutenticado, onCerrar, onGuardado }) {
+  const [editando, setEditando] = useState(false);
+  const [fechaInicioE, setFechaInicioE] = useState(manual?.fechaInicio || f.fechaInicio || '');
+  const [fechaFinalE, setFechaFinalE] = useState(manual?.fechaFinal || '');
+  const [estadoE, setEstadoE] = useState(manual?.estado || '');
+  const [mesesE, setMesesE] = useState(manual?.mesesCertificacion != null ? String(manual.mesesCertificacion) : '');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  function valoresIniciales() {
+    setFechaInicioE(manual?.fechaInicio || f.fechaInicio || '');
+    setFechaFinalE(manual?.fechaFinal || '');
+    setEstadoE(manual?.estado || '');
+    setMesesE(manual?.mesesCertificacion != null ? String(manual.mesesCertificacion) : '');
+  }
+
+  async function guardar() {
+    setGuardando(true); setError('');
+    try {
+      const r = await fetchAutenticado('/api/formaciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigo: f.codigo,
+          edicion: f.numero,
+          fechaInicio: fechaInicioE,
+          fechaFinal: fechaFinalE,
+          estado: estadoE,
+          mesesCertificacion: mesesE ? parseInt(mesesE, 10) : ''
+        })
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'No se pudo guardar.'); }
+      setEditando(false);
+      if (onGuardado) await onGuardado();
+      onCerrar();
+    } catch (e) {
+      setError(e.message || 'No se pudo guardar.');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  function cancelar() {
+    setEditando(false); setError('');
+    valoresIniciales();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onCerrar}>
+      <div className="bg-surface2 border border-border rounded-2xl p-5 w-96 max-w-full" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-semibold mb-1">{ICONOS[f.codigo] || ''} {NOMBRES[f.codigo] || f.codigo} · Edición {f.numero}</h3>
+        <p className="text-textSec text-xs mb-4">{f.pct != null ? `Clase ${Math.min(f.cargadas, f.total)} de ${f.total}` : 'Sin datos de progreso'} · {f.estado}</p>
+        <div className="space-y-1.5 text-sm mb-4">
+          {editando ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-textMuted">Fecha de inicio</span>
+                <input type="date" className="bg-bg border border-border rounded-lg px-2 py-1 text-sm" value={fechaInicioE} onChange={(e) => setFechaInicioE(e.target.value)} />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-textMuted">Fecha de finalización</span>
+                <input type="date" className="bg-bg border border-border rounded-lg px-2 py-1 text-sm" value={fechaFinalE} onChange={(e) => setFechaFinalE(e.target.value)} />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-textMuted">Estado</span>
+                <select className="bg-bg border border-border rounded-lg px-2 py-1 text-sm" value={estadoE} onChange={(e) => setEstadoE(e.target.value)}>
+                  <option value="">Automático</option>
+                  <option value="Finalizó">Forzar Finalizada</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-textMuted">Meses para certificación</span>
+                <input type="number" min="0" className="bg-bg border border-border rounded-lg px-2 py-1 text-sm w-20" value={mesesE} onChange={(e) => setMesesE(e.target.value)} placeholder="auto" />
+              </div>
+              <p className="text-[11px] text-textMuted pt-1">Dejar la fecha de finalización o los meses en blanco para que se calculen solos.</p>
+            </>
+          ) : (
+            <>
+              <Fila label="Inicio" valor={formatFechaCorta(f.fechaInicio)} />
+              <Fila label="Finalización" valor={formatFechaCorta(f.fechaFinal)} />
+              {f.vencimientoCertificacion && (
+                <Fila label="Vencimiento certificación" valor={`${formatFechaCorta(f.vencimientoCertificacion)} (${f.mesesCertificacion} ${f.mesesCertificacion === 1 ? 'mes' : 'meses'})`} />
+              )}
+              <Fila label="Próxima clase" valor={f.proximaTxt} />
+            </>
+          )}
+        </div>
+        {error && <p className="text-dangerText text-xs mb-3">{error}</p>}
+        {puedeEditar ? (
+          editando ? (
+            <div className="flex gap-2 mb-3">
+              <button className={btnCls} onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
+              <button className={btnSecCls} onClick={cancelar} disabled={guardando}>Cancelar</button>
+            </div>
+          ) : (
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar fecha de inicio, finalización, estado o certificación</button>
+          )
+        ) : null}
+        <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
+      </div>
     </div>
   );
 }
