@@ -299,7 +299,7 @@ export default function FormacionesPage() {
                 {f.pct != null ? (
                   <>
                     <div className="flex items-center justify-between text-xs text-textSec mb-1">
-                      <span>Clase {Math.max(0, Math.min(f.cargadas, f.total) - (claseHoyNoTerminada(f) ? 1 : 0))} / {f.total}</span>
+                      <span>Clase {Math.max(0, Math.min(f.cargadas, f.total) - (f.estado !== 'Finalizó' && claseHoyNoTerminada(f) ? 1 : 0))} / {f.total}</span>
                       <span>{f.pct}%</span>
                     </div>
                     {/* Pedido de Diego: que la barra se vea "creciendo" — fina al arrancar la

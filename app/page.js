@@ -14,7 +14,10 @@ import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
 import { DOCENTES_CO_DEFAULT } from '../lib/docentesCODefaults';
 import { FECHAS_INICIO_REALES } from '../lib/fechasInicioReales';
 
-const cardCls = 'bg-surface2 border border-border rounded-xl p-4';
+// Pedido de Diego: las tarjetas de métricas de arriba de Inicio ocupaban demasiado
+// espacio para lo que muestran — de p-4 (16px) a px-2.5 py-2 (10px/8px) baja la altura y
+// el ancho mínimo bastante más del 20-30% pedido, sin quedar apretado.
+const metricaCls = 'bg-surface2 border border-border rounded-lg px-2.5 py-2';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
@@ -381,6 +384,9 @@ export default function InicioPage() {
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
   const proximaClase = agendaHoy.find((a) => a.horaMin > horaActual) || proximas[0] || null;
   const formacionesEnCurso = formaciones.filter((f) => f.estado === 'En proceso').length;
+  // Nueva métrica pedida por Diego: cuántas de las clases de hoy ya se dieron (mismo
+  // criterio de "finalizada" que ya usan las tarjetas de Agenda de hoy).
+  const clasesRealizadasHoy = agendaHoy.filter((a) => estadoDeAgenda(a.horaMin, a.duracion) === 'finalizada').length;
   const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
 
   if (cargando || !usuario) return null;
@@ -398,17 +404,28 @@ export default function InicioPage() {
         <p className="text-textSec text-sm">Cargando…</p>
       ) : (
         <>
-          <div data-tour="inicio-panel" className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
-            <Metrica valor={agendaHoy.length} label="Clases hoy" />
+          {/* Pedido de Diego: tarjetas más chicas (20-30% menos alto/ancho que antes — ver
+              `metricaCls`), con el texto descriptivo más presente que el número (label
+              arriba, valor abajo y no tan grande), un ícono por métrica para que se lean
+              rápido, y que entren más por fila sin sensación de amontonado (de 150px a
+              ~115px de ancho mínimo, gap más chico). Se suma "Clases realizadas" y se
+              aclara que "Salas ocupadas" es en este momento. "Incidencias activas" se
+              atenúa (opacity) cuando está en 0, en vez de tener el mismo protagonismo que
+              cuando sí hay algo para revisar — sigue en la fila para no generar la duda de
+              "¿por qué desapareció?", pero pasa a un segundo plano visual. */}
+          <div data-tour="inicio-panel" className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(115px,1fr))' }}>
+            <Metrica icono="📚" valor={agendaHoy.length} label="Clases hoy" />
+            <Metrica icono="✅" valor={clasesRealizadasHoy} label="Clases realizadas" />
             <Metrica
+              icono="🕒"
               valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
               label={proximaClase ? `Próxima: ${proximaClase.nombreCurso}` : 'Próxima clase'}
               chico
             />
-            <Metrica valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
-            <Metrica valor={libresAhora} label="Salas disponibles" acento="success" />
-            <Metrica valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} />
-            <Metrica valor={formacionesEnCurso} label="Formaciones activas" />
+            <Metrica icono="🏢" valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas ahora" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
+            <Metrica icono="🏢" valor={libresAhora} label="Salas disponibles" acento="success" />
+            <Metrica icono="⚠️" valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} atenuada={alertasConflictos.length === 0} />
+            <Metrica icono="🎓" valor={formacionesEnCurso} label="Formaciones activas" />
           </div>
 
           {pendientesSala.length > 0 && (
@@ -857,14 +874,19 @@ function Fila({ label, valor }) {
   );
 }
 
-function Metrica({ valor, label, acento, chico }) {
+function Metrica({ valor, label, icono, acento, chico, atenuada }) {
   const color = {
     success: 'text-successText', warning: 'text-warningText', danger: 'text-dangerText'
   }[acento] || 'text-text';
+  // Pedido de Diego: que el texto descriptivo (la etiqueta) tenga más presencia y el número
+  // no sea protagonista — se invierte el orden (etiqueta arriba, valor abajo) y se achica
+  // bastante la tipografía del valor (antes text-2xl/text-lg, ahora text-base/text-sm).
+  // "Incidencias activas" en 0 se atenúa (opacity) para no competir visualmente con lo que
+  // sí necesita atención, sin sacarla de la fila.
   return (
-    <div className={cardCls}>
-      <div className={`${chico ? 'text-lg' : 'text-2xl'} font-bold ${color}`}>{valor}</div>
-      <div className="text-[11px] text-textSec mt-0.5 truncate">{label}</div>
+    <div className={`${metricaCls} ${atenuada ? 'opacity-55' : ''}`}>
+      <div className="text-[10.5px] text-textSec font-semibold leading-snug mb-0.5">{icono ? `${icono} ` : ''}{label}</div>
+      <div className={`${chico ? 'text-sm' : 'text-base'} font-bold leading-tight truncate ${color}`}>{valor}</div>
     </div>
   );
 }
