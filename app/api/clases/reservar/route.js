@@ -3,7 +3,7 @@ import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
 import { tienePermisoEditarCronograma } from '../../../../lib/permisos';
 import { leerClases, agregarClases, leerFeriados, feriadoEnFecha } from '../../../../lib/datosClases';
-import { agregarDocentesCOBulk } from '../../../../lib/datosDocentesCO';
+import { leerDocentesCO, agregarDocentesCOBulk, rangosSuperpuestosDocentesCO } from '../../../../lib/datosDocentesCO';
 import { registrarAccion } from '../../../../lib/auditoria';
 import {
   DURACIONES, fechaToDia, toISO, formatFechaCorta, chequearDisponibilidad, buscarChoqueDocente, minutosAHora, diaLindo
@@ -153,9 +153,10 @@ export const POST = conManejo(async (request) => {
   // Al crear una edición completa de C.O., además de las 48 clases se guarda de una vez el
   // período de cada cuatrimestre en Docentes C.O. — antes había que cargarlo aparte a mano,
   // cuatrimestre por cuatrimestre, y era fácil que alguno quedara sin cargar ("Vacante").
+  let periodosOmitidosPorChoque = [];
   if (esEdicionCOCompleta && edicion && agregadas > 0) {
     const horarioTxt = `${minutosAHora(horaMin)} a ${minutosAHora(horaMin + duracion)}`;
-    const periodos = [0, 1, 2]
+    const periodosPropuestos = [0, 1, 2]
       .filter((b) => primeraFechaPorCuatrimestre[b])
       .map((b) => ({
         edicion: edicion.trim(), dia: diaLindo(dia), horario: horarioTxt,
@@ -164,6 +165,20 @@ export const POST = conManejo(async (request) => {
         sala: sala || '', cuatrimestre: String(b + 1),
         observaciones: 'Generado automático al crear la edición.', usuario: usuario.nombre
       }));
+    // Pedido de Diego (02/10/2026, Edición 56 con dos períodos "3er cuatrimestre"): antes esto
+    // agregaba los 3 períodos sin fijarse si ya había uno cargado a mano para esa edición (ej.
+    // un "Vacante docente" como anticipo, antes de agendar la edición) — resultando en dos
+    // filas para el mismo cuatrimestre. Ahora se salta el que se superponga con uno existente,
+    // igual criterio que ya usa la carga manual de un período suelto (ver app/api/docentes-co).
+    const edNorm = edicion.trim().replace(/\D/g, '');
+    const existentes = await leerDocentesCO();
+    const periodos = periodosPropuestos.filter((p) => {
+      const choque = existentes.find((e) =>
+        String(e.edicion || '').replace(/\D/g, '') === edNorm && rangosSuperpuestosDocentesCO(e.desde, e.hasta, p.desde, p.hasta)
+      );
+      if (choque) periodosOmitidosPorChoque.push(`${p.cuatrimestre}° cuatrimestre (ya había un período cargado: ${choque.docente || 'sin docente'})`);
+      return !choque;
+    });
     if (periodos.length > 0) await agregarDocentesCOBulk(periodos);
   }
 
@@ -171,7 +186,8 @@ export const POST = conManejo(async (request) => {
   await registrarAccion(
     usuario.email, usuario.nombre, 'Reservó',
     `${primerLabel}${cantidad > 1 ? ' (serie de ' + agregadas + ')' : ''} — ${sala || 'SIN SALA (pendiente de asignar)'}, ${dia.toLowerCase()} ${horaTxt}`
+    + (periodosOmitidosPorChoque.length ? ` — período(s) de Docentes C.O. NO generados por choque: ${periodosOmitidosPorChoque.join('; ')}` : '')
   );
 
-  return NextResponse.json({ ok: true, agregadas, corridas, omitidas });
+  return NextResponse.json({ ok: true, agregadas, corridas, omitidas, periodosOmitidosPorChoque });
 })

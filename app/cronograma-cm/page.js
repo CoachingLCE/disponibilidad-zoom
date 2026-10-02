@@ -69,6 +69,12 @@ export default function CronogramaCMPage() {
   const [categoriaRecursos, setCategoriaRecursos] = useState('');
   const [clicsRecursos, setClicsRecursos] = useState({});
   const [copiadoId, setCopiadoId] = useState(null);
+  // Arrastrar para reordenar "Centro de recursos" (solo en la vista sin filtro, ver más
+  // abajo): ordenEnlacesManual es la lista de títulos en el orden que va quedando mientras
+  // se arrastra (optimista, antes de guardar); se guarda por título — no por id — porque un
+  // recurso "fijo" recién arrastrado todavía no tiene un id real del Sheet.
+  const [ordenEnlacesManual, setOrdenEnlacesManual] = useState(null);
+  const [arrastrandoTitulo, setArrastrandoTitulo] = useState(null);
   const [nuevaNota, setNuevaNota] = useState('');
   const [colorNota, setColorNota] = useState('amarillo');
   const [verCampanasPasadas, setVerCampanasPasadas] = useState(false);
@@ -144,8 +150,27 @@ export default function CronogramaCMPage() {
   const enlacesCombinados = useMemo(() => {
     const titulosSheet = new Set(enlaces.map((e) => e.titulo));
     const fijos = ENLACES_DEFAULT.filter((e) => !titulosSheet.has(e.titulo)).map((e, i) => ({ ...e, id: `fijo-link-${i}`, esFijo: true }));
-    return [...fijos, ...enlaces].map((e) => ({ ...e, categoriaId: normalizarCategoria(e.categoria) }));
-  }, [enlaces]);
+    let combinados = [...fijos, ...enlaces].map((e) => ({ ...e, categoriaId: normalizarCategoria(e.categoria) }));
+    if (ordenEnlacesManual) {
+      // Mientras se arrastra (o recién soltado, antes de refrescar desde el Sheet): se
+      // respeta el orden visual que se armó a mano, por título.
+      const pos = new Map(ordenEnlacesManual.map((t, i) => [t, i]));
+      combinados = [...combinados].sort((a, b) => {
+        const pa = pos.has(a.titulo) ? pos.get(a.titulo) : Infinity;
+        const pb = pos.has(b.titulo) ? pos.get(b.titulo) : Infinity;
+        return pa - pb;
+      });
+    } else if (combinados.some((e) => e.orden != null)) {
+      // Ya hubo un reordenamiento guardado antes: se respeta ese orden (los que todavía no
+      // tienen Orden propio — ej. un recurso agregado después — van al final).
+      combinados = [...combinados].sort((a, b) => {
+        const oa = a.orden != null ? a.orden : Infinity;
+        const ob = b.orden != null ? b.orden : Infinity;
+        return oa - ob;
+      });
+    }
+    return combinados;
+  }, [enlaces, ordenEnlacesManual]);
   const enlacesFiltrados = useMemo(() => {
     const q = busquedaRecursos.trim().toLowerCase();
     return enlacesCombinados.filter((e) => {
@@ -211,6 +236,39 @@ export default function CronogramaCMPage() {
   async function eliminarEnlace(id) {
     const res = await fetchAutenticado(`/api/cronograma-cm/enlaces/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (res.ok) cargarExtras();
+  }
+
+  // Arrastrar y soltar para reordenar "Centro de recursos" — solo tiene sentido en la vista
+  // sin filtro ("Todas" + búsqueda vacía), donde se ve y se reordena la lista completa; con
+  // un filtro activo el orden visual sería parcial y ambiguo.
+  function alEmpezarArrastre(titulo) { setArrastrandoTitulo(titulo); }
+  function alPasarSobre(tituloDestino) {
+    if (!arrastrandoTitulo || arrastrandoTitulo === tituloDestino) return;
+    const actual = (ordenEnlacesManual || enlacesCombinados.map((e) => e.titulo));
+    const desde = actual.indexOf(arrastrandoTitulo);
+    const hacia = actual.indexOf(tituloDestino);
+    if (desde === -1 || hacia === -1 || desde === hacia) return;
+    const nuevo = [...actual];
+    nuevo.splice(desde, 1);
+    nuevo.splice(hacia, 0, arrastrandoTitulo);
+    setOrdenEnlacesManual(nuevo);
+  }
+  async function alTerminarArrastre() {
+    setArrastrandoTitulo(null);
+    if (!ordenEnlacesManual) return;
+    const porTitulo = new Map(enlacesCombinados.map((e) => [e.titulo, e]));
+    const itemsOrdenados = ordenEnlacesManual.map((t) => porTitulo.get(t)).filter(Boolean);
+    try {
+      const res = await fetchAutenticado('/api/cronograma-cm/enlaces/orden', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: itemsOrdenados })
+      });
+      if (res.ok) {
+        await cargarExtras();
+        // Ya quedó guardado en el Sheet con ese mismo orden (columna Orden) — se puede
+        // soltar el override local y seguir mostrando el orden real que vino del servidor.
+        setOrdenEnlacesManual(null);
+      }
+    } catch { /* si falla el guardado, el orden local arrastrado se mantiene igual en pantalla */ }
   }
   async function agregarNota() {
     if (!nuevaNota.trim()) return;
@@ -521,15 +579,28 @@ export default function CronogramaCMPage() {
         {enlacesFiltrados.length === 0 ? (
           <p className="text-textSec text-sm">Ningún recurso coincide con la búsqueda.</p>
         ) : (
-          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))' }}>
-            {enlacesFiltrados.map((e) => (
-              <TarjetaRecurso
-                key={e.id} e={e} puedeEditarCM={puedeEditarCM} copiadoId={copiadoId}
-                onAbrir={() => registrarClicRecurso(e.titulo)} onCopiar={() => copiarEnlace(e.url, e.id)}
-                onEditar={() => setEditandoEnlace(e)} onEliminar={() => eliminarEnlace(e.id)}
-              />
-            ))}
-          </div>
+          <>
+            {/* Arrastrar para reordenar solo tiene sentido viendo la lista completa sin
+                filtrar — con una categoría o búsqueda activa, el orden visual sería parcial
+                y se prestaría a confusión (¿respecto a qué lista se está reordenando?). */}
+            {puedeEditarCM && !busquedaRecursos && !categoriaRecursos && enlacesFiltrados.length > 1 && (
+              <p className="text-[10.5px] text-textMuted mb-1.5">⠿ Arrastrá un recurso para reordenarlo.</p>
+            )}
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))' }}>
+              {enlacesFiltrados.map((e) => {
+                const arrastrable = !!puedeEditarCM && !busquedaRecursos && !categoriaRecursos;
+                return (
+                  <TarjetaRecurso
+                    key={e.id} e={e} puedeEditarCM={puedeEditarCM} copiadoId={copiadoId}
+                    onAbrir={() => registrarClicRecurso(e.titulo)} onCopiar={() => copiarEnlace(e.url, e.id)}
+                    onEditar={() => setEditandoEnlace(e)} onEliminar={() => eliminarEnlace(e.id)}
+                    arrastrable={arrastrable} enArrastre={arrastrandoTitulo === e.titulo}
+                    onArrastrarInicio={alEmpezarArrastre} onArrastrarSobre={alPasarSobre} onArrastrarFin={alTerminarArrastre}
+                  />
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
@@ -695,10 +766,18 @@ function VistaMesCM({ actividades, onClick, puedeEditarCM }) {
   );
 }
 
-function TarjetaRecurso({ e, puedeEditarCM, copiadoId, onAbrir, onCopiar, onEditar, onEliminar }) {
+function TarjetaRecurso({ e, puedeEditarCM, copiadoId, onAbrir, onCopiar, onEditar, onEliminar, arrastrable, enArrastre, onArrastrarInicio, onArrastrarSobre, onArrastrarFin }) {
   const copiado = copiadoId != null;
   return (
-    <div className="group relative bg-bg border border-border rounded-xl p-3 flex flex-col gap-1.5">
+    <div
+      className={`group relative bg-bg border border-border rounded-xl p-3 flex flex-col gap-1.5 ${arrastrable ? 'cursor-grab active:cursor-grabbing' : ''} ${enArrastre ? 'opacity-40' : ''}`}
+      draggable={arrastrable}
+      onDragStart={arrastrable ? () => onArrastrarInicio(e.titulo) : undefined}
+      onDragOver={arrastrable ? (ev) => { ev.preventDefault(); onArrastrarSobre(e.titulo); } : undefined}
+      onDrop={arrastrable ? (ev) => ev.preventDefault() : undefined}
+      onDragEnd={arrastrable ? onArrastrarFin : undefined}
+    >
+      {arrastrable && <span className="absolute top-1.5 right-1.5 text-textMuted/50 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity select-none" title="Arrastrá para reordenar">⠿</span>}
       <span className="text-[10px] font-semibold text-textMuted">{labelCategoria(e.categoriaId)}</span>
       <p className="text-sm font-semibold truncate" title={e.titulo}>{e.titulo}</p>
       {e.descripcion && <p className="text-[11px] text-textSec line-clamp-2">{e.descripcion}</p>}

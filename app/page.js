@@ -551,13 +551,15 @@ export default function InicioPage() {
             <Metrica
               icono="proxima"
               valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
-              label={proximaClase ? `Próxima: ${proximaClase.nombreCurso}` : 'Próxima clase'}
+              label="Próxima"
+              valorExtra={proximaClase ? proximaClase.nombreCurso : 'Sin clases que arranquen'}
               chico
+              onClick={proximaClase ? () => setSeleccionado(proximaClase) : undefined}
             />
             <Metrica icono="salas" valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas ahora" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
             <Metrica icono="salas" valor={libresAhora} label="Salas disponibles ahora" acento="success" />
             <Metrica icono="alerta" valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} atenuada={alertasConflictos.length === 0} />
-            <Metrica icono="formaciones" valor={formacionesEnCurso} label="Formaciones activas" />
+            <Metrica icono="formaciones" valor={formacionesEnCurso} label="Formaciones activas" href="/formaciones" />
           </div>
 
           {pendientesSala.length > 0 && (
@@ -1055,7 +1057,7 @@ function IconoMetrica({ tipo, className }) {
   );
 }
 
-function Metrica({ valor, label, icono, acento, chico, atenuada }) {
+function Metrica({ valor, valorExtra, label, icono, acento, chico, atenuada, href, onClick }) {
   const color = {
     success: 'text-successText', warning: 'text-warningText', danger: 'text-dangerText'
   }[acento] || 'text-text';
@@ -1064,18 +1066,34 @@ function Metrica({ valor, label, icono, acento, chico, atenuada }) {
   // ahora text-base/text-sm). "Incidencias activas" en 0 se atenúa (opacity) para no competir
   // visualmente con lo que sí necesita atención, sin sacarla de la fila.
   // Pedido de Diego (02/10/2026): "Los números que estén al lado, no abajo" — el valor va al
-  // lado de la etiqueta (misma fila), no debajo en una fila propia. "Que entre en una línea" —
-  // el label se trunca con "…" (title= para poder leer el texto completo al pasar el mouse)
-  // en vez de envolver a una segunda línea, que es lo que lo hacía ver más alto/desprolijo.
-  return (
-    <div className={`${metricaCls} ${atenuada ? 'opacity-55' : ''} flex items-center justify-between gap-2`}>
-      <div className="flex items-center gap-1.5 min-w-0">
-        {icono && <IconoMetrica tipo={icono} className={acento ? color : 'text-textMuted'} />}
-        <span className="text-[10.5px] text-textSec font-semibold leading-snug truncate" title={label}>{label}</span>
+  // lado de la etiqueta (misma fila), no debajo en una fila propia.
+  // Pedido de Diego (02/10/2026, 2ª vuelta — "SE SIGUE VIENDO CORTADO"): truncar el label con
+  // "…" no alcanzaba para "Próxima: Coaching Ontológico" — con la hora ocupando la mitad del
+  // ancho de la tarjeta, el nombre del curso quedaba cortado casi siempre. Ahora el nombre del
+  // curso (u otro dato secundario) va en una segunda línea propia (valorExtra), con todo el
+  // ancho de la tarjeta para él solo, en vez de competir con el valor en la misma fila.
+  // Pedido de Diego (02/10/2026): "si hago clic en Formaciones activas que me lleve a
+  // Formaciones en curso" / "si hago clic en Próxima que me lleve a la próxima" — la tarjeta
+  // ahora puede ser un link (href) o un botón (onClick) además de una tarjeta fija.
+  const clickable = !!(href || onClick);
+  const claseBase = `${metricaCls} ${atenuada ? 'opacity-55' : ''} flex flex-col gap-0.5 ${clickable ? 'text-left w-full cursor-pointer hover:border-accentTeal/60 transition-colors' : ''}`;
+  const contenido = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {icono && <IconoMetrica tipo={icono} className={acento ? color : 'text-textMuted'} />}
+          <span className="text-[10.5px] text-textSec font-semibold leading-snug truncate" title={!valorExtra ? label : undefined}>{label}</span>
+        </div>
+        <div className={`${chico ? 'text-sm' : 'text-base'} font-bold leading-tight whitespace-nowrap shrink-0 ${color}`}>{valor}</div>
       </div>
-      <div className={`${chico ? 'text-sm' : 'text-base'} font-bold leading-tight whitespace-nowrap shrink-0 ${color}`}>{valor}</div>
-    </div>
+      {valorExtra && (
+        <div className="text-[10.5px] text-textSec/80 leading-snug truncate pl-[18px]" title={valorExtra}>{valorExtra}</div>
+      )}
+    </>
   );
+  if (href) return <Link href={href} className={claseBase}>{contenido}</Link>;
+  if (onClick) return <button type="button" onClick={onClick} className={claseBase}>{contenido}</button>;
+  return <div className={claseBase}>{contenido}</div>;
 }
 
 // Clases reservadas sin sala (ver Salas Zoom → "Guardar sin sala") — cualquiera que entra a

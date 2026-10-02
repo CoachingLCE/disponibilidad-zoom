@@ -2,17 +2,9 @@ import { NextResponse } from 'next/server';
 import { conManejo } from '../../../lib/apiHandler';
 import { requireUsuario } from '../../../lib/requireUsuario';
 import { tienePermisoEditarDocentesCO } from '../../../lib/permisos';
-import { leerDocentesCO, agregarDocenteCO, agregarDocentesCOBulk } from '../../../lib/datosDocentesCO';
+import { leerDocentesCO, agregarDocenteCO, agregarDocentesCOBulk, rangosSuperpuestosDocentesCO } from '../../../lib/datosDocentesCO';
 import { registrarAccion } from '../../../lib/auditoria';
 import { formatFechaCorta } from '../../../lib/salasLogic';
-
-// Dos períodos "se superponen" si sus rangos Desde-Hasta se cruzan en el tiempo — un Hasta
-// vacío significa "todavía vigente", así que se lo trata como fecha de fin abierta.
-function rangosSuperpuestos(desde1, hasta1, desde2, hasta2) {
-  const inicio1 = desde1 || '0000-00-00', fin1 = hasta1 || '9999-12-31';
-  const inicio2 = desde2 || '0000-00-00', fin2 = hasta2 || '9999-12-31';
-  return inicio1 <= fin2 && inicio2 <= fin1;
-}
 
 export const GET = conManejo(async (request) => {
   const usuario = await requireUsuario(request);
@@ -48,7 +40,7 @@ export const POST = conManejo(async (request) => {
   const edNorm = String(edicion).replace(/\D/g, '');
   const existentes = await leerDocentesCO();
   const choque = existentes.find((p) =>
-    String(p.edicion || '').replace(/\D/g, '') === edNorm && rangosSuperpuestos(p.desde, p.hasta, desde, hasta)
+    String(p.edicion || '').replace(/\D/g, '') === edNorm && rangosSuperpuestosDocentesCO(p.desde, p.hasta, desde, hasta)
   );
   if (choque) {
     return NextResponse.json({
