@@ -857,6 +857,12 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
           {item.esFormacion && item.numeroSesion && item.total && (
             <Fila label="Clase" valor={`${item.numeroSesion} de ${item.total}`} />
           )}
+          {/* Pedido de Diego (02/10/2026): que el detalle diga en qué cuatrimestre está la
+              clase — solo Coaching Ontológico (48 clases, 3 cuatrimestres de 16). Mismo
+              criterio que el modal de Cronograma: clases 1-16 → 1°, 17-32 → 2°, 33-48 → 3°. */}
+          {item.esFormacion && item.curso === 'CO' && item.numeroSesion && (
+            <Fila label="Cuatrimestre" valor={`${Math.min(Math.ceil(item.numeroSesion / 16), 3)}°`} />
+          )}
           {editando ? (
             <>
               <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Horario</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={horaE} onChange={(e) => setHoraE(e.target.value)} placeholder="HH:MM" /></div>

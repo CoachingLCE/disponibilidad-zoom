@@ -803,6 +803,13 @@ function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
               valor={numeroClaseAFecha ? (item.total ? `${numeroClaseAFecha} de ${item.total}` : String(numeroClaseAFecha)) : '—'}
             />
           )}
+          {/* Pedido de Diego (02/10/2026): que el detalle diga en qué cuatrimestre está la
+              clase — solo aplica a Coaching Ontológico (el único curso de 48 clases armado en
+              3 cuatrimestres de 16). Misma cuenta que ya usa calcularFormacionesEnriquecidas
+              para esto: clases 1-16 → 1°, 17-32 → 2°, 33-48 → 3°. */}
+          {esFormacion && item.curso === 'CO' && numeroClaseAFecha && (
+            <Fila label="Cuatrimestre" valor={`${Math.min(Math.ceil(numeroClaseAFecha / 16), 3)}°`} />
+          )}
           {editando ? (
             <>
               <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Docente</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={docE} onChange={(e) => setDocE(e.target.value)} placeholder="Docente" /></div>
