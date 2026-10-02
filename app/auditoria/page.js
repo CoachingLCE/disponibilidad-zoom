@@ -26,6 +26,28 @@ function colorPorUsuario(nombre) {
   return PALETA_USUARIOS[hash % PALETA_USUARIOS.length];
 }
 
+// Colores por TIPO de acción (a diferencia del de arriba, acá el color sí tiene un
+// significado fijo, no es solo "para diferenciar a simple vista") — pedido de Diego. Hay
+// decenas de frases distintas en "accion" ("Agregó feriado", "Agregó enlace en Cronograma
+// CM", etc.), pero todas caen en un puñado de tipos según el verbo: agregar/crear/asignar
+// algo nuevo (verde), editar/postergar/reordenar algo existente (celeste), eliminar/cancelar
+// (rojo), una importación masiva (teal, para distinguirla de un alta suelta) y lo relacionado
+// a sesión/contraseña (violeta). Un intento de login fallido o rechazado se resalta en
+// amarillo porque es lo único acá con algo de relevancia de seguridad. Se evalúa en este
+// orden porque "Intento de login..." contiene palabras que si no, caerían en otro tipo.
+const TIPOS_ACCION = [
+  { test: (a) => /intento de login/i.test(a), bg: 'bg-warningBg', text: 'text-warningText' },
+  { test: (a) => /eliminó|canceló/i.test(a), bg: 'bg-dangerBg', text: 'text-dangerText' },
+  { test: (a) => /importó/i.test(a), bg: 'bg-accentTeal/20', text: 'text-accentTeal' },
+  { test: (a) => /agregó|creó|asignó|reservó/i.test(a), bg: 'bg-successBg', text: 'text-successText' },
+  { test: (a) => /editó|postergó|reordenó/i.test(a), bg: 'bg-infoBg', text: 'text-infoText' },
+  { test: (a) => /inició sesión|cambió su contraseña/i.test(a), bg: 'bg-accentPurple/20', text: 'text-accentPurple' }
+];
+function colorPorAccion(accion) {
+  const a = accion || '';
+  return TIPOS_ACCION.find((t) => t.test(a)) || { bg: 'bg-surface2', text: 'text-textSec' };
+}
+
 function exportarCSV(registros) {
   const filas = [['Fecha', 'Usuario', 'Accion', 'Detalle']].concat(
     registros.map((r) => [
@@ -168,7 +190,11 @@ export default function AuditoriaPage() {
                             {r.usuario || '—'}
                           </span>
                         </td>
-                        <td className="pr-3 whitespace-nowrap">{r.accion}</td>
+                        <td className="pr-3 whitespace-nowrap">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorPorAccion(r.accion).bg} ${colorPorAccion(r.accion).text}`}>
+                            {r.accion}
+                          </span>
+                        </td>
                         <td className="text-textSec">{r.detalle}</td>
                       </tr>
                     ))}
