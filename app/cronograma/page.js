@@ -500,6 +500,11 @@ export default function CronogramaPage() {
                               {items.map((a, idx) => {
                                 const idKey = a.id || `${a.fecha}-${a.horaMin}-${idx}`;
                                 const enCurso = f === hoyISO && horaActualMin >= h - BUFFER_MIN && horaActualMin < h + (a.duracion || 90);
+                                // Pedido de Diego: que se note de un vistazo qué ya pasó, qué es
+                                // HOY y qué es un próximo día — antes todo lo que no era pasado se
+                                // veía exactamente igual (misma opacidad), sin distinguir hoy de
+                                // cualquier otro día futuro de la semana.
+                                const brilloFecha = a.pasada ? 'opacity-40' : f === hoyISO ? 'brightness-110' : 'opacity-80';
                                 const conChoque = idsConChoque.has(a.id || `${a.fecha}-${a.horaMin}-${a.sala}`);
                                 const color = colorDe(a);
                                 return (
@@ -508,7 +513,7 @@ export default function CronogramaPage() {
                                     onClick={() => setSeleccionado(a)}
                                     className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 cursor-pointer border-l-2 ${
                                       color ? `${color.bg} ${color.text} ${color.border}` : 'bg-infoBg text-infoText border-infoText/40'
-                                    } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${a.pasada ? 'opacity-60' : ''} ${esMesActual(a.fecha) && !a.pasada ? 'ring-1 ring-warningText/60' : ''}`}
+                                    } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${brilloFecha} ${esMesActual(a.fecha) && !a.pasada ? 'ring-1 ring-warningText/60' : ''}`}
                                   >
                                     {conChoque && <span className="text-dangerText">⚠ </span>}
                                     {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
@@ -608,6 +613,20 @@ function VistaMes({ todas, onClick, colorPor }) {
     if (colorPor === 'sala') return a.sala ? colorPorSala(a.sala) : null;
     return a.tipo === 'Formación' ? colorFormacion(a.curso) : null;
   }
+  // Pedido de Diego: que se note si una formación ARRANCA en el mes que se está mirando —
+  // la primera clase de una edición nueva, marcada con un punto que titila. Dos casos según
+  // si la edición ya tiene clases con fecha cargadas en Salas Zoom o todavía no:
+  // - Con fecha: numeroSesion === 1 es, por construcción (ver el cálculo más arriba en el
+  //   componente padre), la clase más antigua con fecha de esa edición — la primera de todas.
+  // - Sin fecha todavía (horario recurrente, "fechaInicioEdicion"): como esa fila se proyecta
+  //   sobre CADA día del mes que coincide con su día de semana, hay que quedarse solo con la
+  //   proyección que cae justo en la fecha real de inicio — si no, "parpadearía" todas las
+  //   semanas del mes, no solo la primera.
+  function esInicioDeEdicion(a) {
+    if (a.tipo !== 'Formación') return false;
+    if (a.numeroSesion === 1) return true;
+    return !!(a.recurrente && a.fechaInicioEdicion && a.fecha === a.fechaInicioEdicion);
+  }
   const hoy = new Date();
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth());
@@ -671,9 +690,14 @@ function VistaMes({ todas, onClick, colorPor }) {
               <div className="flex flex-col gap-0.5">
                 {items.slice(0, 3).map((a, i) => {
                   const color = colorDe(a);
+                  const esNueva = esInicioDeEdicion(a);
                   return (
-                    <div key={i} onClick={() => onClick(a)} className={`text-[9.5px] px-1 py-0.5 rounded truncate cursor-pointer ${color ? `${color.bg} ${color.text}` : 'bg-infoBg text-infoText'}`}>
-                      {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
+                    <div
+                      key={i} onClick={() => onClick(a)} title={esNueva ? 'Primera clase de esta edición' : undefined}
+                      className={`flex items-center gap-1 text-[9.5px] px-1 py-0.5 rounded truncate cursor-pointer ${color ? `${color.bg} ${color.text}` : 'bg-infoBg text-infoText'} ${esNueva ? 'ring-1 ring-successText' : ''}`}
+                    >
+                      {esNueva && <span className="inline-block w-1.5 h-1.5 rounded-full bg-successText animate-pulse shrink-0" />}
+                      <span className="truncate">{a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}</span>
                     </div>
                   );
                 })}

@@ -514,6 +514,12 @@ export default function InicioPage() {
   // Nueva métrica pedida por Diego: cuántas de las clases de hoy ya se dieron (mismo
   // criterio de "finalizada" que ya usan las tarjetas de Agenda de hoy).
   const clasesRealizadasHoy = agendaHoy.filter((a) => estadoDeAgenda(a.horaMin, a.duracion) === 'finalizada').length;
+  // Pedido de Diego (02/10/2026): una métrica aparte para lo que NO es una clase de
+  // formación (Masterclass, Reuniones, Capacitaciones, Jornadas, BLOG, etc. — lo que se
+  // carga desde "Agregar al cronograma" con un tipo distinto de "Formación"). agendaHoy ya
+  // trae ese dato armado (esFormacion: false para estas, ver actividadesTodas más arriba),
+  // así que no hace falta volver a calcular nada.
+  const clasesEspecialesHoy = agendaHoy.filter((a) => !a.esFormacion).length;
   const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
 
   if (cargando || !usuario) return null;
@@ -548,6 +554,12 @@ export default function InicioPage() {
           <div data-tour="inicio-panel" className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(115px,1fr))' }}>
             <Metrica icono="clasesHoy" valor={agendaHoy.length} label="Clases hoy" />
             <Metrica icono="realizadas" valor={clasesRealizadasHoy} label="Clases realizadas" />
+            {/* Pedido de Diego (02/10/2026): "Clases especiales hoy" — para contabilizar todo
+                lo que no es una clase de formación (Masterclass, Reuniones, Capacitaciones,
+                Jornadas, BLOG, etc., cargado desde "Agregar al cronograma" con otro tipo). Se
+                atenúa en 0 con el mismo criterio que "Incidencias activas": no tiene sentido
+                que compita visualmente con el resto cuando no hay ninguna hoy. */}
+            <Metrica icono="especial" valor={clasesEspecialesHoy} label="Clases especiales hoy" atenuada={clasesEspecialesHoy === 0} />
             <Metrica
               icono="proxima"
               valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
@@ -556,8 +568,19 @@ export default function InicioPage() {
               chico
               onClick={proximaClase ? () => setSeleccionado(proximaClase) : undefined}
             />
-            <Metrica icono="salas" valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas ahora" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
-            <Metrica icono="salas" valor={libresAhora} label="Salas disponibles ahora" acento="success" />
+            {/* Pedido de Diego (02/10/2026, "ESTO PODRÍA SER UN MISMO ITEM, ES REDUNDANTE O
+                NO?"): antes eran dos tarjetas separadas ("Salas ocupadas ahora" y "Salas
+                disponibles ahora") mostrando el mismo dato de dos formas — libresAhora es
+                literalmente SALAS.length - ocupadasAhora, nunca puede decir algo distinto de
+                lo que ya dice la otra tarjeta. Se unifican en una sola: el número grande es
+                lo que más importa para reservar (cuántas salas quedan libres), y si hay
+                alguna ocupada se aclara abajo como dato secundario en vez de ocupar una
+                tarjeta entera. */}
+            <Metrica
+              icono="salas" valor={`${libresAhora}/${SALAS.length}`} label="Salas disponibles ahora"
+              valorExtra={ocupadasAhora > 0 ? `${ocupadasAhora} ocupada${ocupadasAhora > 1 ? 's' : ''} ahora` : undefined}
+              acento={ocupadasAhora > 0 ? 'warning' : 'success'}
+            />
             <Metrica icono="alerta" valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} atenuada={alertasConflictos.length === 0} />
             <Metrica icono="formaciones" valor={formacionesEnCurso} label="Formaciones activas" href="/formaciones" />
           </div>
@@ -580,7 +603,12 @@ export default function InicioPage() {
             {agendaHoy.length === 0 ? (
               <p className="text-textSec text-sm py-2">Sin actividades cargadas para hoy.</p>
             ) : (
-              <div data-tour="tarjetas-clases" className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
+              // Pedido de Diego ("achicar el ancho a la cantidad de clases del día"): con
+              // `1fr` cada tarjeta se estiraba para ocupar TODO el ancho disponible aunque
+              // hubiera solo 1 o 2 clases hoy (se veían gigantes) — con un máximo fijo en vez
+              // de 1fr, cada tarjeta queda a su ancho natural y el espacio sobrante del
+              // contenedor queda vacío en vez de repartirse entre las pocas tarjetas que haya.
+              <div data-tour="tarjetas-clases" className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,300px))' }}>
                 {agendaHoy.map((a, i) => {
                   const estadoAgenda = estadoDeAgenda(a.horaMin, a.duracion);
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;
@@ -1045,7 +1073,8 @@ const ICONOS_METRICA = {
   proxima: <><circle cx="12" cy="12" r="8.75" /><path d="M12 7.25V12l3.25 2" /></>,
   salas: <><path d="M4 20.5V6.75L12 3l8 3.75V20.5" /><path d="M9.5 20.5v-6h5v6M4 20.5h16" /></>,
   alerta: <><path d="M10.6 4.3 2.9 18a1.7 1.7 0 0 0 1.5 2.5h15.2a1.7 1.7 0 0 0 1.5-2.5L13.4 4.3a1.7 1.7 0 0 0-2.8 0Z" /><path d="M12 10v3.5M12 17h.01" /></>,
-  formaciones: <><path d="M2.75 9.5 12 5l9.25 4.5L12 14z" /><path d="M6.25 11.5v4.25C6.25 17.5 8.8 19 12 19s5.75-1.5 5.75-3.25V11.5M21.25 9.5V15" /></>
+  formaciones: <><path d="M2.75 9.5 12 5l9.25 4.5L12 14z" /><path d="M6.25 11.5v4.25C6.25 17.5 8.8 19 12 19s5.75-1.5 5.75-3.25V11.5M21.25 9.5V15" /></>,
+  especial: <path d="M12 3.5 14.5 9.5 21 10.3 16.3 14.6 17.6 21 12 17.7 6.4 21 7.7 14.6 3 10.3 9.5 9.5Z" />
 };
 function IconoMetrica({ tipo, className }) {
   const contenido = ICONOS_METRICA[tipo];
