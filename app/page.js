@@ -7,7 +7,7 @@ import { tienePermisoEditarCronograma } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, calcularAlertas, calcularFormacionesEnriquecidas, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
-  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase, entradasFuturasFormacionSinLive
+  calcularNumeroSesion, toISO, buscarPeriodoCO, edicionRealDeClase, entradasFuturasFormacionSinLive, calcularFechaFinCurso
 } from '../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
@@ -122,6 +122,25 @@ export default function InicioPage() {
     () => calcularFormacionesEnriquecidas(clases, formacionesManual, asignacionesCODisponibles),
     [clases, formacionesManual, asignacionesCODisponibles]
   );
+  // Se calcula una sola vez (no depende de nada que cambie) — mismas ediciones que
+  // Formaciones ya detecta como "Finalizó" a partir del histórico real, para que las dos
+  // pantallas digan lo mismo y una clase de un curso ya terminado no siga apareciendo acá.
+  // Se sube acá (antes vivía más abajo) porque `alertasActividadFaltante` también la necesita.
+  const edicionesFinalizadas = useMemo(() => calcularEdicionesFinalizadas(CRONOGRAMA_HISTORICO), []);
+  // Sala YA conocida de una edición de C.O. por CUALQUIER fuente que la app ya usa en otros
+  // lados (no solo la columna "Sala" del período de Docentes C.O. vigente): `formaciones` ya
+  // mezcla, en este orden, el horario confirmado contra Zoom real (SALA_CONFIRMADA_POR_EDICION)
+  // y el período vigente de Docentes C.O. — exactamente la misma sala que ya se muestra en la
+  // tarjeta de esa edición en Formaciones/Cronograma/Agenda de hoy. Pedido de Diego ("SIGUE
+  // APARECIENDO" / "REVISA PEDIRME TODA LA INFO PARA QUE ACA NO APAREZCA NADA"): la alerta de
+  // "Falta cargar la clase" miraba SOLO el período (`a.sala`) y no esta fuente combinada, así
+  // que podía seguir disparando para una edición cuya sala sí se conoce, solo que por otro
+  // camino — sin necesidad de pedirle a Diego que confirme nada a mano.
+  const salaConocidaPorEdicionCO = useMemo(() => {
+    const out = {};
+    formaciones.forEach((f) => { if (f.codigo === 'CO' && f.sala) out[f.numero] = f.sala; });
+    return out;
+  }, [formaciones]);
   // Avisa cuando a una edición en curso le quedan exactamente 2 clases para terminar —
   // así el equipo puede empezar a coordinar el cierre (certificación, próxima edición, etc.)
   // con un poco de anticipación en vez de enterarse el día de la última clase.
@@ -213,37 +232,63 @@ export default function InicioPage() {
         if (!actual || (c.fecha || '') > (actual.fecha || '')) salaPorEdicionCO[edicion] = c;
       }
     });
-    return asignacionesCODisponibles
-      .filter((a) => a.desde && a.desde <= hoyISO && (!a.hasta || a.hasta >= hoyISO))
-      .filter((a) => !salaPorEdicionCO[a.edicion])
-      // Si el período ya tiene sala cargada (columna "Sala" de Docentes C.O.) y no hay
-      // ninguna clase real creada, ya no hace falta avisar "Falta cargar la clase" — esa
-      // edición se arma sola como clase virtual (con su sala real) vía
-      // `entradasFuturasFormacionSinLive`/`calcularFormacionesEnriquecidas`, y cuenta
-      // normalmente en "Salas ocupadas ahora". Pedido de Diego (02/10/2026): "YA CARGAMOS
-      // TODA LA INFO DE TODAS" — esto dejó de ser una alerta real para esos casos. Si en
-      // cambio SÍ hay una clase real creada mas sin sala (caso "asignarSala"), esa sigue
-      // mostrándose igual: ahí la sala que falta es la de esa fila puntual, no la del período.
-      .filter((a) => existeClasePorEdicion[a.edicion] || !a.sala)
-      .map((a) => existeClasePorEdicion[a.edicion]
-        ? {
+    // Se descartan además las ediciones que el histórico real ya marca como Finalizó (ver
+    // `edicionesFinalizadas` más arriba) y cualquier período cuyo "Desde" sea tan viejo que,
+    // contando la duración real de C.O. (48 clases) desde esa fecha, la edición ya tendría que
+    // haber terminado hace rato — un período sin "Hasta" cargado en Docentes C.O. queda
+    // "vigente" para siempre aunque la edición haya terminado hace años (ej. edición 1,
+    // "vigente desde 01/01/2022" sin ningún dato más reciente cargado), y sin este chequeo eso
+    // disparaba la alerta de forma permanente para una edición que ya no tiene nada pendiente.
+    const vigentes = asignacionesCODisponibles.filter((a) => {
+      if (!a.desde || a.desde > hoyISO) return false;
+      if (a.hasta && a.hasta < hoyISO) return false;
+      if (edicionesFinalizadas.has(`CO|${a.edicion}`)) return false;
+      const finEstimado = calcularFechaFinCurso('CO', a.desde, TOTALES.CO);
+      if (finEstimado && finEstimado < hoyISO) return false;
+      return true;
+    });
+    // Puede haber MÁS DE UN período "vigente" para la misma edición al mismo tiempo — datos
+    // superpuestos/duplicados en Docentes C.O. (ej. un período viejo sin sala y uno nuevo con
+    // sala cargados los dos para el mismo rango de fechas). Evaluar cada fila por separado
+    // hacía que la vieja (sin sala) igual disparara la alerta aunque la nueva (con sala) ya
+    // la resolviera — se agrupa por edición primero y se usa la que tenga sala, si hay alguna.
+    const porEdicion = {};
+    vigentes.forEach((a) => { (porEdicion[a.edicion] = porEdicion[a.edicion] || []).push(a); });
+
+    return Object.entries(porEdicion)
+      .filter(([edicion]) => !salaPorEdicionCO[edicion])
+      .map(([edicion, periodos]) => {
+        const a = periodos.find((p) => p.sala) || periodos[periodos.length - 1];
+        if (existeClasePorEdicion[edicion]) {
+          return {
             tipo: 'actividadFaltante', accion: 'asignarSala',
-            texto: `Falta asignar sala: Coaching Ontológico edición ${a.edicion} ya tiene la clase cargada, pero todavía sin sala — asignásela en "Salas pendientes de asignar", arriba de "Agenda de hoy".`
-          }
-        : {
-            tipo: 'actividadFaltante', accion: 'cargarClase',
-            texto: `Falta cargar la clase: Coaching Ontológico edición ${a.edicion} ya está vigente (desde el ${formatFechaCorta(a.desde)}) pero no tiene ninguna clase creada en Salas Zoom todavía.`,
-            // Se manda a "Cargar actividad →" para precargar el formulario de Salas Zoom con
-            // estos datos (edición, fecha de inicio, docente/staff del período vigente) — así
-            // Diego solo tiene que confirmar sala/horario en vez de tipear todo de nuevo.
-            prefillHref: `/salas-zoom?prefillCurso=CO&prefillEdicion=${encodeURIComponent(a.edicion)}&prefillFecha=${encodeURIComponent(a.desde || '')}&prefillDocente=${encodeURIComponent(a.docente || '')}&prefillStaff=${encodeURIComponent(a.staff || '')}&prefillHorario=${encodeURIComponent(a.horario || '')}`,
-            // Se llevan estos datos crudos también acá (no solo en el texto) para poder armar
-            // más abajo una tarjeta "de mentira" en Agenda de hoy cuando el período arranca
-            // justo hoy — ver `agendaSinteticaHoy`.
-            edicion: a.edicion, desde: a.desde, docente: a.docente || '', staff: a.staff || '', horario: a.horario || ''
-          }
-      );
-  }, [asignacionesCODisponibles, clases]);
+            texto: `Falta asignar sala: Coaching Ontológico edición ${edicion} ya tiene la clase cargada, pero todavía sin sala — asignásela en "Salas pendientes de asignar", arriba de "Agenda de hoy".`
+          };
+        }
+        // Si el período ya tiene sala cargada (columna "Sala" de Docentes C.O.) O si la sala
+        // ya se conoce por cualquier otra fuente que la app ya usa (ver `salaConocidaPorEdicionCO`
+        // más arriba — típicamente el horario confirmado contra Zoom real) y no hay ninguna
+        // clase real creada, ya no hace falta avisar "Falta cargar la clase" — esa edición se
+        // arma sola como clase virtual (con su sala real) vía
+        // `entradasFuturasFormacionSinLive`/`calcularFormacionesEnriquecidas`, y cuenta
+        // normalmente en "Salas ocupadas ahora". Pedido de Diego (02/10/2026): "YA CARGAMOS
+        // TODA LA INFO DE TODAS" — esto dejó de ser una alerta real para esos casos.
+        if (a.sala || salaConocidaPorEdicionCO[edicion]) return null;
+        return {
+          tipo: 'actividadFaltante', accion: 'cargarClase',
+          texto: `Falta cargar la clase: Coaching Ontológico edición ${edicion} ya está vigente (desde el ${formatFechaCorta(a.desde)}) pero no tiene ninguna clase creada en Salas Zoom todavía.`,
+          // Se manda a "Cargar actividad →" para precargar el formulario de Salas Zoom con
+          // estos datos (edición, fecha de inicio, docente/staff del período vigente) — así
+          // Diego solo tiene que confirmar sala/horario en vez de tipear todo de nuevo.
+          prefillHref: `/salas-zoom?prefillCurso=CO&prefillEdicion=${encodeURIComponent(edicion)}&prefillFecha=${encodeURIComponent(a.desde || '')}&prefillDocente=${encodeURIComponent(a.docente || '')}&prefillStaff=${encodeURIComponent(a.staff || '')}&prefillHorario=${encodeURIComponent(a.horario || '')}`,
+          // Se llevan estos datos crudos también acá (no solo en el texto) para poder armar
+          // más abajo una tarjeta "de mentira" en Agenda de hoy cuando el período arranca
+          // justo hoy — ver `agendaSinteticaHoy`.
+          edicion, desde: a.desde, docente: a.docente || '', staff: a.staff || '', horario: a.horario || ''
+        };
+      })
+      .filter(Boolean);
+  }, [asignacionesCODisponibles, clases, edicionesFinalizadas, salaConocidaPorEdicionCO]);
   // Si un período de C.O. arranca justo HOY pero todavía no tiene clase real cargada (caso
   // de arriba, accion "cargarClase"), Diego quiere que igual aparezca en "Agenda de hoy" —
   // aunque sea sin sala — en vez de estar solamente como alerta. Se arma una tarjeta con la
@@ -341,10 +386,6 @@ export default function InicioPage() {
   });
   const libresAhora = SALAS.length - ocupadasAhora;
 
-  // Se calcula una sola vez (no depende de nada que cambie) — mismas ediciones que
-  // Formaciones ya detecta como "Finalizó" a partir del histórico real, para que las dos
-  // pantallas digan lo mismo y una clase de un curso ya terminado no siga apareciendo acá.
-  const edicionesFinalizadas = useMemo(() => calcularEdicionesFinalizadas(CRONOGRAMA_HISTORICO), []);
   // Fecha real de inicio de cada edición, según el histórico (mismo Excel que ya usa la
   // pantalla Formaciones para esto — ver `historicoPorEdicion` en app/formaciones/page.js).
   // El modal de detalle de acá abajo (Inicio → click en una clase) no lo tenía en cuenta y
@@ -495,20 +536,28 @@ export default function InicioPage() {
               aclara que "Salas ocupadas" es en este momento. "Incidencias activas" se
               atenúa (opacity) cuando está en 0, en vez de tener el mismo protagonismo que
               cuando sí hay algo para revisar — sigue en la fila para no generar la duda de
-              "¿por qué desapareció?", pero pasa a un segundo plano visual. */}
+              "¿por qué desapareció?", pero pasa a un segundo plano visual.
+              Pedido de Diego (02/10/2026): "que entre en una línea" + "algo más premium" en
+              vez de emojis — se cambian los emojis por íconos de línea (SVG, mismo trazo que
+              el resto del sistema de diseño) y el label se trunca con "…" en una sola línea
+              en vez de dejarlo envolver a dos — ver IconoMetrica más abajo. Se acortan además
+              los dos labels más largos ("Salas disponibles en este momento" → "Salas
+              disponibles ahora") para que entren sin truncarse en el ancho normal de la
+              tarjeta; el de "Próxima" queda con title= para poder leer el nombre completo del
+              curso al pasar el mouse si se trunca. */}
           <div data-tour="inicio-panel" className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(115px,1fr))' }}>
-            <Metrica icono="📚" valor={agendaHoy.length} label="Clases hoy" />
-            <Metrica icono="✅" valor={clasesRealizadasHoy} label="Clases realizadas" />
+            <Metrica icono="clasesHoy" valor={agendaHoy.length} label="Clases hoy" />
+            <Metrica icono="realizadas" valor={clasesRealizadasHoy} label="Clases realizadas" />
             <Metrica
-              icono="🕒"
+              icono="proxima"
               valor={proximaClase ? minutosAHora(proximaClase.horaMin) : '—'}
               label={proximaClase ? `Próxima: ${proximaClase.nombreCurso}` : 'Próxima clase'}
               chico
             />
-            <Metrica icono="🏢" valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas ahora" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
-            <Metrica icono="🏢" valor={libresAhora} label="Salas disponibles en este momento" acento="success" />
-            <Metrica icono="⚠️" valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} atenuada={alertasConflictos.length === 0} />
-            <Metrica icono="🎓" valor={formacionesEnCurso} label="Formaciones activas" />
+            <Metrica icono="salas" valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas ahora" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
+            <Metrica icono="salas" valor={libresAhora} label="Salas disponibles ahora" acento="success" />
+            <Metrica icono="alerta" valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} atenuada={alertasConflictos.length === 0} />
+            <Metrica icono="formaciones" valor={formacionesEnCurso} label="Formaciones activas" />
           </div>
 
           {pendientesSala.length > 0 && (
@@ -975,6 +1024,31 @@ function Fila({ label, valor }) {
   );
 }
 
+// Set de íconos de línea (trazo fino, estilo Lucide/Feather) para las tarjetas de métricas de
+// Inicio — pedido de Diego (02/10/2026): "algo más premium" en vez de los emojis (📚✅🕒🏢⚠️🎓),
+// que se ven distinto según el sistema operativo/navegador y desentonan con el resto del
+// diseño. Siguen el mismo lenguaje visual recesivo que pide el resto de la UI: trazo 1.75,
+// sin relleno, heredan el color del texto que las acompaña (currentColor) en vez de traer
+// color propio — así una métrica en alerta (acento "danger"/"warning") tiñe ícono y texto por
+// igual, nunca color solo.
+const ICONOS_METRICA = {
+  clasesHoy: <><rect x="3.25" y="4.5" width="17.5" height="15.5" rx="2" /><path d="M3.25 9h17.5M8 3v3M16 3v3" /></>,
+  realizadas: <><circle cx="12" cy="12" r="8.75" /><path d="m8.5 12.3 2.4 2.4 4.6-5.1" /></>,
+  proxima: <><circle cx="12" cy="12" r="8.75" /><path d="M12 7.25V12l3.25 2" /></>,
+  salas: <><path d="M4 20.5V6.75L12 3l8 3.75V20.5" /><path d="M9.5 20.5v-6h5v6M4 20.5h16" /></>,
+  alerta: <><path d="M10.6 4.3 2.9 18a1.7 1.7 0 0 0 1.5 2.5h15.2a1.7 1.7 0 0 0 1.5-2.5L13.4 4.3a1.7 1.7 0 0 0-2.8 0Z" /><path d="M12 10v3.5M12 17h.01" /></>,
+  formaciones: <><path d="M2.75 9.5 12 5l9.25 4.5L12 14z" /><path d="M6.25 11.5v4.25C6.25 17.5 8.8 19 12 19s5.75-1.5 5.75-3.25V11.5M21.25 9.5V15" /></>
+};
+function IconoMetrica({ tipo, className }) {
+  const contenido = ICONOS_METRICA[tipo];
+  if (!contenido) return null;
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className || ''}`}>
+      {contenido}
+    </svg>
+  );
+}
+
 function Metrica({ valor, label, icono, acento, chico, atenuada }) {
   const color = {
     success: 'text-successText', warning: 'text-warningText', danger: 'text-dangerText'
@@ -984,10 +1058,15 @@ function Metrica({ valor, label, icono, acento, chico, atenuada }) {
   // ahora text-base/text-sm). "Incidencias activas" en 0 se atenúa (opacity) para no competir
   // visualmente con lo que sí necesita atención, sin sacarla de la fila.
   // Pedido de Diego (02/10/2026): "Los números que estén al lado, no abajo" — el valor va al
-  // lado de la etiqueta (misma fila), no debajo en una fila propia.
+  // lado de la etiqueta (misma fila), no debajo en una fila propia. "Que entre en una línea" —
+  // el label se trunca con "…" (title= para poder leer el texto completo al pasar el mouse)
+  // en vez de envolver a una segunda línea, que es lo que lo hacía ver más alto/desprolijo.
   return (
     <div className={`${metricaCls} ${atenuada ? 'opacity-55' : ''} flex items-center justify-between gap-2`}>
-      <div className="text-[10.5px] text-textSec font-semibold leading-snug min-w-0">{icono ? `${icono} ` : ''}{label}</div>
+      <div className="flex items-center gap-1.5 min-w-0">
+        {icono && <IconoMetrica tipo={icono} className={acento ? color : 'text-textMuted'} />}
+        <span className="text-[10.5px] text-textSec font-semibold leading-snug truncate" title={label}>{label}</span>
+      </div>
       <div className={`${chico ? 'text-sm' : 'text-base'} font-bold leading-tight whitespace-nowrap shrink-0 ${color}`}>{valor}</div>
     </div>
   );

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
-  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase, calcularFormacionesEnriquecidas, entradasFuturasFormacionSinLive
+  SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase, calcularFormacionesEnriquecidas, entradasFuturasFormacionSinLive, fechaDeClaseNumero
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
@@ -187,6 +187,15 @@ export default function CronogramaPage() {
     return [...fijos, ...asignacionesCO];
   }, [asignacionesCO]);
 
+  // Se calcula una sola vez acá afuera (en vez de adentro de `todas`) porque además de
+  // alimentar `todas` (las entradas puntuales de cada clase que falta) también lo necesita
+  // `itemsSemana` más abajo, para poder proyectar en el Calendario las formaciones sin fila
+  // viva en Salas Zoom sobre su día fijo de CADA semana (ver comentario ahí).
+  const formacionesCalc = useMemo(
+    () => calcularFormacionesEnriquecidas(clases, formacionesManual, asignacionesCODisponibles),
+    [clases, formacionesManual, asignacionesCODisponibles]
+  );
+
   const { todas, totalSinFiltro } = useMemo(() => {
     // El "número" que guarda cada clase (c.numero) identifica la EDICIÓN (ej: "CV 5"),
     // no qué sesión semanal es dentro de esa edición — antes se mostraban como si fueran
@@ -251,7 +260,6 @@ export default function CronogramaPage() {
     // en el cronograma, a diferencia de Agenda de hoy, hace falta ver las próximas también.
     // Pedido de Diego: "Porque no aparecen todas las clases? Coaching Deportivo Edición 14
     // Clase 15 de 16" — antes solo se armaba la de hoy, y la semana siguiente desaparecía).
-    const formacionesCalc = calcularFormacionesEnriquecidas(clases, formacionesManual, asignacionesCODisponibles);
     const hoyISOparaFormaciones = toISO(new Date());
     const hoyDeFormacionesSinLive = formacionesCalc
       .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISOparaFormaciones, asignacionesCODisponibles))
@@ -265,7 +273,7 @@ export default function CronogramaPage() {
     if (filtroDia) out = out.filter((a) => a.dia === filtroDia);
     if (filtroRango) out = out.filter((a) => a.recurrente || dentroDeRango(a.fecha, filtroRango));
     return { todas: out, totalSinFiltro: completo.length };
-  }, [clases, actividades, asignacionesCODisponibles, formacionesManual, edicionesFinalizadas, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
+  }, [clases, actividades, asignacionesCODisponibles, formacionesManual, formacionesCalc, edicionesFinalizadas, filtroTipo, filtroCurso, filtroSala, filtroDia, filtroRango]);
 
   const tiposUsados = [...new Set(['Formación', ...actividades.map((a) => a.tipo)])];
   const cursosUsados = [...new Set(clases.map((c) => c.codigo).concat(actividades.filter((a) => a.curso).map((a) => a.curso)))];
@@ -289,8 +297,60 @@ export default function CronogramaPage() {
       if (idx === -1) return null;
       return { ...a, fecha: fechasSemana[idx] };
     }).filter(Boolean).filter((a) => dentroDeRango(a.fecha, filtroRango));
-    return datados.concat(recurrentesProyectadas);
-  }, [todas, fechasSemana, filtroRango]);
+
+    // Formaciones sin NINGUNA fila viva en Salas Zoom (Coaching Deportivo y similares — ver
+    // calcularFormacionesEnriquecidas/entradasFuturasFormacionSinLive): `datados` ya trae una
+    // entrada por cada clase puntual que todavía no pasó, pero si la clase de ESTA semana en
+    // particular ya pasó (ej. hoy es viernes y la edición da clase los jueves), esa entrada
+    // puntual no se genera — y la semana que se está mirando queda con el casillero vacío
+    // aunque la edición siga en curso. Pedido de Diego (02/10/2026, "SIGUEN SIN APARECER
+    // TODAS LAS CLASES", Coaching Deportivo 16 faltando en su día fijo): acá se proyecta,
+    // igual que ya se hace arriba con las recurrentes de Salas Zoom, sobre el día fijo de la
+    // semana que se esté mirando — pasada, presente o futura — PERO solo si esa semana no
+    // tiene ya una entrada puntual real para la misma edición (si la tiene, se usa esa, que
+    // trae el número de clase exacto; evita duplicar el mismo casillero dos veces).
+    const edicionesYaDatadas = new Set(
+      datados.filter((a) => a.sinRepresentacionViva).map((a) => `${a.curso}|${a.edicion}`)
+    );
+    const formacionesProyectadas = formacionesCalc
+      .filter((f) => f.sinRepresentacionViva && f.estado === 'En proceso' && f.dia && f.horaMin != null)
+      .filter((f) => !edicionesYaDatadas.has(`${f.codigo}|${f.numero}`))
+      .map((f) => {
+        const idx = DIAS_SEMANA.indexOf(f.dia);
+        if (idx === -1) return null;
+        const fecha = fechasSemana[idx];
+        if (f.fechaInicio && fecha < f.fechaInicio) return null; // esa semana la edición ni había arrancado
+        if (f.fechaFinal && fecha > f.fechaFinal) return null; // esa semana la edición ya había terminado
+        // Para C.O. el docente/sala/horario cambia por cuatrimestre — se busca el período
+        // vigente a la fecha PUNTUAL proyectada (mismo criterio que entradasFuturasFormacionSinLive),
+        // en vez de arrastrar siempre el de hoy.
+        let dia = f.dia, horaMin = f.horaMin, sala = f.sala || '', docente = f.docente || '';
+        if (f.codigo === 'CO' && asignacionesCODisponibles.length) {
+          const periodo = buscarPeriodoCO(asignacionesCODisponibles, f.numero, fecha);
+          if (periodo) {
+            const m = String(periodo.horario || '').match(/(\d{1,2})[.:hH](\d{2}).*?(\d{1,2})[.:hH](\d{2})/);
+            dia = periodo.dia || dia;
+            horaMin = m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : horaMin;
+            sala = periodo.sala || '';
+            docente = periodo.docente || '';
+          }
+        }
+        let numeroSesion = null;
+        for (let n = 1; n <= f.total; n++) {
+          if (fechaDeClaseNumero(f.codigo, f.fechaInicio, n) === fecha) { numeroSesion = n; break; }
+        }
+        return {
+          id: `proy-${f.codigo}-${f.numero}-${fecha}`, fecha, dia, tipo: 'Formación', curso: f.codigo,
+          nombreCurso: NOMBRES[f.codigo] || f.codigo, edicion: f.numero, numeroSesion, total: f.total,
+          horaMin, duracion: f.duracion || DURACIONES[f.codigo] || 90, sala, docente, staff: '',
+          tematica: '', observaciones: '', pasada: fecha < hoyISO, sinRepresentacionViva: true
+        };
+      })
+      .filter(Boolean)
+      .filter((a) => dentroDeRango(a.fecha, filtroRango));
+
+    return datados.concat(recurrentesProyectadas, formacionesProyectadas);
+  }, [todas, formacionesCalc, fechasSemana, filtroRango, asignacionesCODisponibles, hoyISO]);
 
   // Si se elige un rango puntual (Hoy / Esta semana / Próxima semana), la vista Calendario
   // salta sola a la semana que corresponde — antes el filtro no tenía ningún efecto visible

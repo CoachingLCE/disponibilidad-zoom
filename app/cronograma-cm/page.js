@@ -52,6 +52,7 @@ export default function CronogramaCMPage() {
   const [hora, setHora] = useState(9);
   const [tipo, setTipo] = useState(TIPOS_CM[0].id);
   const [detalle, setDetalle] = useState('');
+  const [repetirSemanas, setRepetirSemanas] = useState(1);
   const [msg, setMsg] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [seleccionada, setSeleccionada] = useState(null);
@@ -60,6 +61,7 @@ export default function CronogramaCMPage() {
   const [enlaces, setEnlaces] = useState([]);
   const [notas, setNotas] = useState([]);
   const [nuevaCampana, setNuevaCampana] = useState({ titulo: '', fecha: '', descripcion: '' });
+  const [editandoCampana, setEditandoCampana] = useState(null);
   const [nuevoEnlace, setNuevoEnlace] = useState({ categoria: CATEGORIAS_RECURSOS[0].id, titulo: '', url: '', descripcion: '' });
   const [mostrarFormRecurso, setMostrarFormRecurso] = useState(false);
   const [editandoEnlace, setEditandoEnlace] = useState(null);
@@ -170,6 +172,16 @@ export default function CronogramaCMPage() {
     });
     if (res.ok) { setNuevaCampana({ titulo: '', fecha: '', descripcion: '' }); cargarExtras(); }
   }
+  async function guardarEdicionCampana() {
+    if (!editandoCampana || !editandoCampana.titulo.trim()) return;
+    const res = await fetchAutenticado(`/api/cronograma-cm/campanas/${encodeURIComponent(editandoCampana.id)}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titulo: editandoCampana.titulo, fecha: editandoCampana.fecha, descripcion: editandoCampana.descripcion
+      })
+    });
+    if (res.ok) { setEditandoCampana(null); cargarExtras(); }
+  }
   async function eliminarCampana(id) {
     const res = await fetchAutenticado(`/api/cronograma-cm/campanas/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (res.ok) cargarExtras();
@@ -234,12 +246,13 @@ export default function CronogramaCMPage() {
       const dia = diaDesdeFecha(fecha);
       const res = await fetchAutenticado('/api/cronograma-cm', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, dia, horaMin: hora * 60, tipo, detalle })
+        body: JSON.stringify({ fecha, dia, horaMin: hora * 60, tipo, detalle, repetirSemanas })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: 'Agregado.' });
+      setMsg({ tipo: 'ok', texto: repetirSemanas > 1 ? `Agregado en ${repetirSemanas} semanas seguidas.` : 'Agregado.' });
       setDetalle('');
+      setRepetirSemanas(1);
       cargar();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -296,8 +309,21 @@ export default function CronogramaCMPage() {
               </select>
             </div>
             <div><label className={labelCls}>Detalle (opcional)</label><input value={detalle} onChange={(e) => setDetalle(e.target.value)} className={inputCls} /></div>
+            <div>
+              <label className={labelCls} title="Carga la misma actividad, a la misma hora, una semana tras otra (ej. una reunión semanal fija)">Repetir (semanas)</label>
+              <input
+                type="number" min={1} max={52} value={repetirSemanas}
+                onChange={(e) => setRepetirSemanas(Math.min(Math.max(parseInt(e.target.value, 10) || 1, 1), 52))}
+                className={inputCls}
+              />
+            </div>
           </div>
-          <button className={btnCls} disabled={guardando} onClick={agregar}>{guardando ? 'Guardando…' : 'Agregar'}</button>
+          {repetirSemanas > 1 && (
+            <p className="text-[11px] text-textSec mb-2.5">
+              Se va a cargar el {diaDesdeFecha(fecha || toISO(new Date())).charAt(0) + diaDesdeFecha(fecha || toISO(new Date())).slice(1).toLowerCase()} de esta semana y de las {repetirSemanas - 1} semanas siguientes, {repetirSemanas} en total.
+            </p>
+          )}
+          <button className={btnCls} disabled={guardando} onClick={agregar}>{guardando ? 'Guardando…' : repetirSemanas > 1 ? `Agregar (${repetirSemanas} semanas)` : 'Agregar'}</button>
           {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
         </div>
       )}
@@ -404,7 +430,12 @@ export default function CronogramaCMPage() {
                   </p>
                   {c.descripcion && <p className="text-xs text-textSec mt-0.5">{c.descripcion}</p>}
                 </div>
-                {puedeEditarCM && !c.esFijo && <button className={btnSecCls} onClick={() => eliminarCampana(c.id)}>Eliminar</button>}
+                {puedeEditarCM && !c.esFijo && (
+                  <div className="flex gap-1.5 shrink-0">
+                    <button className={btnSecCls} onClick={() => setEditandoCampana({ id: c.id, titulo: c.titulo, fecha: c.fecha || '', descripcion: c.descripcion || '' })}>Editar</button>
+                    <button className={btnSecCls} onClick={() => eliminarCampana(c.id)}>Eliminar</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -496,6 +527,23 @@ export default function CronogramaCMPage() {
           </div>
         )}
       </div>
+
+      {editandoCampana && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setEditandoCampana(null)}>
+          <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-3">Editar campaña</h3>
+            <div className="flex flex-col gap-2.5 mb-3">
+              <div><label className={labelCls}>Título</label><input value={editandoCampana.titulo} onChange={(e) => setEditandoCampana((p) => ({ ...p, titulo: e.target.value }))} className={inputCls} /></div>
+              <div><label className={labelCls}>Fecha</label><input type="date" value={editandoCampana.fecha} onChange={(e) => setEditandoCampana((p) => ({ ...p, fecha: e.target.value }))} className={inputCls} /></div>
+              <div><label className={labelCls}>Descripción (opcional)</label><input value={editandoCampana.descripcion || ''} onChange={(e) => setEditandoCampana((p) => ({ ...p, descripcion: e.target.value }))} className={inputCls} /></div>
+            </div>
+            <div className="flex gap-2">
+              <button className={btnSecCls} onClick={() => setEditandoCampana(null)}>Cancelar</button>
+              <button className={btnCls} onClick={guardarEdicionCampana}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editandoEnlace && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setEditandoEnlace(null)}>
