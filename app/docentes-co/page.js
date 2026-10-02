@@ -55,6 +55,10 @@ export default function DocentesCOPage() {
   const [error, setError] = useState(null);
   const [seleccionado, setSeleccionado] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('activa');
+  // Pedido de Diego: poder colapsar el Historial completo (la tabla con TODOS los
+  // períodos de todas las ediciones, bastante larga) para no tener que scrollear toda
+  // la pantalla cuando no hace falta mirarlo.
+  const [historialAbierto, setHistorialAbierto] = useState(true);
 
   useEffect(() => { if (!cargando && !usuario) router.push('/login'); }, [cargando, usuario, router]);
   useEffect(() => { if (usuario) cargar(); }, [usuario]);
@@ -244,8 +248,15 @@ export default function DocentesCOPage() {
       </div>
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">Historial completo (todos los períodos)</h2>
-        {historialOrdenado.length === 0 ? <p className="text-textSec text-sm">Sin historial todavía.</p> : (
+        <button
+          type="button"
+          onClick={() => setHistorialAbierto((v) => !v)}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <h2 className="text-sm font-semibold mb-3">Historial completo (todos los períodos)</h2>
+          <span className="text-textMuted text-xs mb-3">{historialAbierto ? '▲ Ocultar' : '▼ Mostrar'}</span>
+        </button>
+        {historialAbierto && (historialOrdenado.length === 0 ? <p className="text-textSec text-sm">Sin historial todavía.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
@@ -307,7 +318,7 @@ export default function DocentesCOPage() {
               </tbody>
             </table>
           </div>
-        )}
+        ))}
       </div>
 
       {seleccionado && (

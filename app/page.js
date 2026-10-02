@@ -460,9 +460,6 @@ export default function InicioPage() {
     <div className="max-w-[1440px] mx-auto px-6 pt-6 pb-16">
       <div className="mb-5">
         <h1 className="text-lg font-semibold">HOY</h1>
-        <p className="text-textSec text-sm mt-0.5">
-          {agendaHoy.length} clase{agendaHoy.length !== 1 ? 's' : ''} · {ocupadasAhora} sala{ocupadasAhora !== 1 ? 's' : ''} ocupada{ocupadasAhora !== 1 ? 's' : ''} · {libresAhora} disponible{libresAhora !== 1 ? 's' : ''}
-        </p>
       </div>
 
       {cargandoDatos ? (
@@ -488,7 +485,7 @@ export default function InicioPage() {
               chico
             />
             <Metrica icono="🏢" valor={`${ocupadasAhora}/${SALAS.length}`} label="Salas ocupadas ahora" acento={ocupadasAhora > 0 ? 'warning' : undefined} />
-            <Metrica icono="🏢" valor={libresAhora} label="Salas disponibles" acento="success" />
+            <Metrica icono="🏢" valor={libresAhora} label="Salas disponibles en este momento" acento="success" />
             <Metrica icono="⚠️" valor={alertasConflictos.length} label="Incidencias activas" acento={alertasConflictos.length > 0 ? 'danger' : undefined} atenuada={alertasConflictos.length === 0} />
             <Metrica icono="🎓" valor={formacionesEnCurso} label="Formaciones activas" />
           </div>
@@ -561,6 +558,17 @@ export default function InicioPage() {
                       )}
                       {a.sinCrear && (
                         <p className="text-xs text-dangerText underline">Sin sala — cargar actividad →</p>
+                      )}
+                      {/* Pedido de Diego: "cómo cero clases ocupadas si se ve que hay varias en
+                          vivo" — estas son formaciones sin fila en Salas Zoom (ej. Coaching
+                          Deportivo y similares, que nunca se cargan ahí), así que el contador de
+                          "Salas ocupadas" de arriba no las cuenta (no hay sala física que
+                          ocupen). Antes la tarjeta no explicaba esto — se veía "EN VIVO" sin
+                          ningún dato de sala, dando la sensación de un dato faltante en vez de
+                          una diferencia real entre "está pasando ahora" y "tiene una sala
+                          asignada". */}
+                      {a.esFormacion && !a.sala && !a.sinCrear && (
+                        <p className="text-xs text-textMuted">Sin sala asignada (no se carga en Salas Zoom)</p>
                       )}
                     </>
                   );
