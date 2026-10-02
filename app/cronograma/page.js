@@ -251,10 +251,10 @@ export default function CronogramaPage() {
     // en el cronograma, a diferencia de Agenda de hoy, hace falta ver las próximas también.
     // Pedido de Diego: "Porque no aparecen todas las clases? Coaching Deportivo Edición 14
     // Clase 15 de 16" — antes solo se armaba la de hoy, y la semana siguiente desaparecía).
-    const formacionesCalc = calcularFormacionesEnriquecidas(clases, formacionesManual);
+    const formacionesCalc = calcularFormacionesEnriquecidas(clases, formacionesManual, asignacionesCODisponibles);
     const hoyISOparaFormaciones = toISO(new Date());
     const hoyDeFormacionesSinLive = formacionesCalc
-      .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISOparaFormaciones))
+      .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISOparaFormaciones, asignacionesCODisponibles))
       .map((a) => ({ ...a, tipo: 'Formación', pasada: false }));
     const claveOrden = (a) => a.fecha || a.fechaInicioEdicion || '';
     const completo = deClasesConFecha.concat(deClasesRecurrentes, deOtras, hoyDeFormacionesSinLive).sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)) || (b.horaMin || 0) - (a.horaMin || 0));

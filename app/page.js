@@ -119,8 +119,8 @@ export default function InicioPage() {
   // lib/salasLogic.js, así las dos pantallas SIEMPRE dicen lo mismo (pedido de Diego: que esta
   // información viva en un solo lugar).
   const formaciones = useMemo(
-    () => calcularFormacionesEnriquecidas(clases, formacionesManual),
-    [clases, formacionesManual]
+    () => calcularFormacionesEnriquecidas(clases, formacionesManual, asignacionesCODisponibles),
+    [clases, formacionesManual, asignacionesCODisponibles]
   );
   // Avisa cuando a una edición en curso le quedan exactamente 2 clases para terminar —
   // así el equipo puede empezar a coordinar el cierre (certificación, próxima edición, etc.)
@@ -216,6 +216,15 @@ export default function InicioPage() {
     return asignacionesCODisponibles
       .filter((a) => a.desde && a.desde <= hoyISO && (!a.hasta || a.hasta >= hoyISO))
       .filter((a) => !salaPorEdicionCO[a.edicion])
+      // Si el período ya tiene sala cargada (columna "Sala" de Docentes C.O.) y no hay
+      // ninguna clase real creada, ya no hace falta avisar "Falta cargar la clase" — esa
+      // edición se arma sola como clase virtual (con su sala real) vía
+      // `entradasFuturasFormacionSinLive`/`calcularFormacionesEnriquecidas`, y cuenta
+      // normalmente en "Salas ocupadas ahora". Pedido de Diego (02/10/2026): "YA CARGAMOS
+      // TODA LA INFO DE TODAS" — esto dejó de ser una alerta real para esos casos. Si en
+      // cambio SÍ hay una clase real creada mas sin sala (caso "asignarSala"), esa sigue
+      // mostrándose igual: ahí la sala que falta es la de esa fila puntual, no la del período.
+      .filter((a) => existeClasePorEdicion[a.edicion] || !a.sala)
       .map((a) => existeClasePorEdicion[a.edicion]
         ? {
             tipo: 'actividadFaltante', accion: 'asignarSala',
@@ -312,10 +321,22 @@ export default function InicioPage() {
   // mismo día de la semana que esa serie, sin chequear si la clase de HOY puntual ya pasó
   // (Diego reportó salas marcadas ocupadas con las clases de hoy ya finalizadas). Ahora se
   // mira directamente la clase real con fecha de HOY en esa sala.
+  //
+  // Pedido de Diego (02/10/2026): las ediciones de Coaching Ontológico sin fila real en
+  // Salas Zoom pero con período de Docentes C.O. vigente (sala ya cargada ahí) también
+  // tienen que ocupar su sala mientras se están dictando — si no, el contador seguía en 0
+  // aunque la clase estuviera efectivamente en vivo ("CUANDO HAY CLASES OCUPADAS"). Se arma
+  // la misma entrada "virtual" que ya arma `entradasFuturasFormacionSinLive` para Agenda de
+  // hoy, filtrada a la de hoy y a las que ya tienen sala.
+  const entradasVirtualesHoy = formaciones
+    .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISO, asignacionesCODisponibles))
+    .filter((a) => a.fecha === hoyISO && a.sala && a.horaMin != null);
   let ocupadasAhora = 0;
   SALAS.forEach((sala) => {
     const ocupHoy = clases.filter((c) => c.fecha === hoyISO && c.sala === sala)
-      .map((c) => ({ inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }));
+      .map((c) => ({ inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }))
+      .concat(entradasVirtualesHoy.filter((a) => a.sala === sala)
+        .map((a) => ({ inicio: a.horaMin - BUFFER_MIN, fin: a.horaMin + a.duracion })));
     if (ocupHoy.some((o) => horaActual >= o.inicio && horaActual < o.fin)) ocupadasAhora++;
   });
   const libresAhora = SALAS.length - ocupadasAhora;
@@ -424,10 +445,10 @@ export default function InicioPage() {
     // día en que ese mecanismo puede generar una tarjeta duplicada); las clases futuras de
     // la misma edición no chocan con nada y deben quedar.
     const entradasFormacionesSinLive = formaciones
-      .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISO))
+      .flatMap((f) => entradasFuturasFormacionSinLive(f, hoyISO, asignacionesCODisponibles))
       .filter((a) => !(a.fecha === hoyISO && cubiertasPorAgendaSintetica.has(`${a.curso}|${a.edicion}`)));
     return deClasesConFecha.concat(deClasesRecurrentes, deOtras, entradasFormacionesSinLive).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.horaMin || 0) - (b.horaMin || 0));
-  }, [clases, actividades, edicionesFinalizadas, formaciones, agendaSinteticaHoy]);
+  }, [clases, actividades, edicionesFinalizadas, formaciones, agendaSinteticaHoy, asignacionesCODisponibles]);
 
   const agendaHoy = actividadesTodas.filter((a) => a.fecha === hoyISO)
     .concat(agendaSinteticaHoy)
@@ -959,14 +980,15 @@ function Metrica({ valor, label, icono, acento, chico, atenuada }) {
     success: 'text-successText', warning: 'text-warningText', danger: 'text-dangerText'
   }[acento] || 'text-text';
   // Pedido de Diego: que el texto descriptivo (la etiqueta) tenga más presencia y el número
-  // no sea protagonista — se invierte el orden (etiqueta arriba, valor abajo) y se achica
-  // bastante la tipografía del valor (antes text-2xl/text-lg, ahora text-base/text-sm).
-  // "Incidencias activas" en 0 se atenúa (opacity) para no competir visualmente con lo que
-  // sí necesita atención, sin sacarla de la fila.
+  // no sea protagonista — se achica bastante la tipografía del valor (antes text-2xl/text-lg,
+  // ahora text-base/text-sm). "Incidencias activas" en 0 se atenúa (opacity) para no competir
+  // visualmente con lo que sí necesita atención, sin sacarla de la fila.
+  // Pedido de Diego (02/10/2026): "Los números que estén al lado, no abajo" — el valor va al
+  // lado de la etiqueta (misma fila), no debajo en una fila propia.
   return (
-    <div className={`${metricaCls} ${atenuada ? 'opacity-55' : ''}`}>
-      <div className="text-[10.5px] text-textSec font-semibold leading-snug mb-0.5">{icono ? `${icono} ` : ''}{label}</div>
-      <div className={`${chico ? 'text-sm' : 'text-base'} font-bold leading-tight truncate ${color}`}>{valor}</div>
+    <div className={`${metricaCls} ${atenuada ? 'opacity-55' : ''} flex items-center justify-between gap-2`}>
+      <div className="text-[10.5px] text-textSec font-semibold leading-snug min-w-0">{icono ? `${icono} ` : ''}{label}</div>
+      <div className={`${chico ? 'text-sm' : 'text-base'} font-bold leading-tight whitespace-nowrap shrink-0 ${color}`}>{valor}</div>
     </div>
   );
 }

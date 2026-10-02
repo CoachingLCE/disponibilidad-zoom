@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { ICONOS, NOMBRES, TOTALES, formatFechaCorta, calcularFormacionesEnriquecidas, colorFormacion, ESTADOS } from '../../lib/salasLogic';
 import { tienePermisoEditarCronograma } from '../../lib/permisos';
+import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
@@ -33,6 +34,7 @@ export default function FormacionesPage() {
   const router = useRouter();
   const [clases, setClases] = useState([]);
   const [formacionesManual, setFormacionesManual] = useState([]);
+  const [docentesCO, setDocentesCO] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
   const [filtro, setFiltro] = useState('enCurso');
@@ -52,10 +54,11 @@ export default function FormacionesPage() {
     setCargandoDatos(true);
     setError(null);
     try {
-      const [rc, rf] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/formaciones')]);
-      const [dc, df] = await Promise.all([rc.json(), rf.json()]);
+      const [rc, rf, rd] = await Promise.all([fetchAutenticado('/api/clases'), fetchAutenticado('/api/formaciones'), fetchAutenticado('/api/docentes-co')]);
+      const [dc, df, dd] = await Promise.all([rc.json(), rf.json(), rd.json()]);
       if (rc.ok) setClases(dc.clases); else setError(dc.error);
       if (rf.ok) setFormacionesManual(df.formaciones);
+      if (rd.ok) setDocentesCO(dd.asignaciones);
     } catch (err) {
       setError('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
     } finally {
@@ -63,13 +66,21 @@ export default function FormacionesPage() {
     }
   }
 
+  // Mismo criterio que Inicio/Cronograma/Docentes C.O.: los períodos fijos del código quedan
+  // disponibles siempre, y si el Sheet ya tiene cargado ese mismo período lo pisa.
+  const asignacionesCODisponibles = useMemo(() => {
+    const clavesSheet = new Set(docentesCO.map((a) => `${a.edicion}|${a.desde}`));
+    const fijos = DOCENTES_CO_DEFAULT.filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}`));
+    return [...fijos, ...docentesCO];
+  }, [docentesCO]);
+
   // Antes esta pantalla armaba a mano la mezcla de fuentes (histórico + fechas confirmadas
   // + pestaña Formaciones del Sheet) — ahora llama a la ÚNICA función compartida en
   // lib/salasLogic.js, la misma que usa Inicio, para que las dos pantallas SIEMPRE digan lo
   // mismo de una edición (pedido de Diego: que esta información viva en un solo lugar).
   const formaciones = useMemo(
-    () => calcularFormacionesEnriquecidas(clases, formacionesManual),
-    [clases, formacionesManual]
+    () => calcularFormacionesEnriquecidas(clases, formacionesManual, asignacionesCODisponibles),
+    [clases, formacionesManual, asignacionesCODisponibles]
   );
 
   const filtradas = useMemo(() => {

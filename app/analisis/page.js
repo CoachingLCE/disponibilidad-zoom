@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
 import {
   SALAS, DIAS, ICONOS, NOMBRES, BUFFER_MIN, DURACIONES,
-  agruparParaVista, calcularConflictosDetalle, minutosAHora, colorFormacion, colorPorSala
+  agruparParaVista, calcularConflictosDetalle, minutosAHora, colorFormacion, colorPorSala,
+  calcularFormacionesEnriquecidas
 } from '../../lib/salasLogic';
 import { CRONOGRAMA_HISTORICO } from '../../lib/cronogramaHistorico';
+import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 import { tienePermisoAuditoria } from '../../lib/permisos';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
@@ -84,6 +86,8 @@ export default function AnalisisPage() {
   const [feriados, setFeriados] = useState([]);
   const [postergaciones, setPostergaciones] = useState([]);
   const [historial, setHistorial] = useState([]);
+  const [formacionesManual, setFormacionesManual] = useState([]);
+  const [docentesCO, setDocentesCO] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [error, setError] = useState(null);
 
@@ -104,15 +108,18 @@ export default function AnalisisPage() {
     setCargandoDatos(true);
     setError(null);
     try {
-      const [rc, rf, rp, rh] = await Promise.all([
+      const [rc, rf, rp, rh, rfm, rd] = await Promise.all([
         fetchAutenticado('/api/clases'), fetchAutenticado('/api/feriados'),
-        fetchAutenticado('/api/postergaciones'), fetchAutenticado('/api/historial')
+        fetchAutenticado('/api/postergaciones'), fetchAutenticado('/api/historial'),
+        fetchAutenticado('/api/formaciones'), fetchAutenticado('/api/docentes-co')
       ]);
-      const [dc, df, dp, dh] = await Promise.all([rc.json(), rf.json(), rp.json(), rh.json()]);
+      const [dc, df, dp, dh, dfm, dd] = await Promise.all([rc.json(), rf.json(), rp.json(), rh.json(), rfm.json(), rd.json()]);
       if (rc.ok) setClases(dc.clases); else setError(dc.error);
       if (rf.ok) setFeriados(df.feriados);
       if (rp.ok) setPostergaciones(dp.postergaciones);
       if (rh.ok) setHistorial(dh.historial);
+      if (rfm.ok) setFormacionesManual(dfm.formaciones);
+      if (rd.ok) setDocentesCO(dd.asignaciones);
     } catch (err) {
       setError('Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.'));
     } finally {
@@ -126,20 +133,47 @@ export default function AnalisisPage() {
   );
   const [prevDesde, prevHasta] = useMemo(() => periodoAnterior(rangoDesde, rangoHasta), [rangoDesde, rangoHasta]);
 
+  // Mismo criterio que Inicio/Cronograma/Formaciones/Docentes C.O.
+  const asignacionesCODisponibles = useMemo(() => {
+    const clavesSheet = new Set(docentesCO.map((a) => `${a.edicion}|${a.desde}`));
+    const fijos = DOCENTES_CO_DEFAULT.filter((a) => !clavesSheet.has(`${a.edicion}|${a.desde}`));
+    return [...fijos, ...docentesCO];
+  }, [docentesCO]);
+  const formaciones = useMemo(
+    () => calcularFormacionesEnriquecidas(clases, formacionesManual, asignacionesCODisponibles),
+    [clases, formacionesManual, asignacionesCODisponibles]
+  );
+  // Formaciones en curso sin NINGUNA fila viva en Salas Zoom (Coaching Deportivo y similares,
+  // o Coaching Ontológico cuando su período de Docentes C.O. ya tiene sala) — sin esto,
+  // ocupaban 0hs/semana acá aunque estén dictándose de verdad. Pedido de Diego (02/10/2026):
+  // "TAMBIEN TE PASE EL USO DE LAS SALAS ACTUALES, DEBERIA CONTABILIZAR". Se arma UNA fila
+  // recurrente (sin fecha puntual, como cualquier horario semanal fijo de Salas Zoom) por
+  // formación — es lo único que necesita `agruparParaVista`, que ya colapsa series en una sola fila.
+  const clasesConSchedule = useMemo(() => {
+    const sinteticas = formaciones
+      .filter((f) => f.sinRepresentacionViva && f.estado === 'En proceso' && f.dia && f.horaMin != null && f.sala)
+      .map((f) => ({
+        id: `virtual-${f.codigo}-${f.numero}`, fecha: '', dia: f.dia, horaMin: f.horaMin, sala: f.sala,
+        codigo: f.codigo, numero: f.numero, edicion: f.numero, docente: f.docente || '',
+        duracion: f.duracion || DURACIONES[f.codigo] || 90
+      }));
+    return clases.concat(sinteticas);
+  }, [clases, formaciones]);
+
   // ---- "Vigente" — el horario recurrente semanal actual, filtrado por Sala/Formación/Docente ----
   // Importante: la mayoría de las clases viven como horario recurrente semanal, sin una
   // fecha puntual por ocurrencia — por eso el patrón de uso de salas, ocupación y
   // horarios/días críticos reflejan el HORARIO ACTUAL vigente, no un rango de fechas pasado.
   const vistaFiltrada = useMemo(() => {
-    let vista = agruparParaVista(clases);
+    let vista = agruparParaVista(clasesConSchedule);
     if (filtroSala) vista = vista.filter((c) => c.sala === filtroSala);
     if (filtroFormacion) vista = vista.filter((c) => c.codigo === filtroFormacion);
     if (filtroDocente) vista = vista.filter((c) => (c.docente || '').toLowerCase().includes(filtroDocente.toLowerCase()));
     return vista;
-  }, [clases, filtroSala, filtroFormacion, filtroDocente]);
+  }, [clasesConSchedule, filtroSala, filtroFormacion, filtroDocente]);
 
-  const codigosUsados = useMemo(() => [...new Set(agruparParaVista(clases).map((c) => c.codigo))].sort(), [clases]);
-  const docentesUsados = useMemo(() => [...new Set(agruparParaVista(clases).map((c) => c.docente).filter(Boolean))].sort(), [clases]);
+  const codigosUsados = useMemo(() => [...new Set(agruparParaVista(clasesConSchedule).map((c) => c.codigo))].sort(), [clasesConSchedule]);
+  const docentesUsados = useMemo(() => [...new Set(agruparParaVista(clasesConSchedule).map((c) => c.docente).filter(Boolean))].sort(), [clasesConSchedule]);
 
   // ---- Postergaciones filtradas por período real (FechaRegistro) + entidad ----
   const postergacionesFiltradas = useMemo(() => {
