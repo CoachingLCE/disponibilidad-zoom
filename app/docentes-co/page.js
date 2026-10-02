@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
-import { formatFechaCorta, SALAS, buscarPeriodoCO, colorPorSala } from '../../lib/salasLogic';
+import { formatFechaCorta, SALAS, buscarPeriodoCO, colorPorSala, SALA_CONFIRMADA_POR_EDICION } from '../../lib/salasLogic';
 import { DOCENTES_CO_DEFAULT } from '../../lib/docentesCODefaults';
 
 const CUATRIMESTRES_CO = [
@@ -103,6 +103,12 @@ export default function DocentesCOPage() {
     });
     return Object.fromEntries(Object.entries(porEdicion).map(([ed, c]) => [ed, c.sala]));
   }, [clases]);
+  // Pedido de Diego (02/10/2026): "fijate que esté levantando bien las salas" — el fallback de
+  // arriba (clase real en Salas Zoom) solo cubre ediciones que SÍ tienen alguna fila viva ahí.
+  // La mayoría de las ediciones de C.O. no la tienen (se arman como clase virtual) y su sala
+  // real vive en el horario que Diego ya confirmó contra Zoom real (SALA_CONFIRMADA_POR_EDICION,
+  // misma fuente que ya usa el resto de la app) — sin esto, el Historial completo mostraba "—"
+  // para casi todos los períodos aunque la sala sí se supiera.
 
   // Los 170 períodos que Diego pasó (edición 1 a 58) están siempre disponibles acá en
   // el código — no dependen de que se hayan importado bien al Sheet. Se identifican por
@@ -116,7 +122,10 @@ export default function DocentesCOPage() {
       .map((a, idx) => ({ ...a, id: `fijo-doc-${idx}`, esFijo: true }));
     // La planilla va primero (tiene prioridad); luego se deduplica por edicion+fecha de inicio
     // para que no aparezcan filas repetidas (ej. ediciones viejas cargadas dos veces sin fecha).
-    const combinadas = [...asignaciones, ...fijos].map((a) => ({ ...a, sala: a.sala || salaPorEdicionCO[a.edicion] || '' }));
+    const combinadas = [...asignaciones, ...fijos].map((a) => ({
+      ...a,
+      sala: a.sala || salaPorEdicionCO[a.edicion] || SALA_CONFIRMADA_POR_EDICION[`CO|${a.edicion}`]?.sala || '',
+    }));
     const vistos = new Set();
     return combinadas.filter((a) => { const k = clave(a); if (vistos.has(k)) return false; vistos.add(k); return true; });
   }, [asignaciones, salaPorEdicionCO]);

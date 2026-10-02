@@ -296,7 +296,12 @@ export default function CronogramaCMPage() {
       {puedeEditarCM && (
         <div className={boxCls}>
           <h2 className="text-sm font-semibold mb-3">Agregar actividad</h2>
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+          {/* Pedido de Diego: "hay demasiado espacio" — con columnas a 1fr, en un contenedor
+              ancho y solo 5 campos, cada input se estiraba mucho más de lo que necesita (una
+              fecha o un número de 2 dígitos no precisan 250px+). Con un máximo fijo en vez de
+              1fr, cada campo queda a su ancho natural y el espacio sobrante del contenedor
+              queda vacío en vez de repartirse entre los inputs. */}
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,180px))' }}>
             <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
             <div><label className={labelCls}>Hora</label>
               <select value={hora} onChange={(e) => setHora(parseInt(e.target.value, 10))} className={inputCls}>

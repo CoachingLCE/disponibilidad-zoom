@@ -21,15 +21,19 @@ const tabCls = (activo) => `rounded-lg px-3.5 py-1.5 text-xs font-semibold borde
 // Estilos propios del panel "Agregar al cronograma" — un poco más "dashboard" que el resto
 // de las cajas de la página (boxCls/inputCls/labelCls), pero sin tocar esos estilos
 // compartidos con otras pantallas/vistas de este mismo archivo.
-const panelCls = 'bg-surface2 border border-border/70 rounded-2xl p-5 sm:p-6 mb-4 shadow-sm';
-const seccionCls = 'bg-bg/60 border border-border/60 rounded-[14px] p-4';
-const seccionTituloCls = 'text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-3';
-const campoCls = 'w-full h-[42px] bg-surface2 border border-border rounded-[12px] px-3 text-sm';
-const campoLabelCls = 'text-[11.5px] text-textSec block mb-1.5 font-medium';
-const btnPrimaryCls = 'inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-[12px] px-5 py-2.5 text-sm font-semibold disabled:opacity-40 shadow-sm shrink-0';
+// Pedido de Diego (02/10/2026, rediseño UX/UI — sin tocar lógica): pantalla más compacta y
+// con menos "cajas dentro de cajas". El panel principal se achica (menos padding) y las
+// subsecciones pierden el borde/sombra propios — quedan como fondo sutil + título, la
+// separación la dan los títulos y el espaciado, no un recuadro completo.
+const panelCls = 'bg-surface2 border border-border/70 rounded-2xl p-4 sm:p-5 mb-4';
+const seccionCls = 'bg-bg/50 rounded-xl p-3';
+const seccionTituloCls = 'text-[10.5px] font-semibold text-textMuted uppercase tracking-wider mb-2';
+const campoCls = 'w-full h-9 bg-surface2 border border-border rounded-lg px-2.5 text-sm';
+const campoLabelCls = 'text-[11px] text-textSec block mb-1 font-medium';
+const btnPrimaryCls = 'inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40 shrink-0 h-9';
 // Pedido de Diego: el toggle "¿Mismo docente...?" se veía muy grande/pesado para ser una
 // simple elección de sí/no — se achicó (menos alto, menos padding, texto más chico).
-const botonToggleCls = 'h-7 px-2.5 rounded-lg text-[11px] font-medium border border-border bg-surface2 text-textSec';
+const botonToggleCls = 'h-8 px-2.5 rounded-lg text-[11px] font-medium border border-border bg-surface2 text-textSec';
 const botonToggleOnCls = 'border-transparent bg-gradient-to-r from-accentPurple to-accentMagenta text-white';
 // Un color por cuatrimestre, nada más para diferenciarlos de un vistazo en el formulario.
 const COLORES_CUATRIMESTRE = ['rgb(var(--color-accentTeal))', 'rgb(var(--color-accentPurple))', 'rgb(var(--color-accentMagenta))'];
@@ -157,31 +161,52 @@ function SalasZoomPageInterna() {
   const ocupadasCount = SALAS.filter((s) => vistaAgrupadaHoy.some((o) => o.sala === s && ahoraMin >= o.inicio && ahoraMin < o.fin)).length;
 
   return (
-    <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-20">
+    <div className="max-w-[1440px] mx-auto px-6 pt-6 pb-16">
       <h1 className="text-xl mb-1">Agregar actividad</h1>
-      <p className="text-textSec text-sm mb-4">
+      <p className="text-textSec text-sm mb-3.5">
         Horario semanal de las 8 salas — cargar, ver disponibilidad, y reservar.
         {!puedeEditar && ' Tu rol (Colaborador) solo puede ver, no puede cargar ni reservar.'}
       </p>
 
-      <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))' }}>
-        <div className="bg-surface2 border border-border rounded-xl p-3.5 text-center">
-          <div className="text-2xl font-bold">{SALAS.length}</div>
-          <div className="text-[11px] text-textSec mt-0.5">Salas totales</div>
-        </div>
-        <div className="bg-surface2 border border-border rounded-xl p-3.5 text-center">
-          <div className="text-2xl font-bold text-successText">{SALAS.length - ocupadasCount}</div>
-          <div className="text-[11px] text-textSec mt-0.5">Disponibles</div>
-        </div>
-        <div className="bg-surface2 border border-border rounded-xl p-3.5 text-center">
-          <div className="text-2xl font-bold text-warningText">{ocupadasCount}</div>
-          <div className="text-[11px] text-textSec mt-0.5">Ocupadas</div>
-        </div>
-      </div>
-
       {errorCarga && (
         <div className="bg-dangerBg text-dangerText rounded-lg px-4 py-3 text-sm mb-4">{errorCarga}</div>
       )}
+
+      {/* Sección principal: cargar algo al cronograma es lo primero que se hace al entrar acá —
+          la disponibilidad de salas (antes arriba de todo) pasa a ser información de apoyo. */}
+      {puedeEditar && (
+        <PanelReservar fetchAutenticado={fetchAutenticado} onReservado={cargarDatos} usuario={usuario} prefill={prefill} />
+      )}
+
+      <div className={boxCls}>
+        <h2 className="text-sm font-semibold mb-2.5">Disponibilidad de salas</h2>
+
+        {/* Pedido de Diego (02/10/2026): los 3 KPI de salas eran demasiado grandes para ser
+            información secundaria de apoyo — pasan a una sola barra compacta. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-textSec bg-bg/60 border border-border/50 rounded-lg px-3 py-2 mb-3">
+          <span><span className="font-semibold text-text">{SALAS.length}</span> Salas totales</span>
+          <span className="text-border">·</span>
+          <span><span className="font-semibold text-successText">{SALAS.length - ocupadasCount}</span> Disponibles</span>
+          <span className="text-border">·</span>
+          <span><span className="font-semibold text-warningText">{ocupadasCount}</span> Ocupadas</span>
+        </div>
+
+        <div className="flex gap-2 mb-3.5">
+          <button className={tabCls(vista === 'estado')} onClick={() => setVista('estado')}>Estado ahora</button>
+          <button className={tabCls(vista === 'grilla')} onClick={() => setVista('grilla')}>Grilla semanal</button>
+          <button className={tabCls(vista === 'porSala')} onClick={() => setVista('porSala')}>Vista por sala</button>
+        </div>
+
+        {cargandoDatos ? (
+          <p className="text-textSec text-sm">Cargando…</p>
+        ) : vista === 'grilla' ? (
+          <VistaGrilla vista={vistaAgrupada} diaHoy={diaHoy} sesionPorId={sesionPorId} onClick={(c) => setAccion({ clase: c })} />
+        ) : vista === 'porSala' ? (
+          <VistaPorSala vista={vistaAgrupada} diaSala={diaSala} setDiaSala={setDiaSala} />
+        ) : (
+          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} onClick={(c) => setAccion({ clase: c })} />
+        )}
+      </div>
 
       {credenciales.length > 0 && (
         <div className={boxCls}>
@@ -215,29 +240,6 @@ function SalasZoomPageInterna() {
             </div>
           )}
         </div>
-      )}
-
-      <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">Ver horario</h2>
-        <div className="flex gap-2 mb-4">
-          <button className={tabCls(vista === 'estado')} onClick={() => setVista('estado')}>Estado ahora</button>
-          <button className={tabCls(vista === 'grilla')} onClick={() => setVista('grilla')}>Grilla semanal</button>
-          <button className={tabCls(vista === 'porSala')} onClick={() => setVista('porSala')}>Vista por sala</button>
-        </div>
-
-        {cargandoDatos ? (
-          <p className="text-textSec text-sm">Cargando…</p>
-        ) : vista === 'grilla' ? (
-          <VistaGrilla vista={vistaAgrupada} diaHoy={diaHoy} sesionPorId={sesionPorId} onClick={(c) => setAccion({ clase: c })} />
-        ) : vista === 'porSala' ? (
-          <VistaPorSala vista={vistaAgrupada} diaSala={diaSala} setDiaSala={setDiaSala} />
-        ) : (
-          <VistaEstado vista={vistaAgrupada} diaHoy={diaHoy} onClick={(c) => setAccion({ clase: c })} />
-        )}
-      </div>
-
-      {puedeEditar && (
-        <PanelReservar fetchAutenticado={fetchAutenticado} onReservado={cargarDatos} usuario={usuario} prefill={prefill} />
       )}
 
       {accion && (
@@ -351,8 +353,10 @@ function VistaEstado({ vista, diaHoy, onClick }) {
 
   return (
     <div>
-      <p className="text-xs text-textSec mb-3">Hoy {diaHoy.charAt(0) + diaHoy.slice(1).toLowerCase()}, {minutosAHora(horaActual)} hs.</p>
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))' }}>
+      {/* Pedido de Diego (02/10/2026): esta línea es apoyo, no debe competir con el contenido
+          principal — se achica y se baja el contraste. */}
+      <p className="text-[11px] text-textMuted mb-2.5">Hoy {diaHoy.charAt(0) + diaHoy.slice(1).toLowerCase()}, {minutosAHora(horaActual)} hs.</p>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px,1fr))' }}>
         {SALAS.map((sala) => {
           const ocupHoy = vista.filter((c) => c.dia === diaHoy && c.sala === sala)
             .map((c) => ({ ...c, inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }))
@@ -376,23 +380,22 @@ function VistaEstado({ vista, diaHoy, onClick }) {
             <div
               key={sala}
               onClick={() => actual && onClick && onClick(actual)}
-              className={`rounded-xl border-l-4 ${color ? color.border : 'border-border'} border-t border-r border-b border-border bg-surface2 p-3.5 ${actual && onClick ? 'cursor-pointer' : ''}`}
+              className={`rounded-lg border-l-[3px] ${color ? color.border : 'border-border'} border-t border-r border-b border-border/70 bg-surface2 px-3 py-2 ${actual && onClick ? 'cursor-pointer' : ''}`}
             >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-semibold text-sm">{sala}</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${estadoCls}`}>{estadoTxt}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-xs truncate">{sala}</span>
+                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${estadoCls}`}>{estadoTxt}</span>
               </div>
               {actual ? (
                 <>
-                  <div className={`text-sm font-medium ${color.text}`}>{actual.label}</div>
-                  <div className="text-xs text-textSec mt-0.5">{minutosAHora(actual.horaMin)}–{minutosAHora(actual.fin)}</div>
-                  <div className="text-[11px] text-textMuted mt-1">
-                    {enBuffer ? 'Sala en preparación (15 min previos a la clase)' : 'Clase en curso'}
+                  <div className={`text-[11px] font-medium mt-0.5 truncate ${color.text}`}>{actual.label}</div>
+                  <div className="text-[10px] text-textMuted">
+                    {minutosAHora(actual.horaMin)}–{minutosAHora(actual.fin)} · {enBuffer ? 'preparación' : 'en curso'}
                   </div>
                 </>
               ) : (
-                <div className="text-xs text-textSec">
-                  {proxima ? `Próxima clase: ${minutosAHora(proxima.horaMin)} · ${proxima.label}` : 'Sin clases el resto del día'}
+                <div className="text-[10.5px] text-textSec mt-0.5 truncate">
+                  {proxima ? `Próxima: ${minutosAHora(proxima.horaMin)} · ${proxima.label}` : 'Sin clases el resto del día'}
                 </div>
               )}
             </div>
@@ -688,23 +691,23 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
 
   return (
     <div className={panelCls}>
-      <div className="flex items-center gap-2.5 mb-1">
-        <span className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-accentPurple to-accentMagenta flex items-center justify-center text-white text-sm shrink-0">📅</span>
-        <h2 className="text-base font-semibold">Agregar al cronograma</h2>
+      <div className="flex items-center gap-2 mb-0.5">
+        <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-accentPurple to-accentMagenta flex items-center justify-center text-white text-xs shrink-0">📅</span>
+        <h2 className="text-[15px] font-semibold">Agregar al cronograma</h2>
       </div>
-      <p className="text-xs text-textSec mb-4 sm:ml-[42px] sm:-mt-0.5">
+      <p className="text-[11.5px] text-textSec mb-2.5 sm:ml-[30px] sm:-mt-0.5">
         Un solo lugar para cargar todo — Formaciones buscan sala disponible; el resto de los tipos se agrega directo al cronograma.
       </p>
 
       {prefillAplicado && (
-        <p className="text-xs bg-infoBg text-infoText border border-infoText/40 rounded-lg px-3 py-2 mb-3">
+        <p className="text-xs bg-infoBg text-infoText border border-infoText/40 rounded-lg px-3 py-2 mb-2.5">
           ✓ Precargado desde la alerta de Inicio — revisá los datos y elegí sala/horario antes de guardar.
         </p>
       )}
 
       <LecturaInteligente onAplicar={aplicarLectura} />
 
-      <div className={`${seccionCls} mb-3`}>
+      <div className={`${seccionCls} mb-2.5`}>
         <p className={seccionTituloCls}>Tipo de evento</p>
         <select value={tipo} onChange={(e) => { setTipo(e.target.value); setResultado(null); setMsg(null); }} className={`${campoCls} max-w-sm`}>
           {tiposDisponibles.map((t) => <option key={t} value={t}>{t === 'Formación' ? 'Formación / Curso' : t}</option>)}
@@ -712,10 +715,10 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
       </div>
 
       {esPeriodoDocente ? (
-        <div className="grid gap-3 mb-3 lg:grid-cols-2">
+        <div className="grid gap-2.5 mb-2.5 lg:grid-cols-2">
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Edición y horario</p>
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
               <div><label className={campoLabelCls}>Edición (ej: 45)</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Día</label><input value={diaPeriodo} onChange={(e) => setDiaPeriodo(e.target.value)} placeholder="Martes" className={campoCls} /></div>
               <div><label className={campoLabelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="19:00 a 21:00" className={campoCls} /></div>
@@ -725,7 +728,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           </div>
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Docente, staff y sala</p>
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
               <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
               <div>
@@ -747,10 +750,10 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           </div>
         </div>
       ) : esMasterclass ? (
-        <div className="grid gap-3 mb-3">
+        <div className="grid gap-2.5 mb-2.5">
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Actividad y horario</p>
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
               <div className="sm:col-span-2"><label className={campoLabelCls}>Nombre</label><input value={nombreActividad} onChange={(e) => setNombreActividad(e.target.value)} placeholder="ej: Efecto Florida" className={campoCls} /></div>
               <div><label className={campoLabelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="20:00 a 21:15" className={campoCls} /></div>
@@ -758,7 +761,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           </div>
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Disertante, sala y moderación</p>
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
               <div><label className={campoLabelCls}>Disertante</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Sala de Zoom</label>
                 <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={campoCls}>
@@ -771,17 +774,17 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           </div>
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Inscripción y acceso</p>
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
               <div><label className={campoLabelCls}>Formulario de inscripción</label><input value={formularioInscripcion} onChange={(e) => setFormularioInscripcion(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Link de acceso (Zoom)</label><input value={linkAcceso} onChange={(e) => setLinkAcceso(e.target.value)} className={campoCls} /></div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="grid gap-3 mb-3">
+        <div className="grid gap-2.5 mb-2.5">
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Fecha, hora y curso</p>
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
               <div><label className={campoLabelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Hora</label>
                 <select value={horaTxt} onChange={(e) => setHoraTxt(e.target.value)} className={campoCls}>
@@ -808,7 +811,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
 
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Edición, docente y sala</p>
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
               <div><label className={campoLabelCls}>Edición{esFormacion ? ' (ej: 51)' : ''}</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={campoCls} /></div>
               {esFormacion && (
                 <>
@@ -818,7 +821,14 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                   </div>
                   <div>
                     <label className={campoLabelCls}>Cantidad</label>
-                    <input type="number" min={1} value={cantidad} disabled readOnly title="En una Formación la cantidad de clases es fija (el total del curso) — no se puede cargar un número distinto." className={`${campoCls} opacity-60 cursor-not-allowed`} />
+                    {/* Pedido de Diego: esto es información (el total fijo del curso), no una
+                        acción — se ve como un dato calculado, no como un input más. */}
+                    <div
+                      title="En una Formación la cantidad de clases es fija (el total del curso) — no se puede cargar un número distinto."
+                      className="w-full h-9 flex items-center px-2.5 text-sm text-textSec bg-transparent border border-dashed border-border rounded-lg"
+                    >
+                      {cantidad} <span className="text-[10px] text-textMuted ml-1.5">(fijo)</span>
+                    </div>
                   </div>
                 </>
               )}
@@ -844,12 +854,12 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                     <p className="text-[11px] text-textMuted mb-3">Cargá la fecha de la 1ª clase para ver las fechas estimadas de cada cuatrimestre.</p>
                   )}
                   {mismoDocenteCuatrimestres ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2.5 sm:grid-cols-2">
                       <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
                       <div><label className={campoLabelCls}>Staff (opcional)</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
                     </div>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-2.5 sm:grid-cols-3">
                       {CUATRIMESTRES_CO.map((c, i) => (
                         <div key={c.id} className="p-2.5 rounded-lg bg-surface2/60" style={{ borderLeft: `3px solid ${COLORES_CUATRIMESTRE[i]}` }}>
                           <p className="text-[11px] font-semibold mb-1.5 leading-tight">{c.label}</p>
@@ -892,7 +902,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
 
           <div className={seccionCls}>
             <p className={seccionTituloCls}>Temática y observaciones</p>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2.5 sm:grid-cols-2">
               {!esFormacion && (
                 <div><label className={campoLabelCls}>Temática</label><input value={tematica} onChange={(e) => setTematica(e.target.value)} className={campoCls} /></div>
               )}
@@ -1019,17 +1029,18 @@ function LecturaInteligente({ onAplicar }) {
   const hayAlgoDetectado = resultado && (resultado.curso || resultado.edicion || resultado.cantidad || resultado.horaTxt || resultado.diaDetectado || resultado.docente || resultado.staff);
 
   return (
-    <div className="bg-surface2 border border-border rounded-2xl p-4 mb-4">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-accentPurple text-base">✨</span>
-        <span className="text-sm font-semibold">Lectura inteligente</span>
+    <div className="bg-surface2 border border-border rounded-xl p-3 mb-2.5">
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-accentPurple text-sm">✨</span>
+        <span className="text-[13px] font-semibold">Lectura inteligente</span>
+        <span className="text-[10.5px] text-textMuted font-normal">— pegá el texto tal cual te lo pasaron, completamos los campos solos</span>
       </div>
-      <p className="text-textMuted text-xs mb-3">Pegá el texto tal cual te lo pasaron — completamos los campos solos, abajo los podés revisar y ajustar.</p>
 
       <textarea
-        value={texto} onChange={(e) => setTexto(e.target.value)} rows={3}
+        value={texto} onChange={(e) => setTexto(e.target.value)} rows={2}
         placeholder={'Ej: coaching ontologico 22 viernes 18 hs 48 alumnos profe Diego'}
-        className={`${inputCls} mb-3`}
+        style={{ height: '58px', resize: 'none' }}
+        className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-sm mb-2"
       />
 
       {texto.trim() && !resultado && (
@@ -1042,7 +1053,7 @@ function LecturaInteligente({ onAplicar }) {
 
       {resultado && hayAlgoDetectado && (
         <div>
-          <div className="flex flex-wrap gap-1.5 mb-3">
+          <div className="flex flex-wrap gap-1.5 mb-2">
             {cursoFinal ? (
               <ChipDetectado ok={cursoFinal.exacta} texto={`Curso: ${cursoFinal.nombre}`} />
             ) : (
