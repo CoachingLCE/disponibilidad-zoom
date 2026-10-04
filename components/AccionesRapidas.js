@@ -31,7 +31,7 @@ export default function AccionesRapidas() {
     // fixed con su propio z-index (90 y 40 respectivamente) — al comparar stacking contexts
     // distintos gana el de mayor z-index del contenedor "fixed" entero, no el de sus hijos,
     // así que había que subir ACÁ (no solo en el menú) para que no tapen los botones del menú.
-    <div className={`fixed bottom-24 right-4 ${abierto ? 'z-[95]' : 'z-40'}`}>
+    <div className={`fixed bottom-[7.5rem] right-4 ${abierto ? 'z-[95]' : 'z-40'}`}>
       {abierto && (
         <div className="absolute bottom-32 right-0 bg-surface2 border border-border rounded-xl p-1.5 w-48 shadow-lg">
           {ACCIONES.map((a, i) => (

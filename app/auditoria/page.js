@@ -208,14 +208,14 @@ export default function AuditoriaPage() {
                   className="text-xs px-3 py-1.5 rounded-lg bg-surface2 border border-border disabled:opacity-40">
                   ← Anterior
                 </button>
-                <p className="text-textMuted text-[11px]">Página {pagina} de {totalPaginas} — {registrosFiltrados.length} registro(s){busqueda.trim() ? ' que coinciden con la búsqueda' : ''}</p>
+                <p className="text-textMuted text-[12px]">Página {pagina} de {totalPaginas} — {registrosFiltrados.length} registro(s){busqueda.trim() ? ' que coinciden con la búsqueda' : ''}</p>
                 <button onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}
                   className="text-xs px-3 py-1.5 rounded-lg bg-surface2 border border-border disabled:opacity-40">
                   Siguiente →
                 </button>
               </div>
             )}
-            <p className="text-textMuted text-[11px] mt-3">Se muestran hasta 500 registros que coincidan con el filtro, del más reciente al más antiguo{totalPaginas > 1 ? `, de a ${POR_PAGINA} por página` : ''}.</p>
+            <p className="text-textMuted text-[12px] mt-3">Se muestran hasta 500 registros que coincidan con el filtro, del más reciente al más antiguo{totalPaginas > 1 ? `, de a ${POR_PAGINA} por página` : ''}.</p>
           </div>
         </>
       )}

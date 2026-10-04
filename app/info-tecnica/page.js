@@ -76,11 +76,11 @@ export default function InfoTecnicaPage() {
           <div className="flex flex-col gap-2">
             {ordenados.map((it) => (
               <div key={it.id} onClick={() => puedeEditar && !it.esFijo && setSeleccionado(it)} className={`bg-bg border border-border rounded-lg p-3 ${puedeEditar && !it.esFijo ? 'cursor-pointer' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                   <p className="text-sm font-semibold">{it.nombre}</p>
                   <span className="flex items-center gap-1.5 shrink-0">
                     {it.fecha && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${it.fecha < hoyISO ? 'finalizada-badge' : 'proximamente-badge'}`}>
+                      <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full ${it.fecha < hoyISO ? 'finalizada-badge' : 'proximamente-badge'}`}>
                         {it.fecha < hoyISO ? '✓ FINALIZADA' : 'PRÓXIMAMENTE'}
                       </span>
                     )}

@@ -10,7 +10,7 @@ const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-
 const labelCls = 'text-xs text-textSec block mb-1 font-semibold';
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
-const chipToggleCls = (activo) => `text-[11px] font-semibold px-2.5 py-1 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
+const chipToggleCls = (activo) => `text-[12px] font-semibold px-2.5 py-1 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
 const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'];
 const DIAS_LABEL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -359,7 +359,7 @@ export default function CronogramaCMPage() {
               fecha o un número de 2 dígitos no precisan 250px+). Con un máximo fijo en vez de
               1fr, cada campo queda a su ancho natural y el espacio sobrante del contenedor
               queda vacío en vez de repartirse entre los inputs. */}
-          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,180px))' }}>
+          <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px,100%),180px))' }}>
             <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
             <div><label className={labelCls}>Hora</label>
               <select value={hora} onChange={(e) => setHora(parseInt(e.target.value, 10))} className={inputCls}>
@@ -382,7 +382,7 @@ export default function CronogramaCMPage() {
             </div>
           </div>
           {repetirSemanas > 1 && (
-            <p className="text-[11px] text-textSec mb-2.5">
+            <p className="text-[12px] text-textSec mb-2.5">
               Se va a cargar el {diaDesdeFecha(fecha || toISO(new Date())).charAt(0) + diaDesdeFecha(fecha || toISO(new Date())).slice(1).toLowerCase()} de esta semana y de las {repetirSemanas - 1} semanas siguientes, {repetirSemanas} en total.
             </p>
           )}
@@ -393,7 +393,7 @@ export default function CronogramaCMPage() {
 
       <div className={boxCls}>
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-[11px] text-textMuted font-semibold">Vista:</span>
+          <span className="text-[12px] text-textMuted font-semibold">Vista:</span>
           <button className={chipToggleCls(vista === 'semana')} onClick={() => setVista('semana')}>Semana</button>
           <button className={chipToggleCls(vista === 'mes')} onClick={() => setVista('mes')}>Mes</button>
         </div>
@@ -416,9 +416,9 @@ export default function CronogramaCMPage() {
                 <table className="w-full min-w-[760px] border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-[11px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Horario</th>
+                      <th className="text-[12px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Horario</th>
                       {fechasSemana.map((f, i) => (
-                        <th key={f} className="text-[11px] uppercase px-1.5 py-2 border-b border-border text-center">
+                        <th key={f} className="text-[12px] uppercase px-1.5 py-2 border-b border-border text-center">
                           {DIAS_LABEL[i]} {new Date(f + 'T00:00:00').getDate()}
                         </th>
                       ))}
@@ -438,10 +438,10 @@ export default function CronogramaCMPage() {
                                   <div
                                     key={a.id}
                                     onClick={() => puedeEditarCM && setSeleccionada(a)}
-                                    className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 border-l-2 ${color.bg} ${color.text} ${color.border} ${puedeEditarCM ? 'cursor-pointer' : ''}`}
+                                    className={`rounded-md px-2 py-1 text-[12px] font-semibold mb-1 border-l-2 ${color.bg} ${color.text} ${color.border} ${puedeEditarCM ? 'cursor-pointer' : ''}`}
                                   >
                                     {a.tipo}
-                                    {a.detalle && <span className="block font-normal text-[10px] opacity-80">{a.detalle}</span>}
+                                    {a.detalle && <span className="block font-normal text-[12px] opacity-80">{a.detalle}</span>}
                                   </div>
                                 );
                               })}
@@ -466,7 +466,7 @@ export default function CronogramaCMPage() {
         <h2 className="text-sm font-semibold mb-3">Referencia de tipos</h2>
         <div className="flex flex-wrap gap-2">
           {TIPOS_CM.map((t) => (
-            <span key={t.id} className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${t.bg} ${t.text} ${t.border}`}>
+            <span key={t.id} className={`text-[12px] font-semibold px-2.5 py-1 rounded-full border ${t.bg} ${t.text} ${t.border}`}>
               {t.id}
             </span>
           ))}
@@ -489,7 +489,7 @@ export default function CronogramaCMPage() {
                   <p className="text-sm font-semibold flex items-center gap-2 flex-wrap">
                     {c.titulo}
                     {c.fecha && <span className="text-textMuted font-normal"> — {c.fecha.split('-').reverse().slice(0, 2).join('/')}</span>}
-                    {c.pasada && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface2 text-textMuted border border-border">Ya pasó</span>}
+                    {c.pasada && <span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-surface2 text-textMuted border border-border">Ya pasó</span>}
                   </p>
                   {c.descripcion && <p className="text-xs text-textSec mt-0.5">{c.descripcion}</p>}
                 </div>
@@ -505,7 +505,7 @@ export default function CronogramaCMPage() {
         )}
         {puedeEditarCM && (
           <div className="border-t border-border pt-3">
-            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px,100%),1fr))' }}>
               <input placeholder="Título" value={nuevaCampana.titulo} onChange={(e) => setNuevaCampana((p) => ({ ...p, titulo: e.target.value }))} className={inputCls} />
               <input type="date" value={nuevaCampana.fecha} onChange={(e) => setNuevaCampana((p) => ({ ...p, fecha: e.target.value }))} className={inputCls} />
               <input placeholder="Descripción (opcional)" value={nuevaCampana.descripcion} onChange={(e) => setNuevaCampana((p) => ({ ...p, descripcion: e.target.value }))} className={inputCls} />
@@ -546,7 +546,7 @@ export default function CronogramaCMPage() {
         {puedeEditarCM && mostrarFormRecurso && (
           <div className="bg-bg border border-border rounded-xl p-3 mb-4">
             <p className="text-xs font-semibold mb-2">Nuevo recurso</p>
-            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px,100%),1fr))' }}>
               <select value={nuevoEnlace.categoria} onChange={(e) => setNuevoEnlace((p) => ({ ...p, categoria: e.target.value }))} className={inputCls}>
                 {CATEGORIAS_RECURSOS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
@@ -564,7 +564,7 @@ export default function CronogramaCMPage() {
         {!busquedaRecursos && masUtilizados.length > 0 && (
           <div className="mb-5">
             <p className="text-xs font-semibold text-textSec mb-2">⭐ Más utilizados</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px,100%),1fr))' }}>
               {masUtilizados.map((e) => (
                 <TarjetaRecurso
                   key={'destacado-' + e.id} e={e} puedeEditarCM={puedeEditarCM} copiadoId={copiadoId}
@@ -584,9 +584,9 @@ export default function CronogramaCMPage() {
                 filtrar — con una categoría o búsqueda activa, el orden visual sería parcial
                 y se prestaría a confusión (¿respecto a qué lista se está reordenando?). */}
             {puedeEditarCM && !busquedaRecursos && !categoriaRecursos && enlacesFiltrados.length > 1 && (
-              <p className="text-[10.5px] text-textMuted mb-1.5">⠿ Arrastrá un recurso para reordenarlo.</p>
+              <p className="text-[12px] text-textMuted mb-1.5">⠿ Arrastrá un recurso para reordenarlo.</p>
             )}
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px,100%),1fr))' }}>
               {enlacesFiltrados.map((e) => {
                 const arrastrable = !!puedeEditarCM && !busquedaRecursos && !categoriaRecursos;
                 return (
@@ -646,7 +646,7 @@ export default function CronogramaCMPage() {
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">📝 Notas</h2>
-        <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px,1fr))' }}>
+        <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px,100%),1fr))' }}>
           {notas.map((n) => {
             const coloresNota = {
               amarillo: 'bg-yellow-300/15 border-yellow-300/40 text-yellow-100',
@@ -658,8 +658,8 @@ export default function CronogramaCMPage() {
               <div key={n.id} className={`border rounded-lg p-3 ${coloresNota[n.color] || coloresNota.amarillo}`}>
                 <p className="text-sm whitespace-pre-wrap">{n.texto}</p>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px] opacity-70">{n.autor}</span>
-                  {puedeEditarCM && <button className="text-[10px] opacity-70" onClick={() => eliminarNota(n.id)}>Eliminar</button>}
+                  <span className="text-[12px] opacity-70">{n.autor}</span>
+                  {puedeEditarCM && <button className="text-[12px] opacity-70" onClick={() => eliminarNota(n.id)}>Eliminar</button>}
                 </div>
               </div>
             );
@@ -734,14 +734,14 @@ function VistaMesCM({ actividades, onClick, puedeEditarCM }) {
       </div>
       <div className="grid grid-cols-7 gap-1.5">
         {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => (
-          <div key={d} className="text-[10.5px] text-textMuted text-center font-semibold pb-1">{d}</div>
+          <div key={d} className="text-[12px] text-textMuted text-center font-semibold pb-1">{d}</div>
         ))}
         {dias.map((f) => {
           const esDelMes = new Date(f + 'T00:00:00').getMonth() === mes;
           const items = (porDia[f] || []).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
           return (
             <div key={f} className={`border border-border rounded-lg p-1.5 min-h-[70px] ${esDelMes ? '' : 'opacity-30'} ${f === hoyISO ? 'ring-1 ring-accentTeal' : ''}`}>
-              <p className="text-[10.5px] text-textMuted mb-1">{new Date(f + 'T00:00:00').getDate()}</p>
+              <p className="text-[12px] text-textMuted mb-1">{new Date(f + 'T00:00:00').getDate()}</p>
               <div className="flex flex-col gap-0.5">
                 {items.slice(0, 3).map((a) => {
                   const color = colorCM(a.tipo);
@@ -749,14 +749,14 @@ function VistaMesCM({ actividades, onClick, puedeEditarCM }) {
                     <div
                       key={a.id}
                       onClick={() => onClick(a)}
-                      className={`text-[9.5px] px-1 py-0.5 rounded truncate ${color.bg} ${color.text} ${puedeEditarCM ? 'cursor-pointer' : ''}`}
+                      className={`text-[12px] px-1 py-0.5 rounded truncate ${color.bg} ${color.text} ${puedeEditarCM ? 'cursor-pointer' : ''}`}
                       title={a.detalle ? `${a.tipo} — ${a.detalle}` : a.tipo}
                     >
                       {a.tipo}
                     </div>
                   );
                 })}
-                {items.length > 3 && <p className="text-[9.5px] text-textMuted">+{items.length - 3} más</p>}
+                {items.length > 3 && <p className="text-[12px] text-textMuted">+{items.length - 3} más</p>}
               </div>
             </div>
           );
@@ -777,10 +777,10 @@ function TarjetaRecurso({ e, puedeEditarCM, copiadoId, onAbrir, onCopiar, onEdit
       onDrop={arrastrable ? (ev) => ev.preventDefault() : undefined}
       onDragEnd={arrastrable ? onArrastrarFin : undefined}
     >
-      {arrastrable && <span className="absolute top-1.5 right-1.5 text-textMuted/50 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity select-none" title="Arrastrá para reordenar">⠿</span>}
-      <span className="text-[10px] font-semibold text-textMuted">{labelCategoria(e.categoriaId)}</span>
+      {arrastrable && <span className="absolute top-1.5 right-1.5 text-textMuted/50 text-[12px] opacity-0 group-hover:opacity-100 transition-opacity select-none" title="Arrastrá para reordenar">⠿</span>}
+      <span className="text-[12px] font-semibold text-textMuted">{labelCategoria(e.categoriaId)}</span>
       <p className="text-sm font-semibold truncate" title={e.titulo}>{e.titulo}</p>
-      {e.descripcion && <p className="text-[11px] text-textSec line-clamp-2">{e.descripcion}</p>}
+      {e.descripcion && <p className="text-[12px] text-textSec line-clamp-2">{e.descripcion}</p>}
       <div className="flex items-center justify-between gap-2 mt-1.5">
         {e.url ? (
           <a href={e.url} target="_blank" rel="noopener noreferrer" onClick={onAbrir} className="text-infoText text-xs font-semibold hover:underline">
@@ -857,7 +857,7 @@ function ModalEditarCM({ actividad, onCerrar, fetchAutenticado, onCambio }) {
 
         {!confirmarEliminar ? (
           <>
-            <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
+            <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px,100%),1fr))' }}>
               <div><label className={labelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputCls} /></div>
               <div><label className={labelCls}>Hora</label>
                 <select value={hora} onChange={(e) => setHora(parseInt(e.target.value, 10))} className={inputCls}>

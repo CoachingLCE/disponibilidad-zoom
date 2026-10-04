@@ -97,6 +97,8 @@ export default function CronogramaPage() {
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [vista, setVista] = useState('calendario'); // calendario | lista
   const [semanaOffset, setSemanaOffset] = useState(0);
+  // Celular: día elegido en la vista por día (índice dentro de la semana; null = hoy o el primero).
+  const [diaIdxMovil, setDiaIdxMovil] = useState(null);
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroCurso, setFiltroCurso] = useState('');
   const [filtroSala, setFiltroSala] = useState('');
@@ -428,7 +430,7 @@ export default function CronogramaPage() {
         </div>
 
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-[11px] text-textMuted font-semibold">Colorear por:</span>
+          <span className="text-[12px] text-textMuted font-semibold">Colorear por:</span>
           <button className={chipCls(colorPor === 'curso')} onClick={() => cambiarColorPor('curso')}>Curso</button>
           <button className={chipCls(colorPor === 'sala')} onClick={() => cambiarColorPor('sala')}>Sala</button>
         </div>
@@ -476,15 +478,17 @@ export default function CronogramaPage() {
             {horasSemana.length === 0 ? (
               <p className="text-textSec text-sm py-4">No hay actividades cargadas esta semana.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Pantallas medianas y grandes: la grilla semanal de siempre */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full min-w-[760px] border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-[11px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Hora</th>
+                      <th className="text-[12px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Hora</th>
                       {fechasSemana.map((f, i) => (
-                        <th key={f} className={`text-[11px] uppercase px-1.5 py-2 border-b border-border text-center ${f === hoyISO ? 'text-accentTeal' : 'text-text'}`}>
+                        <th key={f} className={`text-[12px] uppercase px-1.5 py-2 border-b border-border text-center ${f === hoyISO ? 'text-accentTeal' : 'text-text'}`}>
                           {DIAS_SEMANA[i].charAt(0) + DIAS_SEMANA[i].slice(1).toLowerCase()}
-                          <div className="text-[10px] font-normal text-textMuted">{formatFechaCorta(f)}</div>
+                          <div className="text-[12px] font-normal text-textMuted">{formatFechaCorta(f)}</div>
                         </th>
                       ))}
                     </tr>
@@ -511,13 +515,13 @@ export default function CronogramaPage() {
                                   <div
                                     key={idKey}
                                     onClick={() => setSeleccionado(a)}
-                                    className={`rounded-md px-2 py-1 text-[11px] font-semibold mb-1 cursor-pointer border-l-2 ${
+                                    className={`rounded-md px-2 py-1 text-[12px] font-semibold mb-1 cursor-pointer border-l-2 ${
                                       color ? `${color.bg} ${color.text} ${color.border}` : 'bg-infoBg text-infoText border-infoText/40'
                                     } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${brilloFecha} ${esMesActual(a.fecha) && !a.pasada ? 'ring-1 ring-warningText/60' : ''}`}
                                   >
                                     {conChoque && <span className="text-dangerText">⚠ </span>}
                                     {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
-                                    <span className="block font-normal text-[10px] opacity-80">
+                                    <span className="block font-normal text-[12px] opacity-80">
                                       {a.sala
                                         ? a.sala
                                         // sinRepresentacionViva (ver lib/salasLogic.js): este curso nunca se carga
@@ -540,6 +544,84 @@ export default function CronogramaPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Celular: una vista por día (la grilla de 7 columnas se cortaba y solo se veían
+                  los primeros días). Mismos datos, mismos colores y mismo detalle al tocar. */}
+              {(() => {
+                const idxHoy = fechasSemana.indexOf(hoyISO);
+                const idx = diaIdxMovil !== null && diaIdxMovil < fechasSemana.length ? diaIdxMovil : (idxHoy >= 0 ? idxHoy : 0);
+                const fechaSel = fechasSemana[idx];
+                const delDia = itemsSemana.filter((a) => a.fecha === fechaSel).sort((a, b) => (a.horaMin || 0) - (b.horaMin || 0));
+                return (
+                  <div className="md:hidden">
+                    <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2" role="tablist" aria-label="Día de la semana">
+                      {fechasSemana.map((f, i) => {
+                        const cant = itemsSemana.filter((a) => a.fecha === f).length;
+                        const sel = i === idx;
+                        return (
+                          <button
+                            key={f}
+                            type="button"
+                            role="tab"
+                            aria-selected={sel}
+                            onClick={() => setDiaIdxMovil(i)}
+                            className={`shrink-0 min-w-[58px] rounded-xl border px-2.5 py-1.5 text-center transition-colors ${
+                              sel
+                                ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent'
+                                : `bg-surface2 text-textSec ${f === hoyISO ? 'border-accentTeal' : 'border-border'}`
+                            }`}
+                          >
+                            <span className="block text-[12px] uppercase font-semibold">{DIAS_SEMANA[i].slice(0, 3)}</span>
+                            <span className="block text-[13px] font-bold">{formatFechaCorta(f).slice(0, 5)}</span>
+                            <span className="block text-[12px] opacity-80">{cant === 0 ? '—' : cant}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {delDia.length === 0 ? (
+                      <p className="text-textSec text-sm py-4">No hay actividades este día.</p>
+                    ) : (
+                      <div className="grid gap-2">
+                        {delDia.map((a, k) => {
+                          const idKey = a.id || `${a.fecha}-${a.horaMin}-${k}`;
+                          const color = colorDe(a);
+                          const conChoque = idsConChoque.has(a.id || `${a.fecha}-${a.horaMin}-${a.sala}`);
+                          const enCurso = a.fecha === hoyISO && horaActualMin >= (a.horaMin || 0) - BUFFER_MIN && horaActualMin < (a.horaMin || 0) + (a.duracion || 90);
+                          return (
+                            <button
+                              key={idKey}
+                              type="button"
+                              onClick={() => setSeleccionado(a)}
+                              className={`text-left rounded-xl px-3.5 py-2.5 border-l-4 w-full ${
+                                color ? `${color.bg} ${color.text} ${color.border}` : 'bg-infoBg text-infoText border-infoText/40'
+                              } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${a.pasada ? 'opacity-50' : ''}`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-semibold">
+                                  {conChoque && <span className="text-dangerText">⚠ </span>}
+                                  {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
+                                </span>
+                                <span className="font-mono text-xs whitespace-nowrap">
+                                  {a.horaMin != null ? `${minutosAHora(a.horaMin)} – ${minutosAHora(a.horaMin + (a.duracion || 90))}` : '—'}
+                                </span>
+                              </div>
+                              <span className="block text-[13px] font-normal opacity-90 mt-0.5">
+                                {a.sala
+                                  ? a.sala
+                                  : a.sinRepresentacionViva
+                                    ? (a.nombreCurso || '')
+                                    : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold">⚠ Sin sala</span> : (a.nombreCurso || ''))}
+                                {a.nombreCurso && a.sala ? ` · ${a.nombreCurso}` : ''}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              </>
             )}
           </>
         ) : vista === 'mes' ? (
@@ -565,13 +647,13 @@ export default function CronogramaPage() {
                       <td className="p-1.5">
                         {a.fecha ? formatFechaCorta(a.fecha) : a.fechaInicioEdicion ? (
                           <span title="Fecha de inicio de la edición (horario semanal fijo, sin clase puntual todavía)">
-                            {formatFechaCorta(a.fechaInicioEdicion)} <span className="text-textMuted text-[10px]">(inicio)</span>
+                            {formatFechaCorta(a.fechaInicioEdicion)} <span className="text-textMuted text-[12px]">(inicio)</span>
                           </span>
                         ) : '—'}
                       </td>
                       <td className="p-1.5 whitespace-nowrap">{diaCorto(dia)}</td>
                       <td className="p-1.5">
-                        <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${colorDeTipo(a)}`}>
+                        <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${colorDeTipo(a)}`}>
                           {a.tipo}
                         </span>
                       </td>
@@ -679,14 +761,14 @@ function VistaMes({ todas, onClick, colorPor }) {
       </div>
       <div className="grid grid-cols-7 gap-1.5">
         {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => (
-          <div key={d} className="text-[10.5px] text-textMuted text-center font-semibold pb-1">{d}</div>
+          <div key={d} className="text-[12px] text-textMuted text-center font-semibold pb-1">{d}</div>
         ))}
         {dias.map((f) => {
           const esDelMes = new Date(f + 'T00:00:00').getMonth() === mes;
           const items = porDia[f] || [];
           return (
             <div key={f} className={`border border-border rounded-lg p-1.5 min-h-[70px] ${esDelMes ? '' : 'opacity-30'} ${f === hoyISO ? 'ring-1 ring-accentTeal' : ''}`}>
-              <p className="text-[10.5px] text-textMuted mb-1">{new Date(f + 'T00:00:00').getDate()}</p>
+              <p className="text-[12px] text-textMuted mb-1">{new Date(f + 'T00:00:00').getDate()}</p>
               <div className="flex flex-col gap-0.5">
                 {items.slice(0, 3).map((a, i) => {
                   const color = colorDe(a);
@@ -694,14 +776,14 @@ function VistaMes({ todas, onClick, colorPor }) {
                   return (
                     <div
                       key={i} onClick={() => onClick(a)} title={esNueva ? 'Primera clase de esta edición' : undefined}
-                      className={`flex items-center gap-1 text-[9.5px] px-1 py-0.5 rounded truncate cursor-pointer ${color ? `${color.bg} ${color.text}` : 'bg-infoBg text-infoText'} ${esNueva ? 'ring-1 ring-successText' : ''}`}
+                      className={`flex items-center gap-1 text-[12px] px-1 py-0.5 rounded truncate cursor-pointer ${color ? `${color.bg} ${color.text}` : 'bg-infoBg text-infoText'} ${esNueva ? 'ring-1 ring-successText' : ''}`}
                     >
                       {esNueva && <span className="inline-block w-1.5 h-1.5 rounded-full bg-successText animate-pulse shrink-0" />}
                       <span className="truncate">{a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}</span>
                     </div>
                   );
                 })}
-                {items.length > 3 && <p className="text-[9.5px] text-textMuted">+{items.length - 3} más</p>}
+                {items.length > 3 && <p className="text-[12px] text-textMuted">+{items.length - 3} más</p>}
               </div>
             </div>
           );

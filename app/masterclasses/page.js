@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { formatFechaCorta, toISO, colorPorSala } from '../../lib/salasLogic';
+import { useDialogos } from '../../components/Dialogos';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -156,7 +157,7 @@ export default function MasterclassesPage() {
                       </td>
                       <td className="p-1.5 whitespace-nowrap">{m.mod || '—'}</td>
                       <td className="p-1.5">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${CATEGORIA_COLOR[m.categoria] || 'bg-surface2 text-textMuted'}`}>
+                        <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${CATEGORIA_COLOR[m.categoria] || 'bg-surface2 text-textMuted'}`}>
                           {m.categoria}
                         </span>
                       </td>
@@ -169,7 +170,7 @@ export default function MasterclassesPage() {
         )}
       </div>
 
-      <p className="text-[11px] text-textMuted">
+      <p className="text-[12px] text-textMuted">
         {puedeEditar ? 'Hacé clic en una fila para editarla, o usá "+ Agregar masterclass" para sumar una nueva.' : 'Hacé clic en una fila para ver el detalle completo.'}
       </p>
 
@@ -186,6 +187,7 @@ export default function MasterclassesPage() {
 }
 
 function ModalMasterclass({ item, puedeEditar, onCerrar, onGuardado }) {
+  const { confirmar, avisar } = useDialogos();
   const { fetchAutenticado } = useSession();
   const esNueva = !!item.nueva;
   const [editando, setEditando] = useState(esNueva);
@@ -217,7 +219,7 @@ function ModalMasterclass({ item, puedeEditar, onCerrar, onGuardado }) {
   }
 
   async function eliminar() {
-    if (!confirm('¿Eliminar este registro? No se puede deshacer.')) return;
+    if (!(await confirmar({ titulo: 'Eliminar registro', mensaje: '¿Eliminar este registro? No se puede deshacer.', textoConfirmar: 'Eliminar', peligro: true }))) return;
     setGuardando(true); setError('');
     try {
       const r = await fetchAutenticado(`/api/masterclasses/${item.id}`, { method: 'DELETE' });

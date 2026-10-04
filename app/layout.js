@@ -3,6 +3,8 @@ import { SessionProvider } from '../lib/useSession';
 import { ThemeProvider } from '../lib/ThemeContext';
 import VersionBadge from '../components/VersionBadge';
 import Nav from '../components/Nav';
+import EscCierraModales from '../components/EscCierraModales';
+import { DialogosProvider } from '../components/Dialogos';
 
 export const metadata = {
   title: 'Cronograma ILCE',
@@ -15,9 +17,12 @@ export default function RootLayout({ children }) {
       <body className="min-h-screen bg-bg text-text">
         <ThemeProvider>
           <SessionProvider>
-            <Nav />
-            {children}
-            <VersionBadge />
+            <DialogosProvider>
+              <EscCierraModales />
+              <Nav />
+              {children}
+              <VersionBadge />
+            </DialogosProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>

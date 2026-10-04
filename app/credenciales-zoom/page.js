@@ -83,10 +83,10 @@ export default function CredencialesZoomPage() {
         </div>
       )}
 
-      <p className="text-[11px] text-textMuted mb-1">
+      <p className="text-[12px] text-textMuted mb-1">
         "Abrir" lleva directo a la pantalla de inicio de sesión de Zoom, en una pestaña nueva — Zoom no permite completar el usuario y la contraseña automáticamente por seguridad, así que hay que pegarlos ahí (los tenés justo al lado, en la tabla).
       </p>
-      <p className="text-[11px] text-textMuted">
+      <p className="text-[12px] text-textMuted">
         Si cambia alguna contraseña, avisale a un Admin/SuperAdmin para que la actualice en la pestaña "CredencialesZoom" del Google Sheet.
       </p>
     </div>

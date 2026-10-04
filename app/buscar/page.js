@@ -195,7 +195,7 @@ function BuscarContenido() {
       ) : resultadosFiltrados.length === 0 ? (
         <p className="text-textSec text-sm">No encontramos resultados para tu búsqueda.</p>
       ) : (
-        <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))' }}>
+        <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px,100%),1fr))' }}>
           {resultadosFiltrados.map((r, i) => (
             <div
               key={i}
@@ -203,13 +203,13 @@ function BuscarContenido() {
               className={`bg-surface2 border-l-4 ${r.color ? r.color.border : 'border-border'} border-t border-r border-b border-border rounded-xl px-4 py-3 cursor-pointer transition-all hover:-translate-y-0.5 hover:border-accentPurple/40`}
             >
               <div className="flex items-center justify-between gap-2 mb-0.5">
-                <span className="text-[10px] font-bold text-textMuted uppercase">{r.tipo}</span>
+                <span className="text-[12px] font-bold text-textMuted uppercase">{r.tipo}</span>
                 {r.detalle && <span className="text-xs text-textMuted shrink-0">{r.detalle}</span>}
               </div>
               <p className={`text-sm font-medium truncate ${r.color ? r.color.text : ''}`}><Resaltado texto={r.label} q={q} /></p>
               <p className="text-xs text-textSec mt-0.5"><Resaltado texto={r.sub} q={q} /></p>
               {r.coincidencias?.length > 0 && (
-                <p className="text-[10.5px] text-infoText mt-1.5">Encontrado en: {r.coincidencias.join(', ')}</p>
+                <p className="text-[12px] text-infoText mt-1.5">Encontrado en: {r.coincidencias.join(', ')}</p>
               )}
             </div>
           ))}

@@ -82,7 +82,7 @@ export default function VerComo() {
         onClick={abrir}
         className="h-8 flex items-center gap-1 px-3 rounded-lg text-xs font-medium bg-surface2 border border-border text-textSec hover:text-text hover:border-accentTeal whitespace-nowrap"
       >
-        👁 Ver como… <span className="text-[9px]">▾</span>
+        👁 Ver como… <span className="text-[12px]">▾</span>
       </button>
       {abierto && (
         <div className="absolute right-0 mt-1.5 w-64 max-h-80 overflow-y-auto bg-surface2 border border-border rounded-lg shadow-lg z-50 py-1">
@@ -107,7 +107,7 @@ export default function VerComo() {
                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-bg flex flex-col"
               >
                 <span className="font-medium">{p.nombre}</span>
-                <span className="text-textMuted text-[10.5px]">{p.roles.join(', ')}</span>
+                <span className="text-textMuted text-[12px]">{p.roles.join(', ')}</span>
               </button>
             ))
           )}

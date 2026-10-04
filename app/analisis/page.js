@@ -503,7 +503,7 @@ export default function AnalisisPage() {
               icono="📊" titulo="Resumen ejecutivo"
               subtitulo={'Clases, horas y tasa de postergación son del período elegido, con su fecha real. Ocupación y salas utilizadas reflejan el horario semanal vigente ahora mismo — la mayoría de las clases no tiene una fecha puntual por ocurrencia. "Horas" es una estimación según la duración típica de cada formación.'}
             />
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))' }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px,100%),1fr))' }}>
               <Kpi valor={resumen.totalClasesPeriodo} label="Total de clases (período)" trend={resumen.trendClases} />
               <Kpi valor={resumen.totalHorasPeriodo.toFixed(1) + ' hs'} label="Total de horas (período, estimado)" trend={resumen.trendHoras} />
               <Kpi valor={kpis.ocupacion + '%'} label="Ocupación promedio" tag="vigente" acento={kpis.ocupacion >= 80 ? 'warning' : undefined} />
@@ -518,7 +518,7 @@ export default function AnalisisPage() {
             {insights.length === 0 ? (
               <p className="text-successText text-sm">✔ No se detectaron situaciones para destacar con los filtros actuales.</p>
             ) : (
-              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px,1fr))' }}>
+              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px,100%),1fr))' }}>
                 {insights.map((i, idx) => (
                   <div key={idx} className={`rounded-xl px-3.5 py-3 text-sm font-medium flex items-start gap-2.5 ${i.tipo === 'warn' ? 'bg-warningBg text-warningText' : 'bg-infoBg text-infoText'}`}>
                     <span className="text-base leading-none">{i.icono}</span>
@@ -536,7 +536,7 @@ export default function AnalisisPage() {
           )}
 
           {/* POSTERGACIONES + SALAS */}
-          <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(420px,1fr))' }}>
+          <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px,100%),1fr))' }}>
             <div className={`${boxCls} mb-0`}>
               <ModuloHeader icono="🔁" titulo="Postergaciones" subtitulo="Del período elegido arriba." />
               <div className="grid grid-cols-2 gap-2.5 mb-4">
@@ -549,7 +549,7 @@ export default function AnalisisPage() {
                 <p className="text-textSec text-sm">Sin postergaciones en el período con estos filtros.</p>
               ) : (
                 <>
-                  <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+                  <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px,100%),1fr))' }}>
                     <MiniLista titulo="Motivos más frecuentes" items={postergacionesPorMotivo} />
                     <MiniLista titulo="Por formación" items={postergacionesPorFormacion.map(([k, v]) => [NOMBRES[k] || k, v])} />
                     <MiniLista titulo="Por sala" items={postergacionesPorSala} />
@@ -557,7 +557,7 @@ export default function AnalisisPage() {
                   </div>
                   <p className="text-xs font-semibold text-textSec mb-2">Evolución en el tiempo (todos los registros, por mes)</p>
                   <BarrasHorizontalesTiempo datos={postergacionesPorMes} />
-                  <p className="text-[10.5px] text-textMuted mt-3">"Por docente" cruza cada postergación con el docente actual de esa clase — si el docente cambió después, puede no ser exacto.</p>
+                  <p className="text-[12px] text-textMuted mt-3">"Por docente" cruza cada postergación con el docente actual de esa clase — si el docente cambió después, puede no ser exacto.</p>
                 </>
               )}
             </div>
@@ -621,7 +621,7 @@ export default function AnalisisPage() {
 
                 <p className="text-xs font-semibold text-textSec mb-2">Heatmap de ocupación (salas simultáneas por celda)</p>
                 <div className="overflow-x-auto">
-                  <table className="text-[11px] border-collapse">
+                  <table className="text-[12px] border-collapse">
                     <thead>
                       <tr>
                         <th className="p-1 text-left text-textSec sticky left-0 bg-surface2">Día</th>
@@ -646,13 +646,13 @@ export default function AnalisisPage() {
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[10.5px] text-textMuted mt-2">Cada celda muestra cuántas salas están ocupadas en simultáneo en ese día/horario (con el buffer de {BUFFER_MIN} minutos entre clases).</p>
+                <p className="text-[12px] text-textMuted mt-2">Cada celda muestra cuántas salas están ocupadas en simultáneo en ese día/horario (con el buffer de {BUFFER_MIN} minutos entre clases).</p>
               </>
             )}
           </div>
 
           {/* FORMACIONES + DOCENTES */}
-          <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(420px,1fr))' }}>
+          <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px,100%),1fr))' }}>
             <div className={`${boxCls} mb-0`}>
               <ModuloHeader icono="🎓" titulo="Formaciones" subtitulo="Horario vigente + postergaciones del período." />
               {porFormacion.length === 0 ? (
@@ -669,7 +669,7 @@ export default function AnalisisPage() {
                           <span className="text-textMuted">{f.clases} clase(s) · {f.horas.toFixed(1)}hs · {f.postergaciones} postergación(es){f.tasaPostergacion > 0 ? ` (${f.tasaPostergacion}%)` : ''}</span>
                         </div>
                         <Barra pct={Math.round((f.horas / maxHoras) * 100)} colorClase="bg-accentPurple" />
-                        <div className="text-[10.5px] text-textMuted mt-1">Salas: {f.salas.join(', ') || '—'} · Docentes: {f.docentes.join(', ') || '—'}</div>
+                        <div className="text-[12px] text-textMuted mt-1">Salas: {f.salas.join(', ') || '—'} · Docentes: {f.docentes.join(', ') || '—'}</div>
                       </div>
                     );
                   })}
@@ -738,7 +738,7 @@ export default function AnalisisPage() {
               </div>
             )}
             {puedeVerDetalleCompleto && (
-              <p className="text-textMuted text-[10.5px] mt-2">Ver el historial completo, con filtros y exportación, en <Link href="/auditoria" className="underline">Auditoría</Link>.</p>
+              <p className="text-textMuted text-[12px] mt-2">Ver el historial completo, con filtros y exportación, en <Link href="/auditoria" className="underline">Auditoría</Link>.</p>
             )}
           </div>
         </>
@@ -751,7 +751,7 @@ function ModuloHeader({ icono, titulo, subtitulo }) {
   return (
     <div className="mb-3">
       <h2 className="text-sm font-bold flex items-center gap-2">{icono} {titulo}</h2>
-      {subtitulo && <p className="text-[11px] text-textMuted mt-0.5">{subtitulo}</p>}
+      {subtitulo && <p className="text-[12px] text-textMuted mt-0.5">{subtitulo}</p>}
     </div>
   );
 }
@@ -767,10 +767,10 @@ function Kpi({ valor, label, trend, trendEsPuntos, invertir, tag, acento }) {
   return (
     <div className="bg-bg border border-border rounded-xl p-4 flex flex-col gap-1">
       <div className={`text-2xl font-extrabold truncate ${colorValor}`}>{valor}</div>
-      <div className="text-[11.5px] text-textSec">{label}</div>
-      {tag && <div className="text-[10px] text-textMuted font-semibold uppercase tracking-wide">{tag}</div>}
+      <div className="text-[12px] text-textSec">{label}</div>
+      {tag && <div className="text-[12px] text-textMuted font-semibold uppercase tracking-wide">{tag}</div>}
       {trend != null && (
-        <div className={`text-[11px] font-semibold ${colorTrend}`}>
+        <div className={`text-[12px] font-semibold ${colorTrend}`}>
           {trend > 0 ? '↑' : trend < 0 ? '↓' : '='} {Math.abs(trend)}{trendEsPuntos ? ' pp' : '%'} vs. período anterior
         </div>
       )}
@@ -788,7 +788,7 @@ function Barra({ pct, colorClase }) {
 }
 
 function RangoBadge({ i }) {
-  return <span className="w-4 h-4 rounded-full bg-surface2 border border-border flex items-center justify-center text-[9px] font-bold text-textSec shrink-0">{i + 1}</span>;
+  return <span className="w-4 h-4 rounded-full bg-surface2 border border-border flex items-center justify-center text-[12px] font-bold text-textSec shrink-0">{i + 1}</span>;
 }
 
 /** Barras horizontales simples para una serie mensual [ [mes, cantidad], ... ]. */
@@ -798,7 +798,7 @@ function BarrasHorizontalesTiempo({ datos }) {
   return (
     <div className="flex flex-col gap-1">
       {datos.map(([mes, v]) => (
-        <div key={mes} className="flex items-center gap-2 text-[11px]">
+        <div key={mes} className="flex items-center gap-2 text-[12px]">
           <span className="font-mono w-16 text-textMuted">{mes}</span>
           <div className="flex-1 h-2.5 bg-bg border border-border rounded-full overflow-hidden">
             <div className="h-full bg-warningText" style={{ width: `${(v / max) * 100}%` }} />
@@ -844,7 +844,7 @@ function StatCard({ n, l, acento, chico }) {
   return (
     <div className="bg-bg border border-border rounded-xl p-3.5">
       <div className={`${chico ? 'text-base' : 'text-xl'} font-extrabold ${color} truncate`}>{n}</div>
-      <div className="text-[11px] text-textSec mt-1">{l}</div>
+      <div className="text-[12px] text-textSec mt-1">{l}</div>
     </div>
   );
 }

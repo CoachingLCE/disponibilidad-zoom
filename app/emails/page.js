@@ -256,7 +256,7 @@ export default function EmailsPage() {
                   <td className="p-1.5 whitespace-nowrap text-textSec">Cronograma ILCE</td>
                   <td className="p-1.5 max-w-[260px]">{m.asunto}</td>
                   <td className="p-1.5">
-                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[m.tipo] || 'bg-surface2 text-textMuted'}`}>
+                    <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[m.tipo] || 'bg-surface2 text-textMuted'}`}>
                       {m.tipo}
                     </span>
                   </td>
@@ -268,7 +268,7 @@ export default function EmailsPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-[10.5px] text-textMuted mt-2">
+        <p className="text-[12px] text-textMuted mt-2">
           Cada uno describe su alcance completo al hacer clic en "Ver mail" — ahí también se ve el detalle de destinatarios y de qué depende que se mande.
         </p>
       </div>
@@ -304,7 +304,7 @@ export default function EmailsPage() {
                   <tr key={i} className="border-b border-border">
                     <td className="p-1.5 whitespace-nowrap">{new Date(e.fecha).toLocaleString('es-AR')}</td>
                     <td className="p-1.5">
-                      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[e.tipo] || 'bg-surface2 text-textMuted'}`}>
+                      <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[e.tipo] || 'bg-surface2 text-textMuted'}`}>
                         {e.tipo}
                       </span>
                     </td>
@@ -329,8 +329,8 @@ export default function EmailsPage() {
               </div>
               <p className="text-xs text-gray-500 mb-1">{previa.cuando}</p>
               <p className="text-xs text-gray-600 mb-2">{previa.descripcion}</p>
-              <p className="text-[11px] font-semibold text-gray-600 mb-0.5">Destinatarios:</p>
-              <ul className="text-[11px] text-gray-600 list-disc list-inside">
+              <p className="text-[12px] font-semibold text-gray-600 mb-0.5">Destinatarios:</p>
+              <ul className="text-[12px] text-gray-600 list-disc list-inside">
                 {previa.destinatarios.map((d) => <li key={d.email}>{d.nombre} ({d.email})</li>)}
               </ul>
             </div>

@@ -13,6 +13,7 @@ import { CRONOGRAMA_HISTORICO } from '../lib/cronogramaHistorico';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../lib/credencialesZoomDefaults';
 import { DOCENTES_CO_DEFAULT } from '../lib/docentesCODefaults';
 import { FECHAS_INICIO_REALES } from '../lib/fechasInicioReales';
+import { useDialogos } from '../components/Dialogos';
 
 // Pedido de Diego: las tarjetas de métricas de arriba de Inicio ocupaban demasiado
 // espacio para lo que muestran — de p-4 (16px) a px-2.5 py-2 (10px/8px) baja la altura y
@@ -551,7 +552,7 @@ export default function InicioPage() {
               disponibles ahora") para que entren sin truncarse en el ancho normal de la
               tarjeta; el de "Próxima" queda con title= para poder leer el nombre completo del
               curso al pasar el mouse si se trunca. */}
-          <div data-tour="inicio-panel" className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(115px,1fr))' }}>
+          <div data-tour="inicio-panel" className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(115px,100%),1fr))' }}>
             <Metrica icono="clasesHoy" valor={agendaHoy.length} label="Clases hoy" />
             <Metrica icono="realizadas" valor={clasesRealizadasHoy} label="Clases realizadas" />
             {/* Pedido de Diego (02/10/2026): "Clases especiales hoy" — para contabilizar todo
@@ -608,7 +609,7 @@ export default function InicioPage() {
               // hubiera solo 1 o 2 clases hoy (se veían gigantes) — con un máximo fijo en vez
               // de 1fr, cada tarjeta queda a su ancho natural y el espacio sobrante del
               // contenedor queda vacío en vez de repartirse entre las pocas tarjetas que haya.
-              <div data-tour="tarjetas-clases" className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,300px))' }}>
+              <div data-tour="tarjetas-clases" className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px,100%),300px))' }}>
                 {agendaHoy.map((a, i) => {
                   const estadoAgenda = estadoDeAgenda(a.horaMin, a.duracion);
                   const color = a.esFormacion ? colorFormacion(a.curso) : null;
@@ -625,15 +626,15 @@ export default function InicioPage() {
                             con su propio cartel en vez de los de arriba (no hay clase real
                             todavía como para decir "EN VIVO"/"PRÓXIMAMENTE"). */}
                         {a.sinCrear ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-dangerBg text-dangerText">FALTA CARGAR</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-dangerBg text-dangerText">FALTA CARGAR</span>
                         ) : estadoAgenda === 'en-vivo' ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
                         ) : estadoAgenda === 'proximamente' ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 proximamente-badge">🕐 PRÓXIMAMENTE</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 proximamente-badge">🕐 PRÓXIMAMENTE</span>
                         ) : estadoAgenda === 'finalizando' ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizando-badge">⏳ FINALIZANDO</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizando-badge">⏳ FINALIZANDO</span>
                         ) : estadoAgenda === 'finalizada' ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizada-badge">✓ FINALIZADA</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizada-badge">✓ FINALIZADA</span>
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1.5 mb-0.5">
@@ -686,7 +687,7 @@ export default function InicioPage() {
             <div className={sectionCls}>
               <h2 className="text-sm font-semibold mb-1">Formaciones que finalizan esta semana</h2>
               <p className="text-xs text-textMuted mb-3">{formatFechaCorta(inicioSemana)} al {formatFechaCorta(finSemana)}</p>
-              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
+              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px,100%),1fr))' }}>
                 {formacionesFinalizanSemana.map((f, i) => {
                   const color = colorFormacion(f.codigo);
                   return (
@@ -718,7 +719,7 @@ export default function InicioPage() {
                   if (items.length === 0) return null;
                   return (
                     <div key={grupo.categoria}>
-                      <p className="text-[10.5px] font-semibold text-textMuted uppercase tracking-wide mb-1">{grupo.titulo}</p>
+                      <p className="text-[12px] font-semibold text-textMuted uppercase tracking-wide mb-1">{grupo.titulo}</p>
                       <div className="flex flex-col gap-1.5">
                         {items.map((a, i) => {
                           // Pedido de Diego: el color/negrita tiene que llamar la atención SOLO
@@ -800,6 +801,7 @@ export default function InicioPage() {
 }
 
 function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, formaciones, formacionesManual, fechaInicioHistorico, onGuardado }) {
+  const { confirmar, avisar } = useDialogos();
   const { fetchAutenticado } = useSession();
   const [editando, setEditando] = useState(false);
   const [docE, setDocE] = useState(item.docente || '');
@@ -862,7 +864,7 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
       setEditando(false);
       if (onGuardado) await onGuardado();
     } catch (e) {
-      alert(e.message || 'No se pudo guardar.');
+      avisar(e.message || 'No se pudo guardar.', 'error');
     } finally { setGuardando(false); }
   }
   return (
@@ -907,7 +909,7 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
               {item.esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Staff</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={staffE} onChange={(e) => setStaffE(e.target.value)} placeholder="Staff" /></div>}
               {!item.esFormacion && <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Temática</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={tematicaE} onChange={(e) => setTematicaE(e.target.value)} placeholder="Temática" /></div>}
               <div className="flex items-center justify-between gap-2"><span className="text-textMuted">Observaciones</span><input className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm max-w-[200px]" value={observacionesE} onChange={(e) => setObservacionesE(e.target.value)} placeholder="Observaciones" /></div>
-              <p className="text-[10.5px] text-textMuted">La fecha de esta clase puntual y el curso/edición no se editan desde acá — para eso usá "Cambiar sala, postergar o cancelar esta clase" o cargala de nuevo.</p>
+              <p className="text-[12px] text-textMuted">La fecha de esta clase puntual y el curso/edición no se editan desde acá — para eso usá "Cambiar sala, postergar o cancelar esta clase" o cargala de nuevo.</p>
             </>
           ) : (
             <>
@@ -940,7 +942,7 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
           )
         )}
         {usoPeriodoCO && (
-          <p className="text-[10.5px] text-textMuted mb-3">
+          <p className="text-[12px] text-textMuted mb-3">
             Docente/staff según el período cargado en <Link href="/docentes-co" className="underline">Docentes C.O.</Link> — esta clase puntual no tiene el dato propio.
           </p>
         )}
@@ -984,7 +986,9 @@ function bandaProximidad(fecha, horaMin) {
 function TablaProximas({ items, onClick, asignacionesCO }) {
   if (!items.length) return null;
   return (
-    <div className="overflow-x-auto">
+    <>
+    {/* Pantallas medianas y grandes: la tabla de siempre */}
+    <div className="hidden md:block overflow-x-auto">
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="border-b border-border text-textMuted text-left">
@@ -1048,9 +1052,57 @@ function TablaProximas({ items, onClick, asignacionesCO }) {
         </tbody>
       </table>
     </div>
+
+    {/* Celular: una tarjeta por clase con todos los datos (la tabla se cortaba y no se veía ni la
+        sala ni la formación). Mismo resaltado de "mañana" y "pronto" que la tabla. */}
+    <div className="md:hidden grid gap-2">
+      {items.map((a) => {
+        const color = a.esFormacion ? colorFormacion(a.curso) : null;
+        const dia = a.dia || (a.fecha ? fechaToDia(a.fecha) : '');
+        const banda = bandaProximidad(a.fecha, a.horaMin);
+        const periodoCO = a.curso === 'CO' && a.edicion ? buscarPeriodoCO(asignacionesCO || [], a.edicion, a.fecha) : null;
+        const docenteMostrar = a.docente || periodoCO?.docente || '';
+        const staffMostrar = a.staff || periodoCO?.staff || '';
+        return (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => onClick(a)}
+            className={`text-left bg-surface2 border border-border rounded-xl px-3.5 py-3 w-full ${banda === 'manana' ? 'fila-manana' : banda === 'pronto' ? 'fila-pronto' : ''}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[13px] font-semibold">
+                {formatFechaCorta(a.fecha)} · {dia ? dia.charAt(0) + dia.slice(1).toLowerCase() : '—'}
+              </span>
+              <span className="font-mono text-xs text-textSec whitespace-nowrap">
+                {a.horaMin != null ? `${minutosAHora(a.horaMin)} – ${minutosAHora(a.horaMin + (a.duracion || 90))}` : '—'}
+              </span>
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5 text-sm">
+              {color && <span className={`w-1.5 h-1.5 rounded-full ${color.dot} shrink-0`} />}
+              <span className={`${color ? color.text : ''} font-medium`}>
+                {a.nombreCurso}
+                {a.esFormacion && a.edicion ? ` · Edición ${a.edicion}` : ''}
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-textMuted">
+              {a.esFormacion && a.numeroSesion && a.total && <span>Clase {a.numeroSesion} de {a.total}</span>}
+              {a.sala && (
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(a.sala).dot} shrink-0`} />
+                  <span className={colorPorSala(a.sala).text}>{a.sala}</span>
+                </span>
+              )}
+              {docenteMostrar && <span>Docente: {docenteMostrar}</span>}
+              {staffMostrar && <span>Staff: {staffMostrar}</span>}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+    </>
   );
 }
-
 function Fila({ label, valor }) {
   return (
     <div className="flex justify-between gap-3">
@@ -1111,12 +1163,12 @@ function Metrica({ valor, valorExtra, label, icono, acento, chico, atenuada, hre
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {icono && <IconoMetrica tipo={icono} className={acento ? color : 'text-textMuted'} />}
-          <span className="text-[10.5px] text-textSec font-semibold leading-snug truncate" title={!valorExtra ? label : undefined}>{label}</span>
+          <span className="text-[12px] text-textSec font-semibold leading-snug break-words" title={!valorExtra ? label : undefined}>{label}</span>
         </div>
         <div className={`${chico ? 'text-sm' : 'text-base'} font-bold leading-tight whitespace-nowrap shrink-0 ${color}`}>{valor}</div>
       </div>
       {valorExtra && (
-        <div className="text-[10.5px] text-textSec/80 leading-snug truncate pl-[18px]" title={valorExtra}>{valorExtra}</div>
+        <div className="text-[12px] text-textSec/80 leading-snug break-words pl-[18px]" title={valorExtra}>{valorExtra}</div>
       )}
     </>
   );
@@ -1156,7 +1208,7 @@ function TarjetaPendientesSala({ pendientes, puedeAsignar, fetchAutenticado, onA
     <div className={`${sectionCls} border-warningText/40`}>
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold">⏳ Pendientes de asignar sala</h2>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warningBg text-warningText">{pendientes.length}</span>
+        <span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-warningBg text-warningText">{pendientes.length}</span>
       </div>
       <p className="text-xs text-textMuted mb-3">Se guardaron sin elegir sala todavía — {puedeAsignar ? 'completala acá.' : 'alguien con permiso tiene que completarles la sala.'}</p>
       <div className="flex flex-col gap-2">

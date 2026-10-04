@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Wrench, Search } from 'lucide-react';
@@ -48,6 +48,16 @@ export default function Nav() {
   const { usuario, verComo, setVerComo, logout } = useSession();
   const pathname = usePathname();
   const [cambiandoPassword, setCambiandoPassword] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
+  // En celular el menú se cierra solo al cambiar de pantalla y con Esc.
+  useEffect(() => { setMenuAbierto(false); }, [pathname]);
+  useEffect(() => {
+    if (!menuAbierto) return undefined;
+    const cerrarConEsc = (ev) => { if (ev.key === 'Escape') setMenuAbierto(false); };
+    document.addEventListener('keydown', cerrarConEsc);
+    return () => document.removeEventListener('keydown', cerrarConEsc);
+  }, [menuAbierto]);
 
   if (!usuario || pathname === '/login' || pathname === '/setup-password') return null;
 
@@ -62,7 +72,7 @@ export default function Nav() {
           <span className="text-sm font-bold text-textMuted">Cronograma</span>
         </Link>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
           <VerComo />
           <ThemeSelector />
           <Link href="/buscar" title="Buscar"
@@ -93,8 +103,45 @@ export default function Nav() {
         </div>
       </div>
 
-      <nav className="mb-5 flex items-center gap-1.5 flex-wrap">
-        {links.map((l) => itemNav(l.href, l.label, pathname))}
+      <nav className="mb-5" aria-label="Principal">
+        {/* Pantallas medianas y grandes: todos los botones en una fila */}
+        <div className="hidden md:flex items-center gap-1.5 flex-wrap">
+          {links.map((l) => itemNav(l.href, l.label, pathname))}
+        </div>
+
+        {/* Celular: un solo botón con la pantalla actual que despliega la lista (antes eran 14
+            botones apilados y toda la barra se salía de la pantalla) */}
+        <div className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setMenuAbierto((v) => !v)}
+            aria-expanded={menuAbierto}
+            className="w-full h-11 flex items-center justify-between px-4 rounded-xl bg-surface2 border border-border text-sm font-semibold"
+          >
+            <span className="flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+              {(links.find((l) => l.href === pathname) || links[0]).label}
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`transition-transform ${menuAbierto ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          {menuAbierto && (
+            <div className="mt-2 grid gap-1 rounded-xl border border-border bg-surface p-1.5 shadow-lg">
+              {links.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`h-11 flex items-center px-3.5 rounded-lg text-sm font-medium transition-colors ${
+                    pathname === l.href
+                      ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white'
+                      : 'text-textSec hover:bg-surface2 hover:text-text'
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </nav>
 
       {verComo && (

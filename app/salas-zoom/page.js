@@ -27,7 +27,7 @@ const tabCls = (activo) => `rounded-lg px-3.5 py-1.5 text-xs font-semibold borde
 // separación la dan los títulos y el espaciado, no un recuadro completo.
 const panelCls = 'bg-surface2 border border-border/70 rounded-2xl p-4 sm:p-5 mb-4';
 const campoCls = 'w-full h-9 bg-surface2 border border-border rounded-lg px-2.5 text-sm';
-const campoLabelCls = 'text-[11px] text-textSec block mb-1 font-medium';
+const campoLabelCls = 'text-[12px] text-textSec block mb-1 font-medium';
 const btnPrimaryCls = 'inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40 shrink-0 h-9';
 // 2ª vuelta de UX/UI (pedido de Diego, 02/10/2026): "sigue sintiéndose como un formulario
 // gigante dentro de una tarjeta gigante" — se saca el fondo+borde propio de cada subsección
@@ -38,11 +38,11 @@ const seccionDivCls = 'pt-3 mt-3 border-t border-border/40 first:pt-0 first:mt-0
 const seccionTituloCls = 'text-[12px] font-semibold text-text/85 mb-2';
 // Textos de ayuda cortos tipo "ⓘ ..." (pedido de Diego: nada de párrafos largos sueltos en
 // el formulario) — ver <AyudaCorta>.
-const ayudaCls = 'flex items-start gap-1 text-[10.5px] text-textMuted leading-snug mt-1.5';
+const ayudaCls = 'flex items-start gap-1 text-[12px] text-textMuted leading-snug mt-1.5';
 // El toggle "¿Mismo docente...?" pasa a un control segmentado (dos mitades de un mismo
 // bloque, no dos botones sueltos) — más compacto y se lee como una sola elección.
 const segmentadoCls = 'inline-flex h-8 rounded-lg border border-border bg-surface2 p-0.5 gap-0.5';
-const segmentoCls = (activo) => `px-3 rounded-[7px] text-[11px] font-medium transition-colors ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white' : 'text-textSec'}`;
+const segmentoCls = (activo) => `px-3 rounded-[7px] text-[12px] font-medium transition-colors ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white' : 'text-textSec'}`;
 // Un color por cuatrimestre, nada más para diferenciarlos de un vistazo en el formulario.
 const COLORES_CUATRIMESTRE = ['rgb(var(--color-accentTeal))', 'rgb(var(--color-accentPurple))', 'rgb(var(--color-accentMagenta))'];
 
@@ -279,9 +279,9 @@ function VistaGrilla({ vista, diaHoy, onClick, sesionPorId = {} }) {
       <table className="w-full min-w-[760px] border-collapse">
         <thead>
           <tr>
-            <th className="text-[11.5px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Hora</th>
+            <th className="text-[12px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Hora</th>
             {diasUsados.map((d) => (
-              <th key={d} className={`text-[11.5px] uppercase px-1.5 py-2 border-b border-border text-center ${d === diaHoy ? 'text-accentTeal' : 'text-text'}`}>
+              <th key={d} className={`text-[12px] uppercase px-1.5 py-2 border-b border-border text-center ${d === diaHoy ? 'text-accentTeal' : 'text-text'}`}>
                 {d}{d === diaHoy ? ' · hoy' : ''}
               </th>
             ))}
@@ -301,12 +301,12 @@ function VistaGrilla({ vista, diaHoy, onClick, sesionPorId = {} }) {
                         <div
                           key={c.id}
                           onClick={() => onClick && onClick(c)}
-                          className={`${color.bg} ${color.text} border-l-2 ${color.border} rounded-md px-2 py-1 text-[11.5px] font-bold mb-1 ${onClick ? 'cursor-pointer' : ''} ${c.pasada ? 'opacity-45 line-through' : ''}`}
+                          className={`${color.bg} ${color.text} border-l-2 ${color.border} rounded-md px-2 py-1 text-[12px] font-bold mb-1 ${onClick ? 'cursor-pointer' : ''} ${c.pasada ? 'opacity-45 line-through' : ''}`}
                         >
                           {ICONOS[c.codigo] || ''} {c.label}
-                          <span className="block font-medium text-[10px] opacity-85">{c.sala}</span>
+                          <span className="block font-medium text-[12px] opacity-85">{c.sala}</span>
                           {(sesionPorId[c.id] || c.numero) && (
-                            <span className="block font-medium text-[9.5px] opacity-80">
+                            <span className="block font-medium text-[12px] opacity-80">
                               Clase {sesionPorId[c.id] || (c.serieTotal > 1 ? c.serieIndex : c.numero)}{TOTALES[c.codigo] ? ' de ' + TOTALES[c.codigo] : ''}
                             </span>
                           )}
@@ -349,7 +349,7 @@ function VistaPorSala({ vista, diaSala, setDiaSala }) {
                 return (
                   <div
                     key={c.id} title={`${c.label} — abre ${minutosAHora(inicio)}`}
-                    className={`absolute top-0.5 bottom-0.5 rounded text-white text-[10.5px] font-bold flex items-center px-1.5 overflow-hidden ${c.pasada ? 'bg-textMuted' : 'bg-gradient-to-r from-accentPurple to-accentMagenta'}`}
+                    className={`absolute top-0.5 bottom-0.5 rounded text-white text-[12px] font-bold flex items-center px-1.5 overflow-hidden ${c.pasada ? 'bg-textMuted' : 'bg-gradient-to-r from-accentPurple to-accentMagenta'}`}
                     style={{ left: left + '%', width: width + '%' }}
                   >
                     {c.label}
@@ -372,8 +372,8 @@ function VistaEstado({ vista, diaHoy, onClick }) {
     <div>
       {/* Pedido de Diego (02/10/2026): esta línea es apoyo, no debe competir con el contenido
           principal — se achica y se baja el contraste. */}
-      <p className="text-[11px] text-textMuted mb-2.5">Hoy {diaHoy.charAt(0) + diaHoy.slice(1).toLowerCase()}, {minutosAHora(horaActual)} hs.</p>
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px,1fr))' }}>
+      <p className="text-[12px] text-textMuted mb-2.5">Hoy {diaHoy.charAt(0) + diaHoy.slice(1).toLowerCase()}, {minutosAHora(horaActual)} hs.</p>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(190px,100%),1fr))' }}>
         {SALAS.map((sala) => {
           const ocupHoy = vista.filter((c) => c.dia === diaHoy && c.sala === sala)
             .map((c) => ({ ...c, inicio: c.horaMin - BUFFER_MIN, fin: c.horaMin + c.duracion }))
@@ -401,17 +401,17 @@ function VistaEstado({ vista, diaHoy, onClick }) {
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-xs truncate">{sala}</span>
-                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${estadoCls}`}>{estadoTxt}</span>
+                <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${estadoCls}`}>{estadoTxt}</span>
               </div>
               {actual ? (
                 <>
-                  <div className={`text-[11px] font-medium mt-0.5 truncate ${color.text}`}>{actual.label}</div>
-                  <div className="text-[10px] text-textMuted">
+                  <div className={`text-[12px] font-medium mt-0.5 truncate ${color.text}`}>{actual.label}</div>
+                  <div className="text-[12px] text-textMuted">
                     {minutosAHora(actual.horaMin)}–{minutosAHora(actual.fin)} · {enBuffer ? 'preparación' : 'en curso'}
                   </div>
                 </>
               ) : (
-                <div className="text-[10.5px] text-textSec mt-0.5 truncate">
+                <div className="text-[12px] text-textSec mt-0.5 truncate">
                   {proxima ? `Próxima: ${minutosAHora(proxima.horaMin)} · ${proxima.label}` : 'Sin clases el resto del día'}
                 </div>
               )}
@@ -722,7 +722,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
         <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-accentPurple to-accentMagenta flex items-center justify-center text-white text-xs shrink-0">📅</span>
         <h2 className="text-[15px] font-semibold">Agregar al cronograma</h2>
       </div>
-      <p className="text-[11.5px] text-textSec mb-2.5 sm:ml-[30px] sm:-mt-0.5">
+      <p className="text-[12px] text-textSec mb-2.5 sm:ml-[30px] sm:-mt-0.5">
         Cargá una clase, formación o actividad.
       </p>
 
@@ -745,7 +745,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
         <>
           <div className={seccionDivCls}>
             <p className={seccionTituloCls}>Edición y horario</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px,100%),1fr))' }}>
               <div><label className={campoLabelCls}>Edición (ej: 45)</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Día</label><input value={diaPeriodo} onChange={(e) => setDiaPeriodo(e.target.value)} placeholder="Martes" className={campoCls} /></div>
               <div><label className={campoLabelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="19:00 a 21:00" className={campoCls} /></div>
@@ -755,7 +755,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           </div>
           <div className={seccionDivCls}>
             <p className={seccionTituloCls}>Docente, staff y sala</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px,100%),1fr))' }}>
               <div><label className={campoLabelCls}>Docente</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Staff</label><input value={staff} onChange={(e) => setStaff(e.target.value)} className={campoCls} /></div>
               <div>
@@ -780,7 +780,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
         <>
           <div className={seccionDivCls}>
             <p className={seccionTituloCls}>Actividad y horario</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px,100%),1fr))' }}>
               <div className="sm:col-span-2"><label className={campoLabelCls}>Nombre</label><input value={nombreActividad} onChange={(e) => setNombreActividad(e.target.value)} placeholder="ej: Efecto Florida" className={campoCls} /></div>
               <div><label className={campoLabelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Horario</label><input value={horarioLibre} onChange={(e) => setHorarioLibre(e.target.value)} placeholder="20:00 a 21:15" className={campoCls} /></div>
@@ -788,7 +788,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           </div>
           <div className={seccionDivCls}>
             <p className={seccionTituloCls}>Disertante, sala y moderación</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px,100%),1fr))' }}>
               <div><label className={campoLabelCls}>Disertante</label><input value={docente} onChange={(e) => setDocente(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Sala de Zoom</label>
                 <select value={salaEspecial} onChange={(e) => setSalaEspecial(e.target.value)} className={campoCls}>
@@ -801,7 +801,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           </div>
           <div className={seccionDivCls}>
             <p className={seccionTituloCls}>Inscripción y acceso</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px,100%),1fr))' }}>
               <div><label className={campoLabelCls}>Formulario de inscripción</label><input value={formularioInscripcion} onChange={(e) => setFormularioInscripcion(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Link de acceso (Zoom)</label><input value={linkAcceso} onChange={(e) => setLinkAcceso(e.target.value)} className={campoCls} /></div>
             </div>
@@ -812,7 +812,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           {/* 1. Datos del evento */}
           <div className={seccionDivCls}>
             <p className={seccionTituloCls}>Datos del evento</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px,100%),1fr))' }}>
               <div><label className={campoLabelCls}>Fecha</label><input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campoCls} /></div>
               <div><label className={campoLabelCls}>Hora</label>
                 <select value={horaTxt} onChange={(e) => setHoraTxt(e.target.value)} className={campoCls}>
@@ -840,7 +840,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           {/* 2. Datos de la clase */}
           <div className={seccionDivCls}>
             <p className={seccionTituloCls}>Datos de la clase</p>
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))' }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px,100%),1fr))' }}>
               <div><label className={campoLabelCls}>Edición{esFormacion ? ' (ej: 51)' : ''}</label><input value={edicion} onChange={(e) => setEdicion(e.target.value)} className={campoCls} /></div>
               {esFormacion && (
                 <>
@@ -856,7 +856,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                       title="En una Formación la cantidad de clases es fija (el total del curso) — no se puede cargar un número distinto."
                       className="w-full h-9 flex items-center px-2.5 text-sm text-textSec bg-transparent border border-dashed border-border rounded-lg"
                     >
-                      {cantidad} <span className="text-[10px] text-textMuted ml-1.5">(fijo)</span>
+                      {cantidad} <span className="text-[12px] text-textMuted ml-1.5">(fijo)</span>
                     </div>
                   </div>
                 </>
@@ -881,7 +881,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                   <div className="grid gap-2 sm:grid-cols-3 mb-2.5">
                     {CUATRIMESTRES_CO.map((c, i) => (
                       <div key={c.id} className="px-2.5 py-2 rounded-lg bg-surface2/60" style={{ borderLeft: `3px solid ${COLORES_CUATRIMESTRE[i]}` }}>
-                        <p className="text-[10px] font-semibold text-textMuted uppercase tracking-wide mb-0.5">{c.label.replace(/ \(.*\)/, '')}</p>
+                        <p className="text-[12px] font-semibold text-textMuted uppercase tracking-wide mb-0.5">{c.label.replace(/ \(.*\)/, '')}</p>
                         <p className="text-[12px]">{formatFechaCorta(rangosCuatrimestres[i].desde)} – {formatFechaCorta(rangosCuatrimestres[i].hasta)}</p>
                       </div>
                     ))}
@@ -901,7 +901,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                   <div className="grid gap-2.5 sm:grid-cols-3">
                     {CUATRIMESTRES_CO.map((c, i) => (
                       <div key={c.id} className="p-2.5 rounded-lg bg-surface2/60" style={{ borderLeft: `3px solid ${COLORES_CUATRIMESTRE[i]}` }}>
-                        <p className="text-[11px] font-semibold mb-1.5 leading-tight">{c.label}</p>
+                        <p className="text-[12px] font-semibold mb-1.5 leading-tight">{c.label}</p>
                         <input placeholder="Docente" value={cuatrimestreDocentes[i].docente} onChange={(e) => setCuatDocente(i, 'docente', e.target.value)} className={`${campoCls} mb-1.5`} />
                         <input placeholder="Staff (opcional)" value={cuatrimestreDocentes[i].staff} onChange={(e) => setCuatDocente(i, 'staff', e.target.value)} className={campoCls} />
                       </div>
@@ -998,16 +998,16 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
               </div>
             )
           )}
-          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))' }}>
+          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(180px,100%),1fr))' }}>
             {SALAS.map((s) => {
               const ocupada = resultado.ocupadas.find((o) => o.sala === s);
               const esPreferida = salaPreferida === s;
               return (
                 <div key={s} className={`bg-bg border rounded-lg p-3 ${ocupada ? 'opacity-70 border-border' : esPreferida ? 'border-accentPurple ring-1 ring-accentPurple' : 'border-border'}`}>
                   <div className="font-semibold text-sm flex items-center gap-1.5">● {s}
-                    {esPreferida && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-accentPurple text-white">Tu elección</span>}
+                    {esPreferida && <span className="text-[12px] font-medium px-1.5 py-0.5 rounded-full bg-accentPurple text-white">Tu elección</span>}
                   </div>
-                  <div className="text-[11.5px] text-textSec mb-2">
+                  <div className="text-[12px] text-textSec mb-2">
                     {ocupada ? `Ocupada por ${ocupada.label} (libera ${minutosAHora(ocupada.libera)})` : 'Libre en ese horario'}
                   </div>
                   <button disabled={!!ocupada} className={`${btnCls} w-full`} onClick={() => reservarEn(s)}>
@@ -1089,7 +1089,7 @@ function LecturaInteligente({ onAplicar }) {
       <div className="flex items-center gap-1.5 mb-1">
         <span className="text-accentPurple text-sm">✨</span>
         <span className="text-[13px] font-semibold">Lectura inteligente</span>
-        <span className="text-[10.5px] text-textMuted font-normal">— pegá el texto y completamos automáticamente los campos</span>
+        <span className="text-[12px] text-textMuted font-normal">— pegá el texto y completamos automáticamente los campos</span>
       </div>
 
       <div className="relative mb-2">
@@ -1102,7 +1102,7 @@ function LecturaInteligente({ onAplicar }) {
         {texto.trim() && (
           <button
             type="button" onClick={interpretarAhora}
-            className="absolute right-1.5 bottom-1.5 text-[10.5px] font-semibold text-accentPurple hover:underline px-1.5 py-1"
+            className="absolute right-1.5 bottom-1.5 text-[12px] font-semibold text-accentPurple hover:underline px-1.5 py-1"
           >
             Interpretar →
           </button>
@@ -1258,7 +1258,7 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
 
         {paso === 'menu' && credencialSala && (
           <div className="bg-bg border border-border rounded-lg p-3 mb-3.5 text-xs space-y-1">
-            <p className="font-semibold text-[11px] text-textSec mb-1">🔑 Datos de acceso a {clase.sala}</p>
+            <p className="font-semibold text-[12px] text-textSec mb-1">🔑 Datos de acceso a {clase.sala}</p>
             <p><span className="text-textMuted">Usuario:</span> {credencialSala.usuario}</p>
             <p><span className="text-textMuted">Contraseña:</span> <span className="font-mono">{credencialSala.contrasena}</span></p>
             {credencialSala.idReunion && <p><span className="text-textMuted">ID de reunión:</span> <span className="font-mono">{credencialSala.idReunion}</span></p>}

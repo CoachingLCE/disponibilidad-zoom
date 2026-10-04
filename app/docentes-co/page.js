@@ -217,7 +217,7 @@ export default function DocentesCOPage() {
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : vigentesFiltradas.length === 0 ? (
           <p className="text-textSec text-sm">No hay ediciones en este filtro.</p>
         ) : (
-          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))' }}>
+          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,100%),1fr))' }}>
             {vigentesFiltradas.map((a) => (
               <div
                 key={a.edicion}
@@ -226,7 +226,7 @@ export default function DocentesCOPage() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-semibold">Edición {a.edicion}°</p>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full ${
                     a.estado === 'activa' ? 'bg-successBg text-successText' : a.estado === 'futura' ? 'bg-infoBg text-infoText' : 'bg-surface2 text-textMuted'
                   }`}>
                     {a.estado === 'activa' ? '🟢 Activa' : a.estado === 'futura' ? '🔵 Futura' : '⚪ Finalizada'}
@@ -245,11 +245,11 @@ export default function DocentesCOPage() {
                 <p className="text-xs text-textSec mt-1">Docente: {a.docente || '—'}</p>
                 <p className="text-xs text-textSec">Staff: {a.staff || '—'}</p>
                 {a.cuatrimestre && (
-                  <p className="text-[11px] text-textMuted mt-1">
+                  <p className="text-[12px] text-textMuted mt-1">
                     {CUATRIMESTRES_CO.find((c) => c.id === String(a.cuatrimestre))?.label || `${a.cuatrimestre}° cuatrimestre`}
                   </p>
                 )}
-                <p className="text-[11px] text-textMuted mt-1">{formatFechaCorta(a.desde)} – {a.hasta ? formatFechaCorta(a.hasta) : 'en curso'}</p>
+                <p className="text-[12px] text-textMuted mt-1">{formatFechaCorta(a.desde)} – {a.hasta ? formatFechaCorta(a.hasta) : 'en curso'}</p>
               </div>
             ))}
           </div>
@@ -393,7 +393,7 @@ function ModalEditarPeriodo({ item, onCerrar, fetchAutenticado, onCambio }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
       <div className="bg-surface2 border border-border rounded-2xl p-5 w-96 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold mb-1">Editar período — Edición {item.edicion}°</h3>
-        {item.esFijo && <p className="text-[11px] text-textMuted mb-3">Este período viene precargado — al guardar, se crea como registro editable.</p>}
+        {item.esFijo && <p className="text-[12px] text-textMuted mb-3">Este período viene precargado — al guardar, se crea como registro editable.</p>}
         {err && <p className="text-dangerText text-xs mb-2.5">{err}</p>}
 
         {!confirmarEliminar ? (

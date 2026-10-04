@@ -142,7 +142,7 @@ export default function FormacionesPage() {
       ) : filtradas.length === 0 ? (
         <p className="text-textSec text-sm">No hay formaciones que coincidan con este filtro.</p>
       ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))' }}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px,100%),1fr))' }}>
           {filtradas.map((f) => {
             // Una edición Finalizada se ve en gris apagado en vez del color propio del curso —
             // antes se veía igual de "viva" que una en curso y solo se distinguía por el
@@ -164,12 +164,12 @@ export default function FormacionesPage() {
                     <span className={`font-semibold text-sm truncate ${color.text}`}>{ICONOS[f.codigo] || ''} {NOMBRES[f.codigo] || f.codigo} {f.numero}</span>
                   </div>
                   {enVivo
-                    ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
-                    : <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${estado.bg} ${estado.text}`}>{estado.label}</span>}
+                    ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
+                    : <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 ${estado.bg} ${estado.text}`}>{estado.label}</span>}
                 </div>
 
                 {f.total === 48 && f.cuatrimestre && (
-                  <p className="text-[11px] text-textMuted mb-1.5">{f.cuatrimestre}º cuatrimestre (clases {(f.cuatrimestre - 1) * 16 + 1}-{f.cuatrimestre * 16})</p>
+                  <p className="text-[12px] text-textMuted mb-1.5">{f.cuatrimestre}º cuatrimestre (clases {(f.cuatrimestre - 1) * 16 + 1}-{f.cuatrimestre * 16})</p>
                 )}
 
                 {f.pct != null ? (
@@ -190,7 +190,7 @@ export default function FormacionesPage() {
                       />
                     </div>
                     {f.cargadas > f.total && f.estado !== 'Finalizó' && (
-                      <p className="text-[10.5px] text-warningText mb-2">
+                      <p className="text-[12px] text-warningText mb-2">
                         El número de esta edición ({f.cargadas}) supera el total de clases del curso ({f.total}) — probablemente ya arrancó otro ciclo. Progreso aproximado.
                       </p>
                     )}
@@ -310,7 +310,7 @@ function ModalEditarFormacion({ formacion: f, manual, puedeEditar, fetchAutentic
                 <span className="text-textMuted">Meses para certificación</span>
                 <input type="number" min="0" className="bg-bg border border-border rounded-lg px-2 py-1 text-sm w-20" value={mesesE} onChange={(e) => setMesesE(e.target.value)} placeholder="auto" />
               </div>
-              <p className="text-[11px] text-textMuted pt-1">Dejar la fecha de finalización o los meses en blanco para que se calculen solos.</p>
+              <p className="text-[12px] text-textMuted pt-1">Dejar la fecha de finalización o los meses en blanco para que se calculen solos.</p>
             </>
           ) : (
             <>

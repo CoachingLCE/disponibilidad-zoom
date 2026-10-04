@@ -132,7 +132,7 @@ export default function AccesosPage() {
           </div>
           <div className="col-span-2">
             <label className="text-xs text-textSec block mb-1.5">Rol</label>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
               {ROLES_DISPONIBLES.map((rol) => {
                 const bloqueado = ROLES_RESERVADOS.includes(rol) && !puedeGestionarAdmins;
                 return (
@@ -256,7 +256,7 @@ function FilaUsuario({ u, puedeEditar, onActualizar, esSuperAdmin, onVerDetalle 
           <span className="text-textSec text-xs ml-2">{u.email}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-[11.5px] ${u.activo ? 'text-successText' : 'text-dangerText'}`}>
+          <span className={`text-[12px] ${u.activo ? 'text-successText' : 'text-dangerText'}`}>
             {u.activo ? '● Activo' : '● Desactivado'} {!u.tieneContrasena && '· sin contraseña asignada'}
           </span>
           {esSuperAdmin && (

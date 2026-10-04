@@ -18,7 +18,7 @@ const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-
 const labelCls = 'text-xs text-textSec block mb-1 font-semibold';
 const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
 const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1 text-xs';
-const chipToggleCls = (activo) => `text-[11px] font-semibold px-2.5 py-1 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
+const chipToggleCls = (activo) => `text-[12px] font-semibold px-2.5 py-1 rounded-full border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
 export default function IncidenciasPage() {
   const { usuario, cargando, fetchAutenticado } = useSession();
@@ -191,7 +191,7 @@ export default function IncidenciasPage() {
                 </tbody>
               </table>
             </div>
-            <p className="text-[10.5px] text-textMuted mt-1.5">Hacé clic en una fila para ver el detalle completo de las dos clases.</p>
+            <p className="text-[12px] text-textMuted mt-1.5">Hacé clic en una fila para ver el detalle completo de las dos clases.</p>
           </div>
         )}
       </div>
@@ -210,7 +210,7 @@ export default function IncidenciasPage() {
         </div>
         {puedeEditar && (
           <div className="mb-4">
-            <div className="grid gap-2.5 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))' }}>
+            <div className="grid gap-2.5 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px,100%),1fr))' }}>
               <div><label className={labelCls}>Fecha</label><input type="date" value={fFecha} onChange={(e) => setFFecha(e.target.value)} className={inputCls} /></div>
               <div><label className={labelCls}>Motivo</label><input value={fMotivo} onChange={(e) => setFMotivo(e.target.value)} placeholder="ej: Día del Docente" className={inputCls} /></div>
               <div><label className={labelCls}>Estado</label>
@@ -229,6 +229,7 @@ export default function IncidenciasPage() {
         ) : feriadosVisibles.length === 0 ? (
           <p className="text-textSec text-sm">No hay feriados próximos — mirá "Todas" para ver los que ya pasaron.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead><tr className="border-b border-border text-textSec text-left"><th className="p-1.5">Fecha</th><th className="p-1.5">Motivo</th><th className="p-1.5">Estado</th><th></th></tr></thead>
             <tbody>
@@ -243,12 +244,12 @@ export default function IncidenciasPage() {
                 <tr key={f.id} className={`border-b border-border border-l-2 ${f.bloquea ? 'border-l-dangerText' : 'border-l-infoText'} ${f.fecha < hoyISO ? 'opacity-50' : ''}`}>
                   <td className="p-1.5 whitespace-nowrap">
                     {formatFechaCorta(f.fecha)}
-                    {esHoy && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-successBg text-successText whitespace-nowrap">Hoy</span>}
-                    {esProximo && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-warningBg text-warningText whitespace-nowrap">Próximamente</span>}
+                    {esHoy && <span className="ml-2 text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-successBg text-successText whitespace-nowrap">Hoy</span>}
+                    {esProximo && <span className="ml-2 text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-warningBg text-warningText whitespace-nowrap">Próximamente</span>}
                   </td>
                   <td className="p-1.5">{f.motivo}</td>
                   <td className="p-1.5">
-                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${f.bloquea ? 'bg-dangerBg text-dangerText' : 'bg-infoBg text-infoText'}`}>
+                    <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${f.bloquea ? 'bg-dangerBg text-dangerText' : 'bg-infoBg text-infoText'}`}>
                       {f.bloquea ? '🔒 Bloquea' : '👁️ Informativo'}
                     </span>
                   </td>
@@ -258,12 +259,14 @@ export default function IncidenciasPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">Clases postergadas</h2>
         {postergaciones.length === 0 ? <p className="text-textSec text-sm">Todavía no se postergó ninguna clase.</p> : (
+          <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="border-b border-border text-textSec text-left">
@@ -284,6 +287,7 @@ export default function IncidenciasPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
@@ -326,7 +330,7 @@ function ModalConflicto({ conflicto, onCerrar }) {
           <div className="w-px bg-border shrink-0" />
           {claseInfo(conflicto.claseB)}
         </div>
-        <p className="text-[10.5px] text-textMuted mb-3">
+        <p className="text-[12px] text-textMuted mb-3">
           Para resolverlo, andá a Salas Zoom o Cronograma y cambiale la sala u horario a una de las dos.
         </p>
         <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
