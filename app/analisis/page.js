@@ -766,7 +766,7 @@ function Kpi({ valor, label, trend, trendEsPuntos, invertir, tag, acento }) {
   }
   return (
     <div className="bg-bg border border-border rounded-xl p-4 flex flex-col gap-1">
-      <div className={`text-2xl font-extrabold truncate ${colorValor}`}>{valor}</div>
+      <div className={`text-2xl font-extrabold break-words ${colorValor}`}>{valor}</div>
       <div className="text-[12px] text-textSec">{label}</div>
       {tag && <div className="text-[12px] text-textMuted font-semibold uppercase tracking-wide">{tag}</div>}
       {trend != null && (
@@ -829,7 +829,7 @@ function MiniLista({ titulo, items }) {
         <div className="flex flex-col gap-1">
           {items.slice(0, 6).map(([k, v]) => (
             <div key={k} className="flex items-center justify-between text-xs">
-              <span className="text-textSec truncate">{k}</span>
+              <span className="text-textSec break-words min-w-0">{k}</span>
               <span className="text-textMuted shrink-0">{v}</span>
             </div>
           ))}
@@ -843,7 +843,7 @@ function StatCard({ n, l, acento, chico }) {
   const color = { warning: 'text-warningText', danger: 'text-dangerText' }[acento] || 'text-accentTeal';
   return (
     <div className="bg-bg border border-border rounded-xl p-3.5">
-      <div className={`${chico ? 'text-base' : 'text-xl'} font-extrabold ${color} truncate`}>{n}</div>
+      <div className={`${chico ? 'text-base' : 'text-xl'} font-extrabold ${color} break-words`}>{n}</div>
       <div className="text-[12px] text-textSec mt-1">{l}</div>
     </div>
   );

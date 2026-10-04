@@ -405,13 +405,13 @@ function VistaEstado({ vista, diaHoy, onClick }) {
               </div>
               {actual ? (
                 <>
-                  <div className={`text-[12px] font-medium mt-0.5 truncate ${color.text}`}>{actual.label}</div>
+                  <div className={`text-[12px] font-medium mt-0.5 break-words ${color.text}`}>{actual.label}</div>
                   <div className="text-[12px] text-textMuted">
                     {minutosAHora(actual.horaMin)}–{minutosAHora(actual.fin)} · {enBuffer ? 'preparación' : 'en curso'}
                   </div>
                 </>
               ) : (
-                <div className="text-[12px] text-textSec mt-0.5 truncate">
+                <div className="text-[12px] text-textSec mt-0.5 break-words">
                   {proxima ? `Próxima: ${minutosAHora(proxima.horaMin)} · ${proxima.label}` : 'Sin clases el resto del día'}
                 </div>
               )}

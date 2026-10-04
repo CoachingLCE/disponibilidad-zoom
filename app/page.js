@@ -639,7 +639,7 @@ export default function InicioPage() {
                       </div>
                       <div className="flex items-center gap-1.5 mb-0.5">
                         {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[a.curso] || ''} {a.nombreCurso}</span>
+                        <span className={`text-sm font-medium break-words ${color ? color.text : ''}`}>{ICONOS[a.curso] || ''} {a.nombreCurso}</span>
                       </div>
                       {a.esFormacion && a.edicion && (
                         <p className="text-xs text-textMuted">
@@ -694,7 +694,7 @@ export default function InicioPage() {
                     <div key={i} className={`border-l-4 ${color ? color.border : 'border-infoText/40'} border-t border-r border-b border-border rounded-lg p-3`}>
                       <div className="flex items-center gap-1.5 mb-1">
                         {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
-                        <span className={`text-sm font-medium truncate ${color ? color.text : ''}`}>{ICONOS[f.codigo] || ''} {f.nombreCurso}</span>
+                        <span className={`text-sm font-medium break-words ${color ? color.text : ''}`}>{ICONOS[f.codigo] || ''} {f.nombreCurso}</span>
                       </div>
                       <p className="text-xs text-textMuted">
                         <span className="text-textSec font-semibold">Edición:</span> {f.edicion}

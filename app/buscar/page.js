@@ -206,7 +206,7 @@ function BuscarContenido() {
                 <span className="text-[12px] font-bold text-textMuted uppercase">{r.tipo}</span>
                 {r.detalle && <span className="text-xs text-textMuted shrink-0">{r.detalle}</span>}
               </div>
-              <p className={`text-sm font-medium truncate ${r.color ? r.color.text : ''}`}><Resaltado texto={r.label} q={q} /></p>
+              <p className={`text-sm font-medium break-words ${r.color ? r.color.text : ''}`}><Resaltado texto={r.label} q={q} /></p>
               <p className="text-xs text-textSec mt-0.5"><Resaltado texto={r.sub} q={q} /></p>
               {r.coincidencias?.length > 0 && (
                 <p className="text-[12px] text-infoText mt-1.5">Encontrado en: {r.coincidencias.join(', ')}</p>

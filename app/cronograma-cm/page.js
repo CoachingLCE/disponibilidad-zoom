@@ -779,7 +779,7 @@ function TarjetaRecurso({ e, puedeEditarCM, copiadoId, onAbrir, onCopiar, onEdit
     >
       {arrastrable && <span className="absolute top-1.5 right-1.5 text-textMuted/50 text-[12px] opacity-0 group-hover:opacity-100 transition-opacity select-none" title="Arrastrá para reordenar">⠿</span>}
       <span className="text-[12px] font-semibold text-textMuted">{labelCategoria(e.categoriaId)}</span>
-      <p className="text-sm font-semibold truncate" title={e.titulo}>{e.titulo}</p>
+      <p className="text-sm font-semibold break-words" title={e.titulo}>{e.titulo}</p>
       {e.descripcion && <p className="text-[12px] text-textSec line-clamp-2">{e.descripcion}</p>}
       <div className="flex items-center justify-between gap-2 mt-1.5">
         {e.url ? (
