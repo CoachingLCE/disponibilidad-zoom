@@ -155,18 +155,18 @@ export default function AuditoriaPage() {
             </div>
             <div>
               <label className="text-xs text-textSec block mb-1">Buscar</label>
-              <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="🔎 Usuario, acción o detalle…" className={`${inputCls} w-64`} />
+              <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder=" Usuario, acción o detalle…" className={`${inputCls} w-64`} />
             </div>
             <button onClick={() => exportarCSV(registrosFiltrados)} disabled={registrosFiltrados.length === 0}
               className="bg-surface2 border border-border rounded-lg px-4 py-2 text-sm disabled:opacity-40">
-              ⬇ Exportar a CSV
+               Exportar a CSV
             </button>
           </div>
 
           <div className={boxCls}>
             {errorCarga ? (
               <div className="text-center py-6">
-                <p className="text-dangerText text-sm font-semibold mb-3">⚠️ {errorCarga}</p>
+                <p className="text-dangerText text-sm font-semibold mb-3"> {errorCarga}</p>
                 <button onClick={cargar} className="text-sm px-4 py-2 rounded-lg bg-accentPurple text-white font-semibold">Reintentar</button>
               </div>
             ) : cargandoDatos ? (
@@ -206,7 +206,7 @@ export default function AuditoriaPage() {
               <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
                 <button onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={pagina <= 1}
                   className="text-xs px-3 py-1.5 rounded-lg bg-surface2 border border-border disabled:opacity-40">
-                  ← Anterior
+                   Anterior
                 </button>
                 <p className="text-textMuted text-[12px]">Página {pagina} de {totalPaginas} — {registrosFiltrados.length} registro(s){busqueda.trim() ? ' que coinciden con la búsqueda' : ''}</p>
                 <button onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}

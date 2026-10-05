@@ -228,7 +228,7 @@ function SalasZoomPageInterna() {
       {credenciales.length > 0 && (
         <div className={boxCls}>
           <button className="flex items-center justify-between w-full text-left" onClick={() => setMostrarCredenciales((v) => !v)}>
-            <h2 className="text-sm font-semibold">🔑 Usuarios y contraseñas de las salas de Zoom</h2>
+            <h2 className="text-sm font-semibold"> Usuarios y contraseñas de las salas de Zoom</h2>
             <span className="text-textMuted text-xs">{mostrarCredenciales ? 'Ocultar ▲' : 'Mostrar ▼'}</span>
           </button>
           {mostrarCredenciales && (
@@ -604,7 +604,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
       setMsg({
         tipo: data.periodosOmitidosPorChoque?.length ? 'aviso' : 'ok',
         texto: `Reservado en ${sala} (${data.agregadas} clase(s)).${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}`
-          + (data.periodosOmitidosPorChoque?.length ? ` ⚠️ No se generó el período de Docentes C.O. para: ${data.periodosOmitidosPorChoque.join('; ')} — ya había uno cargado, revisalo en Docentes C.O.` : '')
+          + (data.periodosOmitidosPorChoque?.length ? `  No se generó el período de Docentes C.O. para: ${data.periodosOmitidosPorChoque.join('; ')} — ya había uno cargado, revisalo en Docentes C.O.` : '')
       });
       setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida(''); reiniciarCamposCuatrimestre();
       onReservado();
@@ -629,7 +629,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
       setMsg({
         tipo: 'aviso',
         texto: `Guardado sin sala (${data.agregadas} clase(s)) — quedó pendiente de asignar en Inicio.${data.corridas?.length ? ' Se corrieron por feriado: ' + data.corridas.join('; ') : ''}`
-          + (data.periodosOmitidosPorChoque?.length ? ` ⚠️ No se generó el período de Docentes C.O. para: ${data.periodosOmitidosPorChoque.join('; ')} — ya había uno cargado, revisalo en Docentes C.O.` : '')
+          + (data.periodosOmitidosPorChoque?.length ? `  No se generó el período de Docentes C.O. para: ${data.periodosOmitidosPorChoque.join('; ')} — ya había uno cargado, revisalo en Docentes C.O.` : '')
       });
       setResultado(null); setDocente(''); setStaff(''); setTematica(''); setObs(''); setSalaPreferida(''); reiniciarCamposCuatrimestre();
       onReservado();
@@ -650,7 +650,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
       setMsg({
         tipo: data.avisoDocente ? 'aviso' : 'ok',
-        texto: data.avisoDocente ? `"${tipo}" agregado. ⚠️ ${data.avisoDocente}` : `"${tipo}" agregado al cronograma.`
+        texto: data.avisoDocente ? `"${tipo}" agregado.  ${data.avisoDocente}` : `"${tipo}" agregado al cronograma.`
       });
       setTematica(''); setObs(''); setSalaEspecial('');
       onReservado();
@@ -719,7 +719,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
       {/* Pedido de Diego (2ª vuelta): un solo título para toda la pantalla, sin repetirlo —
           ver el h1 condicional en SalasZoomPageInterna más arriba en este archivo. */}
       <div className="flex items-center gap-2 mb-0.5">
-        <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-accentPurple to-accentMagenta flex items-center justify-center text-white text-xs shrink-0">📅</span>
+        <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-accentPurple to-accentMagenta flex items-center justify-center text-white text-xs shrink-0"></span>
         <h2 className="text-[15px] font-semibold">Agregar al cronograma</h2>
       </div>
       <p className="text-[12px] text-textSec mb-2.5 sm:ml-[30px] sm:-mt-0.5">
@@ -728,7 +728,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
 
       {prefillAplicado && (
         <p className="text-xs bg-infoBg text-infoText border border-infoText/40 rounded-lg px-3 py-2 mb-2.5">
-          ✓ Precargado desde la alerta de Inicio — revisá los datos y elegí sala/horario antes de guardar.
+           Precargado desde la alerta de Inicio — revisá los datos y elegí sala/horario antes de guardar.
         </p>
       )}
 
@@ -863,7 +863,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
               )}
             </div>
             {esFormacion && (
-              <p className={ayudaCls}><span className="shrink-0">ⓘ</span><span>Es el número de clase (1, 2, 3…), no el número de edición.</span></p>
+              <p className={ayudaCls}><span className="shrink-0"></span><span>Es el número de clase (1, 2, 3…), no el número de edición.</span></p>
             )}
           </div>
 
@@ -887,7 +887,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                     ))}
                   </div>
                 ) : (
-                  <p className={ayudaCls}><span className="shrink-0">ⓘ</span><span>Cargá la fecha de la 1ª clase para ver las fechas estimadas de cada cuatrimestre.</span></p>
+                  <p className={ayudaCls}><span className="shrink-0"></span><span>Cargá la fecha de la 1ª clase para ver las fechas estimadas de cada cuatrimestre.</span></p>
                 )}
                 {/* Progressive disclosure: los campos por cuatrimestre solo aparecen si NO es
                     el mismo docente/staff en los 3 — pedido de Diego, para no mostrar ruido
@@ -908,7 +908,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                     ))}
                   </div>
                 )}
-                <p className={ayudaCls}><span className="shrink-0">ⓘ</span><span>Se guardan los 3 períodos (1°, 2° y 3° cuatrimestre) en Docentes C.O. automáticamente al reservar.</span></p>
+                <p className={ayudaCls}><span className="shrink-0"></span><span>Se guardan los 3 períodos (1°, 2° y 3° cuatrimestre) en Docentes C.O. automáticamente al reservar.</span></p>
               </div>
             ) : (
               <div className="grid gap-2.5 sm:grid-cols-2 max-w-xl">
@@ -930,7 +930,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
                   <option value="">Automática</option>
                   {SALAS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <p className={ayudaCls}><span className="shrink-0">ⓘ</span><span>Si elegís una, te la marcamos abajo si está libre en ese horario; si no, buscamos la primera disponible.</span></p>
+                <p className={ayudaCls}><span className="shrink-0"></span><span>Si elegís una, te la marcamos abajo si está libre en ese horario; si no, buscamos la primera disponible.</span></p>
               </div>
             ) : (
               <div className="max-w-xs">
@@ -962,13 +962,13 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
       <div className="flex items-center justify-end gap-3 flex-wrap pt-3 mt-1 border-t border-border/40">
         {msg && <p className={`text-xs flex-1 min-w-[200px] ${msg.tipo === 'error' ? 'text-dangerText' : msg.tipo === 'aviso' ? 'text-warningText' : 'text-successText'}`}>{msg.texto}</p>}
         {esFormacion ? (
-          <button className={btnPrimaryCls} onClick={consultar}><span aria-hidden>🔎</span> Buscar disponibilidad</button>
+          <button className={btnPrimaryCls} onClick={consultar}><span aria-hidden></span> Buscar disponibilidad</button>
         ) : esMasterclass ? (
           <button className={btnPrimaryCls} onClick={agregarMasterclass}><span aria-hidden>+</span> Agregar a Info. técnica</button>
         ) : esPeriodoDocente ? (
           <button className={btnPrimaryCls} onClick={agregarPeriodoDocente}><span aria-hidden>+</span> Guardar período</button>
         ) : (
-          <button className={btnPrimaryCls} onClick={agregarActividadNoFormacion}><span aria-hidden>📅</span> Agregar al cronograma</button>
+          <button className={btnPrimaryCls} onClick={agregarActividadNoFormacion}><span aria-hidden></span> Agregar al cronograma</button>
         )}
       </div>
 
@@ -976,7 +976,7 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
         <div className="mt-3.5">
           {resultado.conflictoDocente && (
             <div className="px-3.5 py-2.5 rounded-lg mb-3 font-semibold text-sm bg-warningBg text-warningText">
-              ⚠️ {resultado.conflictoDocente}
+               {resultado.conflictoDocente}
             </div>
           )}
           <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
@@ -990,11 +990,11 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
           {salaPreferida && (
             resultado.ocupadas.find((o) => o.sala === salaPreferida) ? (
               <div className="px-3.5 py-2.5 rounded-lg mb-3 text-sm bg-warningBg text-warningText">
-                ⚠️ La sala que elegiste ({salaPreferida}) está ocupada en ese horario — elegí otra de las libres abajo.
+                 La sala que elegiste ({salaPreferida}) está ocupada en ese horario — elegí otra de las libres abajo.
               </div>
             ) : (
               <div className="px-3.5 py-2.5 rounded-lg mb-3 text-sm bg-successBg text-successText">
-                ✓ {salaPreferida} está libre en ese horario — marcada abajo.
+                 {salaPreferida} está libre en ese horario — marcada abajo.
               </div>
             )
           )}
@@ -1025,12 +1025,12 @@ function PanelReservar({ fetchAutenticado, onReservado, usuario, prefill }) {
 }
 
 const MOTIVOS = [
-  { id: 'salud', label: '🩺 Problemas de salud del docente' },
-  { id: 'conectividad', label: '🌐 Problemas de conectividad' },
-  { id: 'ausencia', label: '🎓 Ausencia de estudiantes' },
-  { id: 'evento', label: '🏟️ Evento institucional' },
-  { id: 'feriado_extra', label: '📅 Feriado extraordinario' },
-  { id: 'otro', label: '✏️ Otro' }
+  { id: 'salud', label: ' Problemas de salud del docente' },
+  { id: 'conectividad', label: ' Problemas de conectividad' },
+  { id: 'ausencia', label: ' Ausencia de estudiantes' },
+  { id: 'evento', label: ' Evento institucional' },
+  { id: 'feriado_extra', label: ' Feriado extraordinario' },
+  { id: 'otro', label: ' Otro' }
 ];
 
 function LecturaInteligente({ onAplicar }) {
@@ -1087,7 +1087,7 @@ function LecturaInteligente({ onAplicar }) {
   return (
     <div className="bg-surface2 border border-border rounded-xl p-3 mb-2.5">
       <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-accentPurpleTxt text-sm">✨</span>
+        <span className="text-accentPurpleTxt text-sm"></span>
         <span className="text-[13px] font-semibold">Lectura inteligente</span>
         <span className="text-[12px] text-textMuted font-normal">— pegá el texto y completamos automáticamente los campos</span>
       </div>
@@ -1147,7 +1147,7 @@ function LecturaInteligente({ onAplicar }) {
           <div className="flex items-center gap-2 flex-wrap">
             <button className={btnCls} onClick={aplicar}>Aplicar al formulario</button>
             <button className={btnSecCls} onClick={limpiar}>Limpiar</button>
-            {aplicado && <span className="text-xs text-successText">✓ Aplicado — revisá los campos de abajo antes de guardar.</span>}
+            {aplicado && <span className="text-xs text-successText"> Aplicado — revisá los campos de abajo antes de guardar.</span>}
           </div>
         </div>
       )}
@@ -1159,7 +1159,7 @@ function ChipDetectado({ ok, vacio, texto }) {
   if (vacio) return <span className="text-xs px-2.5 py-1 rounded-full bg-surface2 text-textMuted border border-border">— {texto}</span>;
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full border ${ok ? 'bg-successBg text-successText border-successText/30' : 'bg-warningBg text-warningText border-warningText/30'}`}>
-      {ok ? '✓' : '⚠'} {texto}
+      {ok ? '' : ''} {texto}
     </span>
   );
 }
@@ -1258,7 +1258,7 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
 
         {paso === 'menu' && credencialSala && (
           <div className="bg-bg border border-border rounded-lg p-3 mb-3.5 text-xs space-y-1">
-            <p className="font-semibold text-[12px] text-textSec mb-1">🔑 Datos de acceso a {clase.sala}</p>
+            <p className="font-semibold text-[12px] text-textSec mb-1"> Datos de acceso a {clase.sala}</p>
             <p><span className="text-textMuted">Usuario:</span> {credencialSala.usuario}</p>
             <p><span className="text-textMuted">Contraseña:</span> <span className="font-mono">{credencialSala.contrasena}</span></p>
             {credencialSala.idReunion && <p><span className="text-textMuted">ID de reunión:</span> <span className="font-mono">{credencialSala.idReunion}</span></p>}
@@ -1270,13 +1270,13 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
           <div className="flex flex-col gap-2">
             {puedeEditarCronograma && (
               <>
-                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('campos')}>✏️ Editar docente / temática / observaciones</button>
-                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('sala')}>🔁 Cambiar sala</button>
-                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('diahora')}>📅 Cambiar día / horario</button>
+                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('campos')}> Editar docente / temática / observaciones</button>
+                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('sala')}> Cambiar sala</button>
+                <button className={`${btnSecCls} text-left`} onClick={() => setPaso('diahora')}> Cambiar día / horario</button>
                 <button className={`${btnSecCls} text-left disabled:opacity-40`} disabled={!clase.fecha} onClick={() => setPaso('postergar')}>
-                  ⏰ Postergar clase{!clase.fecha ? ' (necesita fecha)' : ''}
+                   Postergar clase{!clase.fecha ? ' (necesita fecha)' : ''}
                 </button>
-                <button className={`${btnSecCls} text-left text-dangerText`} onClick={() => setPaso('cancelar')}>🗑️ Cancelar clase</button>
+                <button className={`${btnSecCls} text-left text-dangerText`} onClick={() => setPaso('cancelar')}> Cancelar clase</button>
               </>
             )}
             <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>

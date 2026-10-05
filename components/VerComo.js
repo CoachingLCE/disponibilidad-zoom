@@ -66,8 +66,8 @@ export default function VerComo() {
   if (verComo) {
     return (
       <div className="flex items-center gap-1.5 bg-infoBg border border-infoText/40 rounded-lg pl-2.5 pr-1 h-8 text-xs font-semibold text-infoText whitespace-nowrap">
-        👁 {verComo.nombre}
-        <button onClick={() => setVerComo(null)} title="Salir del modo vista" className="w-5 h-5 flex items-center justify-center rounded hover:bg-infoText/20">✕</button>
+         {verComo.nombre}
+        <button onClick={() => setVerComo(null)} title="Salir del modo vista" className="w-5 h-5 flex items-center justify-center rounded hover:bg-infoText/20"></button>
       </div>
     );
   }
@@ -82,7 +82,7 @@ export default function VerComo() {
         onClick={abrir}
         className="h-8 flex items-center gap-1 px-3 rounded-lg text-xs font-medium bg-surface2 border border-border text-textSec hover:text-text hover:border-accentTeal whitespace-nowrap"
       >
-        👁 Ver como… <span className="text-[12px]">▾</span>
+         Ver como… <span className="text-[12px]">▾</span>
       </button>
       {abierto && (
         <div className="absolute right-0 mt-1.5 w-64 max-h-80 overflow-y-auto bg-surface2 border border-border rounded-lg shadow-lg z-50 py-1">

@@ -407,41 +407,41 @@ export default function AnalisisPage() {
     const promedioHoras = horasValidas.length ? horasValidas.reduce((a, b) => a + b, 0) / horasValidas.length : 0;
 
     if (kpis.salaTop && promedioHoras > 0 && kpis.salaTop[1] > promedioHoras * 1.5) {
-      out.push({ tipo: 'warn', icono: '🏫', texto: `${kpis.salaTop[0]} es la sala más utilizada, muy por encima del promedio (${kpis.salaTop[1].toFixed(1)}hs/sem vs. ${promedioHoras.toFixed(1)}hs/sem de promedio).` });
+      out.push({ tipo: 'warn', icono: '', texto: `${kpis.salaTop[0]} es la sala más utilizada, muy por encima del promedio (${kpis.salaTop[1].toFixed(1)}hs/sem vs. ${promedioHoras.toFixed(1)}hs/sem de promedio).` });
     } else if (kpis.salaTop && kpis.salaTop[1] > 0) {
-      out.push({ tipo: 'info', icono: '🏫', texto: `${kpis.salaTop[0]} es la sala más utilizada, con ${kpis.salaTop[1].toFixed(1)}hs/semana.` });
+      out.push({ tipo: 'info', icono: '', texto: `${kpis.salaTop[0]} es la sala más utilizada, con ${kpis.salaTop[1].toFixed(1)}hs/semana.` });
     }
 
     const horarioSaturado = horariosCriticos.find((h) => h.pct >= 0.9);
     if (horarioSaturado) {
-      out.push({ tipo: 'warn', icono: '🕒', texto: `${minutosAHora(horarioSaturado.horaMin)} es el horario más demandado: ${horarioSaturado.salasOcupadas} de ${horarioSaturado.total} salas ocupadas (${Math.round(horarioSaturado.pct * 100)}%).` });
+      out.push({ tipo: 'warn', icono: '', texto: `${minutosAHora(horarioSaturado.horaMin)} es el horario más demandado: ${horarioSaturado.salasOcupadas} de ${horarioSaturado.total} salas ocupadas (${Math.round(horarioSaturado.pct * 100)}%).` });
     } else if (horariosCriticos[0]) {
-      out.push({ tipo: 'info', icono: '🕒', texto: `${minutosAHora(horariosCriticos[0].horaMin)} es el horario más demandado (${horariosCriticos[0].salasOcupadas} de ${horariosCriticos[0].total} salas).` });
+      out.push({ tipo: 'info', icono: '', texto: `${minutosAHora(horariosCriticos[0].horaMin)} es el horario más demandado (${horariosCriticos[0].salasOcupadas} de ${horariosCriticos[0].total} salas).` });
     }
 
     if (diaTop && porDia.length > 1) {
       const promedioHorasDia = porDia.reduce((a, d) => a + d.horas, 0) / porDia.length;
       if (diaTop.horas > promedioHorasDia * 1.4) {
-        out.push({ tipo: 'warn', icono: '📅', texto: `${diaCorto(diaTop.dia)} concentra más actividad que el resto: ${diaTop.horas.toFixed(1)}hs vs. ${promedioHorasDia.toFixed(1)}hs de promedio por día — posible sobrecarga operativa.` });
+        out.push({ tipo: 'warn', icono: '', texto: `${diaCorto(diaTop.dia)} concentra más actividad que el resto: ${diaTop.horas.toFixed(1)}hs vs. ${promedioHorasDia.toFixed(1)}hs de promedio por día — posible sobrecarga operativa.` });
       } else {
-        out.push({ tipo: 'info', icono: '📅', texto: `${diaCorto(diaTop.dia)} es el día con más actividad (${diaTop.horas.toFixed(1)}hs).` });
+        out.push({ tipo: 'info', icono: '', texto: `${diaCorto(diaTop.dia)} es el día con más actividad (${diaTop.horas.toFixed(1)}hs).` });
       }
     }
 
     if (porFormacion.length > 0) {
       const top = porFormacion[0];
-      out.push({ tipo: 'info', icono: '🎓', texto: `${NOMBRES[top.codigo] || top.codigo} es la formación con mayor actividad vigente (${top.horas.toFixed(1)}hs/semana, ${top.clases} clase(s)).` });
+      out.push({ tipo: 'info', icono: '', texto: `${NOMBRES[top.codigo] || top.codigo} es la formación con mayor actividad vigente (${top.horas.toFixed(1)}hs/semana, ${top.clases} clase(s)).` });
       const conMuestraSuficiente = porFormacion.filter((f) => f.clases >= 2).sort((a, b) => b.tasaPostergacion - a.tasaPostergacion);
       const peorTasa = conMuestraSuficiente[0];
       if (peorTasa && peorTasa.tasaPostergacion > 0) {
-        out.push({ tipo: peorTasa.tasaPostergacion >= 30 ? 'warn' : 'info', icono: '🔁', texto: `${NOMBRES[peorTasa.codigo] || peorTasa.codigo} tiene la mayor tasa de postergación del período: ${peorTasa.tasaPostergacion}% de sus clases vigentes (${peorTasa.postergaciones} de ${peorTasa.clases}).` });
+        out.push({ tipo: peorTasa.tasaPostergacion >= 30 ? 'warn' : 'info', icono: '', texto: `${NOMBRES[peorTasa.codigo] || peorTasa.codigo} tiene la mayor tasa de postergación del período: ${peorTasa.tasaPostergacion}% de sus clases vigentes (${peorTasa.postergaciones} de ${peorTasa.clases}).` });
       }
     }
 
     const mesActual = postergacionesPorMes[postergacionesPorMes.length - 1];
     const mesPrevio = postergacionesPorMes[postergacionesPorMes.length - 2];
     if (mesActual && mesPrevio && mesActual[1] > mesPrevio[1]) {
-      out.push({ tipo: 'warn', icono: '📈', texto: `Las postergaciones subieron de ${mesPrevio[1]} a ${mesActual[1]} respecto del mes anterior.` });
+      out.push({ tipo: 'warn', icono: '', texto: `Las postergaciones subieron de ${mesPrevio[1]} a ${mesActual[1]} respecto del mes anterior.` });
     }
 
     const horarioVacio = horariosCriticos.filter((h) => h.pct > 0 && h.pct < 0.25);
@@ -488,7 +488,7 @@ export default function AnalisisPage() {
             {docentesUsados.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
           {(filtroSala || filtroFormacion || filtroDocente) && (
-            <button className={chipCls(false)} onClick={() => { setFiltroSala(''); setFiltroFormacion(''); setFiltroDocente(''); }}>✕ Limpiar filtros</button>
+            <button className={chipCls(false)} onClick={() => { setFiltroSala(''); setFiltroFormacion(''); setFiltroDocente(''); }}> Limpiar filtros</button>
           )}
         </div>
       </div>
@@ -500,7 +500,7 @@ export default function AnalisisPage() {
           {/* RESUMEN EJECUTIVO */}
           <div className={boxCls}>
             <ModuloHeader
-              icono="📊" titulo="Resumen ejecutivo"
+              icono="" titulo="Resumen ejecutivo"
               subtitulo={'Clases, horas y tasa de postergación son del período elegido, con su fecha real. Ocupación y salas utilizadas reflejan el horario semanal vigente ahora mismo — la mayoría de las clases no tiene una fecha puntual por ocurrencia. "Horas" es una estimación según la duración típica de cada formación.'}
             />
             <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px,100%),1fr))' }}>
@@ -514,9 +514,9 @@ export default function AnalisisPage() {
 
           {/* HALLAZGOS AUTOMÁTICOS */}
           <div className={boxCls}>
-            <ModuloHeader icono="🔎" titulo="Hallazgos automáticos" subtitulo="Detectados a partir de los datos de arriba — nada cargado a mano." />
+            <ModuloHeader icono="" titulo="Hallazgos automáticos" subtitulo="Detectados a partir de los datos de arriba — nada cargado a mano." />
             {insights.length === 0 ? (
-              <p className="text-successText text-sm">✔ No se detectaron situaciones para destacar con los filtros actuales.</p>
+              <p className="text-successText text-sm"> No se detectaron situaciones para destacar con los filtros actuales.</p>
             ) : (
               <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px,100%),1fr))' }}>
                 {insights.map((i, idx) => (
@@ -531,14 +531,14 @@ export default function AnalisisPage() {
 
           {conflictosDetalle.length > 0 && (
             <div className={`${boxCls} !bg-dangerBg/10 border-dangerText/30`}>
-              <p className="text-sm font-semibold text-dangerText">⚠ {conflictosDetalle.length} conflicto(s) de sala detectado(s) con estos filtros — ver detalle en <Link href="/incidencias" className="underline">Alertas y feriados</Link>.</p>
+              <p className="text-sm font-semibold text-dangerText"> {conflictosDetalle.length} conflicto(s) de sala detectado(s) con estos filtros — ver detalle en <Link href="/incidencias" className="underline">Alertas y feriados</Link>.</p>
             </div>
           )}
 
           {/* POSTERGACIONES + SALAS */}
           <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px,100%),1fr))' }}>
             <div className={`${boxCls} mb-0`}>
-              <ModuloHeader icono="🔁" titulo="Postergaciones" subtitulo="Del período elegido arriba." />
+              <ModuloHeader icono="" titulo="Postergaciones" subtitulo="Del período elegido arriba." />
               <div className="grid grid-cols-2 gap-2.5 mb-4">
                 <StatCard n={postergacionesFiltradas.length} l="Total en el período" />
                 <StatCard n={resumen.tasaPost != null ? resumen.tasaPost + '%' : '—'} l="% sobre clases del período" />
@@ -563,7 +563,7 @@ export default function AnalisisPage() {
             </div>
 
             <div className={`${boxCls} mb-0`}>
-              <ModuloHeader icono="🏫" titulo="Utilización de salas" subtitulo="Horario semanal vigente." />
+              <ModuloHeader icono="" titulo="Utilización de salas" subtitulo="Horario semanal vigente." />
               <div className="grid grid-cols-2 gap-2.5 mb-4">
                 <StatCard n={kpis.salaTop ? kpis.salaTop[0] : '—'} l={`Más usada (${kpis.salaTop ? kpis.salaTop[1].toFixed(1) : 0}hs/sem)`} chico />
                 <StatCard n={kpis.salaMenos ? kpis.salaMenos[0] : '—'} l={`Menos usada (${kpis.salaMenos ? kpis.salaMenos[1].toFixed(1) : 0}hs/sem)`} chico />
@@ -592,7 +592,7 @@ export default function AnalisisPage() {
 
           {/* DEMANDA HORARIA */}
           <div className={boxCls}>
-            <ModuloHeader icono="🕒" titulo="Demanda horaria" subtitulo="Horario semanal vigente — cuántas salas están ocupadas en simultáneo, por día y horario." />
+            <ModuloHeader icono="" titulo="Demanda horaria" subtitulo="Horario semanal vigente — cuántas salas están ocupadas en simultáneo, por día y horario." />
             <div className="grid grid-cols-2 gap-2.5 mb-4">
               <StatCard n={horariosCriticos[0] ? minutosAHora(horariosCriticos[0].horaMin) : '—'} l={`Horario pico ${horariosCriticos[0] ? `(${horariosCriticos[0].salasOcupadas}/${horariosCriticos[0].total} salas)` : ''}`} chico />
               <StatCard n={diaTop ? diaCorto(diaTop.dia) : '—'} l={`Día con más actividad ${diaTop ? `(${diaTop.horas.toFixed(1)}hs)` : ''}`} chico />
@@ -654,7 +654,7 @@ export default function AnalisisPage() {
           {/* FORMACIONES + DOCENTES */}
           <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px,100%),1fr))' }}>
             <div className={`${boxCls} mb-0`}>
-              <ModuloHeader icono="🎓" titulo="Formaciones" subtitulo="Horario vigente + postergaciones del período." />
+              <ModuloHeader icono="" titulo="Formaciones" subtitulo="Horario vigente + postergaciones del período." />
               {porFormacion.length === 0 ? (
                 <p className="text-textSec text-sm">No hay clases cargadas con estos filtros.</p>
               ) : (
@@ -697,7 +697,7 @@ export default function AnalisisPage() {
             </div>
 
             <div className={`${boxCls} mb-0`}>
-              <ModuloHeader icono="👤" titulo="Actividad docente" subtitulo="Horario semanal vigente." />
+              <ModuloHeader icono="" titulo="Actividad docente" subtitulo="Horario semanal vigente." />
               {porDocente.length === 0 ? (
                 <p className="text-textSec text-sm">No hay docentes cargados con estos filtros.</p>
               ) : (
@@ -719,7 +719,7 @@ export default function AnalisisPage() {
           <div className={boxCls}>
             <h2 className="text-sm font-semibold mb-3">Historial reciente</h2>
             {!puedeVerDetalleCompleto ? (
-              <p className="text-textMuted text-sm py-2">🔒 El detalle completo del historial de acciones es visible solo para Admin/SuperAdmin. Podés verlo completo (con filtros y exportación) en <Link href="/auditoria" className="underline">Auditoría</Link> si tenés acceso.</p>
+              <p className="text-textMuted text-sm py-2"> El detalle completo del historial de acciones es visible solo para Admin/SuperAdmin. Podés verlo completo (con filtros y exportación) en <Link href="/auditoria" className="underline">Auditoría</Link> si tenés acceso.</p>
             ) : historial.length === 0 ? <p className="text-textSec text-sm">Todavía no hay movimientos registrados.</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">

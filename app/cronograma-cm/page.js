@@ -401,7 +401,7 @@ export default function CronogramaCMPage() {
         {vista === 'semana' ? (
           <>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s - 1)}>← Semana anterior</button>
+              <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s - 1)}> Semana anterior</button>
               <div className="text-center">
                 <p className="text-sm font-semibold">{mesLabel}</p>
                 <button className={btnSecCls} onClick={() => setSemanaOffset(0)}>Hoy</button>
@@ -475,7 +475,7 @@ export default function CronogramaCMPage() {
 
       <div className={boxCls}>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-          <h2 className="text-sm font-semibold">📅 Campañas 2026</h2>
+          <h2 className="text-sm font-semibold"> Campañas 2026</h2>
           <div className="flex gap-1.5">
             <button className={chipToggleCls(!verCampanasPasadas)} onClick={() => setVerCampanasPasadas(false)}>Vigentes</button>
             <button className={chipToggleCls(verCampanasPasadas)} onClick={() => setVerCampanasPasadas(true)}>Todas{cantidadPasadas > 0 ? ` (+${cantidadPasadas} pasadas)` : ''}</button>
@@ -527,7 +527,7 @@ export default function CronogramaCMPage() {
         </div>
 
         <div className="relative my-3">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted text-sm">🔎</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted text-sm"></span>
           <input
             placeholder="Buscar recurso..."
             value={busquedaRecursos}
@@ -563,7 +563,7 @@ export default function CronogramaCMPage() {
 
         {!busquedaRecursos && masUtilizados.length > 0 && (
           <div className="mb-5">
-            <p className="text-xs font-semibold text-textSec mb-2">⭐ Más utilizados</p>
+            <p className="text-xs font-semibold text-textSec mb-2"> Más utilizados</p>
             <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px,100%),1fr))' }}>
               {masUtilizados.map((e) => (
                 <TarjetaRecurso
@@ -645,7 +645,7 @@ export default function CronogramaCMPage() {
       )}
 
       <div className={boxCls}>
-        <h2 className="text-sm font-semibold mb-3">📝 Notas</h2>
+        <h2 className="text-sm font-semibold mb-3"> Notas</h2>
         <div className="grid gap-2.5 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px,100%),1fr))' }}>
           {notas.map((n) => {
             const coloresNota = {
@@ -728,7 +728,7 @@ function VistaMesCM({ actividades, onClick, puedeEditarCM }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <button className={btnSecCls} onClick={() => irAMes(-1)}>← Mes anterior</button>
+        <button className={btnSecCls} onClick={() => irAMes(-1)}> Mes anterior</button>
         <span className="text-sm font-semibold">{MESES[mes]} {anio}</span>
         <button className={btnSecCls} onClick={() => irAMes(1)}>Mes siguiente →</button>
       </div>
@@ -789,15 +789,15 @@ function TarjetaRecurso({ e, puedeEditarCM, copiadoId, onAbrir, onCopiar, onEdit
         ) : <span className="text-textMuted text-xs">Sin URL</span>}
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           {puedeEditarCM && !e.esFijo && (
-            <button title="Editar" className="text-textMuted hover:text-text text-xs" onClick={onEditar}>✎</button>
+            <button title="Editar" className="text-textMuted hover:text-text text-xs" onClick={onEditar}></button>
           )}
           {e.url && (
             <button title="Copiar enlace" className="text-textMuted hover:text-text text-xs" onClick={onCopiar}>
-              {copiado ? '✓' : '⧉'}
+              {copiado ? '' : '⧉'}
             </button>
           )}
           {puedeEditarCM && !e.esFijo && (
-            <button title="Eliminar" className="text-textMuted hover:text-dangerText text-xs" onClick={onEliminar}>✕</button>
+            <button title="Eliminar" className="text-textMuted hover:text-dangerText text-xs" onClick={onEliminar}></button>
           )}
         </div>
       </div>

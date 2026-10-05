@@ -281,7 +281,7 @@ function ModalMasterclass({ item, puedeEditar, onCerrar, onGuardado }) {
               {!esNueva && <button className={btnSecCls} onClick={() => setEditando(false)} disabled={guardando}>Cancelar</button>}
             </>
           ) : (
-            puedeEditar && <button className={btnSecCls} onClick={() => setEditando(true)}>✏️ Editar</button>
+            puedeEditar && <button className={btnSecCls} onClick={() => setEditando(true)}> Editar</button>
           )}
           {!esNueva && puedeEditar && !editando && (
             <button className="bg-transparent text-dangerText border border-dangerText/40 rounded-lg px-3 py-1.5 text-xs" onClick={eliminar} disabled={guardando}>Eliminar</button>

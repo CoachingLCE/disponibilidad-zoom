@@ -69,7 +69,7 @@ function previsualizarAvisoFechas() {
     <tr>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;"><b>${f.fecha}</b></td>
       <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${f.motivo}</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;color:${f.bloquea ? '#dc2626' : '#2563eb'};">${f.bloquea ? '🔒 Bloquea' : '👁️ Informativo'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;color:${f.bloquea ? '#dc2626' : '#2563eb'};">${f.bloquea ? ' Bloquea' : ' Informativo'}</td>
     </tr>`).join('');
 
   return `
@@ -143,7 +143,7 @@ function previsualizarAvisoSalaPendiente() {
 const EMAILS_AUTOMATIZADOS = [
   {
     id: 'resumen-semanal',
-    titulo: '📆 Resumen semanal de movimientos',
+    titulo: ' Resumen semanal de movimientos',
     cuando: 'Todos los lunes (automático)',
     asunto: 'Resumen semanal de clases — Cronograma ILCE',
     tipo: 'Resumen semanal',
@@ -153,7 +153,7 @@ const EMAILS_AUTOMATIZADOS = [
   },
   {
     id: 'aviso-fechas',
-    titulo: '🗓️ Cronograma de lo que se viene (fechas)',
+    titulo: ' Cronograma de lo que se viene (fechas)',
     cuando: 'El día 20 de cada mes (automático)',
     asunto: 'Cronograma de lo que se viene — Cronograma ILCE',
     tipo: 'Fechas y feriados',
@@ -163,7 +163,7 @@ const EMAILS_AUTOMATIZADOS = [
   },
   {
     id: 'aviso-actividades',
-    titulo: '🗓️ Cronograma de lo que se viene (actividades)',
+    titulo: ' Cronograma de lo que se viene (actividades)',
     cuando: 'El día 25 de cada mes (automático)',
     asunto: 'Actividades del próximo mes — Cronograma ILCE',
     tipo: 'Actividades del mes',
@@ -173,7 +173,7 @@ const EMAILS_AUTOMATIZADOS = [
   },
   {
     id: 'aviso-sala-pendiente',
-    titulo: '⏳ Pendiente de asignar sala',
+    titulo: ' Pendiente de asignar sala',
     cuando: 'Todos los días a las 07:00 (automático, solo si hay pendientes)',
     asunto: 'actividad(es) pendiente(s) de asignar sala — Cronograma ILCE',
     tipo: 'Sala pendiente',
@@ -231,7 +231,7 @@ export default function EmailsPage() {
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 pt-8 pb-20">
-      <h1 className="text-xl mb-1">📧 Emails</h1>
+      <h1 className="text-xl mb-1"> Emails</h1>
       <p className="text-textSec text-sm mb-5">Qué mails automáticos manda el sistema, y el registro real de cada envío.</p>
 
       <div className={boxCls}>
@@ -325,7 +325,7 @@ export default function EmailsPage() {
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-sm font-semibold text-gray-800">Ejemplo — {previa.titulo}</p>
-                <button className="text-gray-500 text-sm" onClick={() => setPrevia(null)}>Cerrar ✕</button>
+                <button className="text-gray-500 text-sm" onClick={() => setPrevia(null)}>Cerrar </button>
               </div>
               <p className="text-xs text-gray-500 mb-1">{previa.cuando}</p>
               <p className="text-xs text-gray-600 mb-2">{previa.descripcion}</p>

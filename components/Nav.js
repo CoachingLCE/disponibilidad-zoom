@@ -223,7 +223,7 @@ export default function Nav() {
 
       {verComo && (
         <div className="flex items-center gap-2 flex-wrap bg-infoBg border border-infoText/40 text-infoText rounded-lg px-3.5 py-2 text-xs mb-4">
-          👁 Modo vista — estás viendo la app como <b>{verComo.nombre}</b> ({verComo.roles.join(', ')}). No se puede guardar ni borrar nada mientras dure la previsualización.
+           Modo vista — estás viendo la app como <b>{verComo.nombre}</b> ({verComo.roles.join(', ')}). No se puede guardar ni borrar nada mientras dure la previsualización.
           <button onClick={() => setVerComo(null)} className="ml-auto underline font-semibold whitespace-nowrap">Salir del modo vista</button>
         </div>
       )}

@@ -81,7 +81,7 @@ export default function InfoTecnicaPage() {
                   <span className="flex items-center gap-1.5 shrink-0">
                     {it.fecha && (
                       <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full ${it.fecha < hoyISO ? 'finalizada-badge' : 'proximamente-badge'}`}>
-                        {it.fecha < hoyISO ? '✓ FINALIZADA' : 'PRÓXIMAMENTE'}
+                        {it.fecha < hoyISO ? ' FINALIZADA' : 'PRÓXIMAMENTE'}
                       </span>
                     )}
                     <span className="text-xs text-textMuted">{it.mes} · {formatFechaCorta(it.fecha)}</span>

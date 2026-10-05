@@ -152,7 +152,7 @@ export default function IncidenciasPage() {
       <div className="bg-surface2 border-2 border-dangerText/30 rounded-2xl p-5 mb-5">
         <h2 className="text-sm font-bold mb-3">🔴 Requiere atención</h2>
         {alertas.length === 0 ? (
-          <p className="text-successText text-sm py-1">✔ Sin conflictos ni situaciones urgentes por ahora.</p>
+          <p className="text-successText text-sm py-1"> Sin conflictos ni situaciones urgentes por ahora.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {alertas.map((a, i) => (
@@ -215,8 +215,8 @@ export default function IncidenciasPage() {
               <div><label className={labelCls}>Motivo</label><input value={fMotivo} onChange={(e) => setFMotivo(e.target.value)} placeholder="ej: Día del Docente" className={inputCls} /></div>
               <div><label className={labelCls}>Estado</label>
                 <select value={fBloquea ? 'si' : 'no'} onChange={(e) => setFBloquea(e.target.value === 'si')} className={inputCls}>
-                  <option value="si">🔒 Bloquea</option>
-                  <option value="no">👁️ Informativo</option>
+                  <option value="si">Bloquea</option>
+                  <option value="no">Informativo</option>
                 </select>
               </div>
             </div>
@@ -250,7 +250,7 @@ export default function IncidenciasPage() {
                   <td className="p-1.5">{f.motivo}</td>
                   <td className="p-1.5">
                     <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${f.bloquea ? 'bg-dangerBg text-dangerText' : 'bg-infoBg text-infoText'}`}>
-                      {f.bloquea ? '🔒 Bloquea' : '👁️ Informativo'}
+                      {f.bloquea ? ' Bloquea' : ' Informativo'}
                     </span>
                   </td>
                   <td className="p-1.5">{puedeEditar && <button className={btnSecCls} onClick={() => eliminarFeriado(f.id)}>Eliminar</button>}</td>

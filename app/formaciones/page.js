@@ -331,7 +331,7 @@ function ModalEditarFormacion({ formacion: f, manual, puedeEditar, fetchAutentic
               <button className={btnSecCls} onClick={cancelar} disabled={guardando}>Cancelar</button>
             </div>
           ) : (
-            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar fecha de inicio, finalización, estado o certificación</button>
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}> Editar fecha de inicio, finalización, estado o certificación</button>
           )
         ) : null}
         <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>

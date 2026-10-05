@@ -630,11 +630,11 @@ export default function InicioPage() {
                         ) : estadoAgenda === 'en-vivo' ? (
                           <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
                         ) : estadoAgenda === 'proximamente' ? (
-                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 proximamente-badge">🕐 PRÓXIMAMENTE</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 proximamente-badge"> PRÓXIMAMENTE</span>
                         ) : estadoAgenda === 'finalizando' ? (
-                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizando-badge">⏳ FINALIZANDO</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizando-badge"> FINALIZANDO</span>
                         ) : estadoAgenda === 'finalizada' ? (
-                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizada-badge">✓ FINALIZADA</span>
+                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 finalizada-badge"> FINALIZADA</span>
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1.5 mb-0.5">
@@ -938,7 +938,7 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
               }}>Cancelar</button>
             </div>
           ) : (
-            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar</button>
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}> Editar</button>
           )
         )}
         {usoPeriodoCO && (
@@ -953,7 +953,7 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
                 href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
                 className={`${btnSecCls} text-center`}
               >
-                🔁 Cambiar sala, postergar o cancelar esta clase →
+                 Cambiar sala, postergar o cancelar esta clase →
               </Link>
             )}
             <Link
@@ -1207,7 +1207,7 @@ function TarjetaPendientesSala({ pendientes, puedeAsignar, fetchAutenticado, onA
   return (
     <div className={`${sectionCls} border-warningText/40`}>
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-sm font-semibold">⏳ Pendientes de asignar sala</h2>
+        <h2 className="text-sm font-semibold"> Pendientes de asignar sala</h2>
         <span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-warningBg text-warningText">{pendientes.length}</span>
       </div>
       <p className="text-xs text-textMuted mb-3">Se guardaron sin elegir sala todavía — {puedeAsignar ? 'completala acá.' : 'alguien con permiso tiene que completarles la sala.'}</p>

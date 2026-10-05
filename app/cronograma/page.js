@@ -468,7 +468,7 @@ export default function CronogramaPage() {
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : vista === 'calendario' ? (
           <>
             <div className="flex items-center justify-between mb-3">
-              <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s - 1)}>← Semana anterior</button>
+              <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s - 1)}> Semana anterior</button>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-textSec">{formatFechaCorta(fechasSemana[0])} – {formatFechaCorta(fechasSemana[5])}</span>
                 <button className={btnSecCls} onClick={() => setSemanaOffset(0)}>Hoy</button>
@@ -519,7 +519,7 @@ export default function CronogramaPage() {
                                       color ? `${color.bg} ${color.text} ${color.border}` : 'bg-infoBg text-infoText border-infoText/40'
                                     } ${conChoque ? 'ring-1 ring-dangerText' : ''} ${enCurso ? 'ring-2 ring-accentTeal' : ''} ${brilloFecha} ${esMesActual(a.fecha) && !a.pasada ? 'ring-1 ring-warningText/60' : ''}`}
                                   >
-                                    {conChoque && <span className="text-dangerText">⚠ </span>}
+                                    {conChoque && <span className="text-dangerText"> </span>}
                                     {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
                                     <span className="block font-normal text-[12px] opacity-80">
                                       {a.sala
@@ -531,7 +531,7 @@ export default function CronogramaPage() {
                                         // Mismo criterio que ya se corrigió en Agenda de hoy (v3.60.2).
                                         : a.sinRepresentacionViva
                                           ? (a.nombreCurso || '')
-                                          : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold">⚠ Sin sala</span> : (a.nombreCurso || ''))}
+                                          : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold"> Sin sala</span> : (a.nombreCurso || ''))}
                                     </span>
                                   </div>
                                 );
@@ -598,7 +598,7 @@ export default function CronogramaPage() {
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-semibold">
-                                  {conChoque && <span className="text-dangerText">⚠ </span>}
+                                  {conChoque && <span className="text-dangerText"> </span>}
                                   {a.tipo === 'Formación' ? `${a.curso} ${a.edicion || ''}` : a.tipo}
                                 </span>
                                 <span className="font-mono text-xs whitespace-nowrap">
@@ -610,7 +610,7 @@ export default function CronogramaPage() {
                                   ? a.sala
                                   : a.sinRepresentacionViva
                                     ? (a.nombreCurso || '')
-                                    : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold">⚠ Sin sala</span> : (a.nombreCurso || ''))}
+                                    : (a.tipo === 'Formación' ? <span className="text-warningText font-semibold"> Sin sala</span> : (a.nombreCurso || ''))}
                                 {a.nombreCurso && a.sala ? ` · ${a.nombreCurso}` : ''}
                               </span>
                             </button>
@@ -755,7 +755,7 @@ function VistaMes({ todas, onClick, colorPor }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <button className={btnSecCls} onClick={() => irAMes(-1)}>← Mes anterior</button>
+        <button className={btnSecCls} onClick={() => irAMes(-1)}> Mes anterior</button>
         <span className="text-sm font-semibold">{MESES_LARGO[mes]} {anio}</span>
         <button className={btnSecCls} onClick={() => irAMes(1)}>Mes siguiente →</button>
       </div>
@@ -938,7 +938,7 @@ function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
               <button className={btnSecCls} onClick={cancelar} disabled={guardando}>Cancelar</button>
             </div>
           ) : (
-            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}>✏️ Editar {puedeEditarFechaInicio ? 'día, fecha de inicio, docente, staff o sala' : 'docente, staff o sala'}</button>
+            <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}> Editar {puedeEditarFechaInicio ? 'día, fecha de inicio, docente, staff o sala' : 'docente, staff o sala'}</button>
           )
         )}
         {puedeEditar && (
@@ -948,7 +948,7 @@ function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
                 href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
                 className={`${btnSecCls} text-center`}
               >
-                🔁 Cambiar sala, postergar o cancelar esta clase →
+                 Cambiar sala, postergar o cancelar esta clase →
               </Link>
             )}
             <Link
