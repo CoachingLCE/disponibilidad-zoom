@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../../lib/useSession';
+import { tienePermisoEliminarEventos } from '../../lib/permisos';
 import {
   SALAS, DIAS, NOMBRES, ICONOS, DURACIONES, BUFFER_MIN, TOTALES, minutosAHora, formatFechaCorta, esPasada, colorFormacion, colorPorSala, ESTADOS, fechaToDia, nombreCurso, calcularEdicionesFinalizadas, buscarPeriodoCO, edicionRealDeClase, calcularFormacionesEnriquecidas, entradasFuturasFormacionSinLive, fechaDeClaseNumero
 } from '../../lib/salasLogic';
@@ -90,6 +91,7 @@ export default function CronogramaPage() {
   const router = useRouter();
   const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
   const puedePostergar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin', 'Educativo'].includes(r));
+  const puedeEliminar = tienePermisoEliminarEventos(usuario);
 
   const [clases, setClases] = useState([]);
   const [actividades, setActividades] = useState([]);
@@ -685,7 +687,7 @@ export default function CronogramaPage() {
         )}
       </div>
 
-      {seleccionado && <ModalDetalle item={seleccionado} clases={clases} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} onGuardado={cargarDatos} />}
+      {seleccionado && <ModalDetalle item={seleccionado} clases={clases} onCerrar={() => setSeleccionado(null)} puedeEditar={puedeEditar} puedeEliminar={puedeEliminar} onGuardado={cargarDatos} />}
     </div>
   );
 }
@@ -793,7 +795,7 @@ function VistaMes({ todas, onClick, colorPor }) {
   );
 }
 
-function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
+function ModalDetalle({ item, clases, onCerrar, puedeEditar, puedeEliminar = false, onGuardado }) {
   const { fetchAutenticado } = useSession();
   const esFormacion = item.tipo === 'Formación';
   // Pedido de Diego: que el detalle de la clase también diga qué número de clase es "a la
@@ -943,7 +945,8 @@ function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
             <button className={`${btnSecCls} mb-3`} onClick={() => setEditando(true)}> Editar {puedeEditarFechaInicio ? 'día, fecha de inicio, docente, staff o sala' : 'docente, staff o sala'}</button>
           )
         )}
-        {puedeEditar && (
+        {/* Quien puede eliminar eventos (ej. Sofía) llega a Cambiar sala / Postergar / Cancelar desde acá; "Agregar actividad" sigue siendo solo de Admin. */}
+        {(puedeEditar || (puedeEliminar && esFormacion)) && (
           <div className="flex flex-col gap-2 mb-3">
             {esFormacion && (
               <Link
@@ -953,12 +956,14 @@ function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
                  Cambiar sala, postergar o cancelar esta clase →
               </Link>
             )}
-            <Link
+            {puedeEditar && (
+              <Link
               href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
               className={`${btnCls} text-center`}
             >
               + Agregar actividad →
-            </Link>
+              </Link>
+            )}
           </div>
         )}
         <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>

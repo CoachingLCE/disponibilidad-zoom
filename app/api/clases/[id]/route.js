@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { conManejo } from '../../../../lib/apiHandler';
 import { requireUsuario } from '../../../../lib/requireUsuario';
-import { tienePermisoEditar, tienePermisoEditarCronograma } from '../../../../lib/permisos';
+import { tienePermisoEditar, tienePermisoEditarCronograma, tienePermisoEliminarEventos } from '../../../../lib/permisos';
 import { leerClases, actualizarClase, eliminarClasePorId } from '../../../../lib/datosClases';
 import { registrarAccion } from '../../../../lib/auditoria';
 import { appendRow } from '../../../../lib/sheets';
@@ -67,7 +67,7 @@ export const PATCH = conManejo(async (request, { params }) => {
 export const DELETE = conManejo(async (request, { params }) => {
   const usuario = await requireUsuario(request);
   if (!usuario) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (!tienePermisoEditar(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
+  if (!tienePermisoEliminarEventos(usuario)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   const id = decodeURIComponent(params.id);
   const clases = await leerClases();

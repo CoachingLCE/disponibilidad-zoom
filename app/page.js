@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../lib/useSession';
-import { tienePermisoEditarCronograma } from '../lib/permisos';
+import { tienePermisoEditarCronograma, tienePermisoEliminarEventos } from '../lib/permisos';
 import {
   SALAS, DIAS, DIAS_JS, BUFFER_MIN, ICONOS, NOMBRES, TOTALES,
   minutosAHora, formatFechaCorta, calcularAlertas, calcularFormacionesEnriquecidas, colorFormacion, colorPorSala, calcularEdicionesFinalizadas,
@@ -348,6 +348,7 @@ export default function InicioPage() {
     [clases]
   );
   const puedeAsignarSala = tienePermisoEditarCronograma(usuario);
+  const puedeEliminar = tienePermisoEliminarEventos(usuario);
 
   const ahora = new Date();
   const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
@@ -789,6 +790,7 @@ export default function InicioPage() {
           item={seleccionado}
           onCerrar={() => setSeleccionado(null)}
           puedeEditar={puedeEditar}
+          puedeEliminar={puedeEliminar}
           asignacionesCO={asignacionesCODisponibles}
           formaciones={formaciones}
           formacionesManual={formacionesManual}
@@ -800,7 +802,7 @@ export default function InicioPage() {
   );
 }
 
-function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, formaciones, formacionesManual, fechaInicioHistorico, onGuardado }) {
+function ModalDetalleInicio({ item, onCerrar, puedeEditar, puedeEliminar = false, asignacionesCO, formaciones, formacionesManual, fechaInicioHistorico, onGuardado }) {
   const { confirmar, avisar } = useDialogos();
   const { fetchAutenticado } = useSession();
   const [editando, setEditando] = useState(false);
@@ -948,7 +950,8 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
             Docente/staff según el período cargado en <Link href="/docentes-co" className="underline">Docentes C.O.</Link> — esta clase puntual no tiene el dato propio.
           </p>
         )}
-        {puedeEditar && (
+        {/* Quien puede eliminar eventos (ej. Sofía) llega a Cambiar sala / Postergar / Cancelar desde acá; "Agregar actividad" sigue siendo solo de Admin. */}
+        {(puedeEditar || (puedeEliminar && item.esFormacion)) && (
           <div className="flex flex-col gap-2 mb-3">
             {item.esFormacion && (
               <Link
@@ -958,12 +961,14 @@ function ModalDetalleInicio({ item, onCerrar, puedeEditar, asignacionesCO, forma
                  Cambiar sala, postergar o cancelar esta clase →
               </Link>
             )}
-            <Link
+            {puedeEditar && (
+              <Link
               href="/salas-zoom" onClick={onCerrar} style={{ textDecoration: 'none' }}
               className={`${btnCls} text-center`}
             >
               + Agregar actividad →
-            </Link>
+              </Link>
+            )}
           </div>
         )}
         <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>

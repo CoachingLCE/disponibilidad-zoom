@@ -9,7 +9,7 @@ import {
 } from '../../lib/salasLogic';
 import { CREDENCIALES_ZOOM_DEFAULT } from '../../lib/credencialesZoomDefaults';
 import { interpretarTexto } from '../../lib/lecturaInteligente';
-import { tienePermisoEditarDocentesCO } from '../../lib/permisos';
+import { tienePermisoEditarDocentesCO, tienePermisoEliminarEventos } from '../../lib/permisos';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
@@ -68,6 +68,7 @@ function SalasZoomPageInterna() {
   const router = useRouter();
   const puedeEditar = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
   const puedeEditarCronograma = (usuario?.roles || []).some((r) => ['Admin', 'SuperAdmin', 'Educativo'].includes(r));
+  const puedeEliminar = tienePermisoEliminarEventos(usuario);
 
   const [clases, setClases] = useState([]);
   const [feriados, setFeriados] = useState([]);
@@ -262,7 +263,7 @@ function SalasZoomPageInterna() {
       {accion && (
         <ModalAccion
           clase={accion.clase} onCerrar={() => setAccion(null)} fetchAutenticado={fetchAutenticado} onCambio={cargarDatos}
-          puedeEditarCronograma={puedeEditarCronograma} credenciales={credencialesCombinadas} numeroSesion={sesionPorId[accion.clase.id]}
+          puedeEditarCronograma={puedeEditarCronograma} puedeEliminar={puedeEliminar} credenciales={credencialesCombinadas} numeroSesion={sesionPorId[accion.clase.id]}
         />
       )}
     </div>
@@ -1164,7 +1165,7 @@ function ChipDetectado({ ok, vacio, texto }) {
   );
 }
 
-function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarCronograma = true, credenciales = [], numeroSesion }) {
+function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarCronograma = true, puedeEliminar = false, credenciales = [], numeroSesion }) {
   const [paso, setPaso] = useState('menu');
   const credencialSala = credenciales.find((c) => c.sala === clase.sala);
   const [nuevaSala, setNuevaSala] = useState('');
@@ -1276,8 +1277,12 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
                 <button className={`${btnSecCls} text-left disabled:opacity-40`} disabled={!clase.fecha} onClick={() => setPaso('postergar')}>
                    Postergar clase{!clase.fecha ? ' (necesita fecha)' : ''}
                 </button>
-                <button className={`${btnSecCls} text-left text-dangerText`} onClick={() => setPaso('cancelar')}> Cancelar clase</button>
               </>
+            )}
+            {/* "Cancelar clase" es un permiso aparte (Admin, SuperAdmin y personas puntuales como Sofía): se muestra solo
+                a quien el servidor deja eliminar, así nadie ve un botón que después responde "Sin permiso". */}
+            {puedeEliminar && (
+              <button className={`${btnSecCls} text-left text-dangerText`} onClick={() => setPaso('cancelar')}> Cancelar clase</button>
             )}
             <button className={btnSecCls} onClick={onCerrar}>Cerrar</button>
           </div>
