@@ -30,7 +30,7 @@ const TIPO_COLORES = {
   'Capacitación': 'bg-warningBg text-warningText',
   'Reuniones': 'bg-infoBg text-infoText',
   'Encuentro Potencia': 'bg-orange-400/10 text-orange-400',
-  'Laboratorio C.O': 'bg-accentPurple/10 text-accentPurple',
+  'Laboratorio C.O': 'bg-accentPurple/10 text-accentPurpleTxt',
   'Masterclass': 'bg-accentMagenta/10 text-accentMagenta',
   'BLOG': 'bg-accentTeal/10 text-accentTeal',
   'Jornada': 'bg-pink-400/10 text-pink-400',
@@ -481,7 +481,7 @@ export default function CronogramaPage() {
               <>
               {/* Pantallas medianas y grandes: la grilla semanal de siempre */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full min-w-[760px] border-collapse">
+                <table data-sin-tarjetas className="w-full min-w-[760px] border-collapse">
                   <thead>
                     <tr>
                       <th className="text-[12px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Hora</th>

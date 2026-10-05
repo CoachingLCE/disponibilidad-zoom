@@ -413,7 +413,7 @@ export default function CronogramaCMPage() {
               <p className="text-textSec text-sm">Cargando…</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] border-collapse">
+                <table data-sin-tarjetas className="w-full min-w-[760px] border-collapse">
                   <thead>
                     <tr>
                       <th className="text-[12px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Horario</th>

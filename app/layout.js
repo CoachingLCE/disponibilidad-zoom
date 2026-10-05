@@ -5,6 +5,7 @@ import VersionBadge from '../components/VersionBadge';
 import Nav from '../components/Nav';
 import EscCierraModales from '../components/EscCierraModales';
 import { DialogosProvider } from '../components/Dialogos';
+import TablasEnTarjetas from '../components/TablasEnTarjetas';
 
 export const metadata = {
   title: 'Cronograma ILCE',
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
           <SessionProvider>
             <DialogosProvider>
               <EscCierraModales />
+              <TablasEnTarjetas />
               <Nav />
               {children}
               <VersionBadge />

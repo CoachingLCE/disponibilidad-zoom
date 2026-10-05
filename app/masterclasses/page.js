@@ -13,7 +13,7 @@ const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg p
 const chipCls = (activo) => `text-xs font-semibold px-3 py-1.5 rounded-full border whitespace-nowrap ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
 const CATEGORIA_COLOR = {
-  Masterclass: 'bg-accentPurple/10 text-accentPurple',
+  Masterclass: 'bg-accentPurple/10 text-accentPurpleTxt',
   'Caja de ideas': 'bg-successText/10 text-successText',
   Capacitación: 'bg-infoText/10 text-infoText',
   Networking: 'bg-warningText/10 text-warningText',

@@ -621,7 +621,7 @@ export default function AnalisisPage() {
 
                 <p className="text-xs font-semibold text-textSec mb-2">Heatmap de ocupación (salas simultáneas por celda)</p>
                 <div className="overflow-x-auto">
-                  <table className="text-[12px] border-collapse">
+                  <table data-sin-tarjetas className="text-[12px] border-collapse">
                     <thead>
                       <tr>
                         <th className="p-1 text-left text-textSec sticky left-0 bg-surface2">Día</th>

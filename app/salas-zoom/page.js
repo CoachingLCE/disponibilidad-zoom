@@ -276,7 +276,7 @@ function VistaGrilla({ vista, diaHoy, onClick, sesionPorId = {} }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse">
+      <table data-sin-tarjetas className="w-full min-w-[760px] border-collapse">
         <thead>
           <tr>
             <th className="text-[12px] text-textSec uppercase px-1.5 py-2 border-b border-border text-center">Hora</th>
@@ -1087,7 +1087,7 @@ function LecturaInteligente({ onAplicar }) {
   return (
     <div className="bg-surface2 border border-border rounded-xl p-3 mb-2.5">
       <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-accentPurple text-sm">✨</span>
+        <span className="text-accentPurpleTxt text-sm">✨</span>
         <span className="text-[13px] font-semibold">Lectura inteligente</span>
         <span className="text-[12px] text-textMuted font-normal">— pegá el texto y completamos automáticamente los campos</span>
       </div>
@@ -1102,7 +1102,7 @@ function LecturaInteligente({ onAplicar }) {
         {texto.trim() && (
           <button
             type="button" onClick={interpretarAhora}
-            className="absolute right-1.5 bottom-1.5 text-[12px] font-semibold text-accentPurple hover:underline px-1.5 py-1"
+            className="absolute right-1.5 bottom-1.5 text-[12px] font-semibold text-accentPurpleTxt hover:underline px-1.5 py-1"
           >
             Interpretar →
           </button>

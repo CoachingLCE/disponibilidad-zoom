@@ -11,7 +11,7 @@ const inputCls = 'bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
 // Colores distintos por persona, para reconocerla rápido en la lista sin leer el nombre —
 // el mismo nombre siempre cae en el mismo color (hash simple sobre una paleta fija).
 const PALETA_USUARIOS = [
-  { bg: 'bg-accentPurple/20', text: 'text-accentPurple' },
+  { bg: 'bg-accentPurple/20', text: 'text-accentPurpleTxt' },
   { bg: 'bg-accentTeal/20', text: 'text-accentTeal' },
   { bg: 'bg-successBg', text: 'text-successText' },
   { bg: 'bg-warningBg', text: 'text-warningText' },
@@ -41,7 +41,7 @@ const TIPOS_ACCION = [
   { test: (a) => /importó/i.test(a), bg: 'bg-accentTeal/20', text: 'text-accentTeal' },
   { test: (a) => /agregó|creó|asignó|reservó/i.test(a), bg: 'bg-successBg', text: 'text-successText' },
   { test: (a) => /editó|postergó|reordenó/i.test(a), bg: 'bg-infoBg', text: 'text-infoText' },
-  { test: (a) => /inició sesión|cambió su contraseña/i.test(a), bg: 'bg-accentPurple/20', text: 'text-accentPurple' }
+  { test: (a) => /inició sesión|cambió su contraseña/i.test(a), bg: 'bg-accentPurple/20', text: 'text-accentPurpleTxt' }
 ];
 function colorPorAccion(accion) {
   const a = accion || '';

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Wrench, Search } from 'lucide-react';
+import { Wrench, Search, Plus, Home, CalendarDays, Megaphone, Mic, GraduationCap, Users, AlertTriangle, BarChart3, Mail, Clock, KeyRound, Video, Info, Layers } from 'lucide-react';
 import { useSession } from '../lib/useSession';
 import ThemeSelector from './ThemeSelector';
 import AccionesRapidas from './AccionesRapidas';
@@ -28,6 +28,36 @@ const LINKS = [
   { href: '/accesos', label: 'Accesos', soloAdmin: true }
 ];
 
+// ---- Barra lateral (escritorio) -------------------------------------------------------------
+// Pedido de Diego (04/10/2026): navegación "más estética y prolija". En pantallas grandes (>= lg) los
+// destinos pasan a una barra lateral fija con grupos; en tablet siguen los botones en fila y en
+// celular el menú desplegable.
+const ICONOS = {
+  '/': Home, '/cronograma': CalendarDays, '/cronograma-cm': Megaphone, '/masterclasses': Mic, '/formaciones': GraduationCap,
+  '/docentes-co': Users, '/credenciales-zoom': Video, '/info-tecnica': Info, '/incidencias': AlertTriangle, '/analisis': BarChart3,
+  '/emails': Mail, '/auditoria': Clock, '/accesos': KeyRound
+};
+const GRUPOS_LATERAL = [
+  { titulo: null, hrefs: ['/'] },
+  { titulo: 'Agenda', hrefs: ['/cronograma', '/cronograma-cm', '/masterclasses', '/formaciones', '/docentes-co'] },
+  { titulo: 'Control', hrefs: ['/incidencias', '/analisis', '/emails', '/auditoria'] },
+  { titulo: 'Configuración', hrefs: ['/credenciales-zoom', '/info-tecnica', '/accesos'] }
+];
+function ItemLateral({ href, label, pathname }) {
+  const activo = pathname === href;
+  const Ico = ICONOS[href] || Layers;
+  return (
+    <Link href={href} aria-current={activo ? 'page' : undefined}
+      className={`relative flex items-center gap-2.5 h-8 px-3 rounded-lg text-[14px] transition-colors ${
+        activo ? 'bg-accentPurple/15 text-accentMagenta font-semibold' : 'text-textSec hover:text-text hover:bg-surface2 font-medium'
+      }`}>
+      {activo && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-accentMagenta" />}
+      <Ico size={18} strokeWidth={1.8} className="shrink-0" aria-hidden="true" />
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
 function itemNav(href, label, pathname) {
   return (
     <Link
@@ -50,6 +80,12 @@ export default function Nav() {
   const [cambiandoPassword, setCambiandoPassword] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
+  // Deja lugar a la barra lateral en pantallas grandes (ver .con-menu-lateral en globals.css).
+  useEffect(() => {
+    document.body.classList.add('con-menu-lateral');
+    return () => document.body.classList.remove('con-menu-lateral');
+  }, []);
+
   // En celular el menú se cierra solo al cambiar de pantalla y con Esc.
   useEffect(() => { setMenuAbierto(false); }, [pathname]);
   useEffect(() => {
@@ -64,10 +100,51 @@ export default function Nav() {
   const puedeVerAccesos = (usuario.roles || []).some((r) => ['Admin', 'SuperAdmin'].includes(r));
   const links = LINKS.filter((l) => !l.soloAdmin || puedeVerAccesos);
 
+  const porHref = Object.fromEntries(links.map((l) => [l.href, l]));
+
   return (
+    <>
+    {/* BARRA LATERAL — solo escritorio (>= lg) */}
+    <aside aria-label="Navegación principal" className="hidden lg:flex fixed inset-y-0 left-0 z-30 w-[248px] flex-col border-r border-border bg-surface no-print">
+      <div className="px-5 pt-4 pb-2.5">
+        <Link href="/" aria-label="Ir al Inicio"><Logo height={30} /></Link>
+        <p className="mt-1.5 text-[12px] font-semibold tracking-[0.14em] uppercase text-textMuted">Cronograma</p>
+      </div>
+      <div className="px-4 pb-3">
+        <Link href="/salas-zoom"
+          className={`flex items-center justify-center gap-2 h-10 rounded-lg text-[14px] font-semibold text-white bg-gradient-to-r from-accentPurple to-accentMagenta shadow-sm transition-opacity ${pathname === '/salas-zoom' ? 'ring-2 ring-accentTeal ring-offset-2 ring-offset-surface' : 'hover:opacity-90'}`}>
+          <Plus size={16} aria-hidden="true" /> Agregar actividad
+        </Link>
+      </div>
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 space-y-4">
+        {GRUPOS_LATERAL.map((g, i) => {
+          const items = g.hrefs.map((h) => porHref[h]).filter(Boolean);
+          if (items.length === 0) return null;
+          return (
+            <div key={g.titulo || i} className="space-y-0.5">
+              {g.titulo && <p className="px-3 mb-1 text-[12px] uppercase tracking-[0.12em] font-semibold text-textMuted">{g.titulo}</p>}
+              {items.map((l) => <ItemLateral key={l.href} href={l.href} label={l.label} pathname={pathname} />)}
+            </div>
+          );
+        })}
+      </nav>
+      <div className="border-t border-border px-4 py-3">
+        <div className="flex items-center gap-3">
+          <span aria-hidden="true" className="w-9 h-9 rounded-full bg-accentPurple/15 text-accentMagenta font-bold flex items-center justify-center text-[14px] shrink-0">
+            {(usuario.nombre || '?').trim().charAt(0).toUpperCase()}
+          </span>
+          <p className="text-[13px] font-semibold leading-tight truncate min-w-0 flex-1">{usuario.nombre}</p>
+        </div>
+        <div className="mt-2 flex gap-4 text-[12px]">
+          <button onClick={() => setCambiandoPassword(true)} className="text-textMuted hover:text-text underline">Contraseña</button>
+          <button onClick={logout} className="text-textMuted hover:text-text underline">Salir</button>
+        </div>
+      </div>
+    </aside>
+
     <div className="max-w-[1440px] mx-auto px-6 pt-4 no-print">
-      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-        <Link href="/" className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center justify-between lg:justify-end mb-3 gap-3 flex-wrap">
+        <Link href="/" className="flex items-center gap-2 shrink-0 lg:hidden">
           <Logo height={28} />
           <span className="text-sm font-bold text-textMuted">Cronograma</span>
         </Link>
@@ -92,7 +169,7 @@ export default function Nav() {
             <Wrench size={15} />
           </Link>
           {usuario && (
-            <div className="text-right text-xs leading-tight">
+            <div className="text-right text-xs leading-tight lg:hidden">
               <p className="font-semibold">{usuario.nombre}</p>
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setCambiandoPassword(true)} className="text-textMuted underline">Contraseña</button>
@@ -105,7 +182,7 @@ export default function Nav() {
 
       <nav className="mb-5" aria-label="Principal">
         {/* Pantallas medianas y grandes: todos los botones en una fila */}
-        <div className="hidden md:flex items-center gap-1.5 flex-wrap">
+        <div className="hidden md:flex lg:hidden items-center gap-1.5 flex-wrap">
           {links.map((l) => itemNav(l.href, l.label, pathname))}
         </div>
 
@@ -156,5 +233,6 @@ export default function Nav() {
       {cambiandoPassword && <CambiarPasswordModal onCerrar={() => setCambiandoPassword(false)} />}
       <TourGuiado />
     </div>
+    </>
   );
 }
