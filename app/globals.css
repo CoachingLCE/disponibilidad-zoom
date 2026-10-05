@@ -170,3 +170,10 @@ button,input,select,textarea{font-family:inherit}
 @font-face{font-family:'Dosis';src:url('/fonts/iconos.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;unicode-range:U+E000-F8FF}
 @font-face{font-family:'TeX Gyre Adventor';src:url('/fonts/iconos.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;unicode-range:U+E000-F8FF}
 @font-face{font-family:'TeX Gyre Adventor';src:url('/fonts/iconos.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;unicode-range:U+E000-F8FF}
+
+/* Panel lateral del detalle de una clase: entra por la derecha (escritorio) o sube desde abajo (celular). */
+@keyframes drawerIn{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
+@keyframes sheetIn{from{transform:translateY(28px);opacity:0}to{transform:none;opacity:1}}
+.drawer-in{animation:sheetIn .2s ease-out}
+@media (min-width:768px){.drawer-in{animation:drawerIn .2s ease-out}}
+@media (prefers-reduced-motion:reduce){.drawer-in{animation:none}}

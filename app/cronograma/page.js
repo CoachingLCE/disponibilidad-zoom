@@ -861,8 +861,10 @@ function ModalDetalle({ item, clases, onCerrar, puedeEditar, onGuardado }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCerrar}>
-      <div className="bg-surface2 border border-border rounded-2xl p-5 w-96" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 flex items-end md:items-stretch justify-center md:justify-end z-50" onClick={onCerrar}>
+      {/* Panel lateral (decisión de Diego, 04/10/2026): el detalle de una clase se abre al costado y el cronograma queda detrás.
+          En celular es una hoja que sube desde abajo. */}
+      <div className="drawer-in bg-surface2 border border-border p-5 w-full md:w-[440px] md:max-w-[92vw] max-h-[88vh] md:max-h-none md:h-full overflow-y-auto rounded-t-2xl md:rounded-none md:border-y-0 md:border-r-0" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold mb-1">
           {esFormacion ? `${item.nombreCurso}${item.edicion ? ' · Edición ' + item.edicion : ''}` : item.tipo}
         </h3>
