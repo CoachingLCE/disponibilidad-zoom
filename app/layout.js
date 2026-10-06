@@ -8,6 +8,8 @@ import { DialogosProvider } from '../components/Dialogos';
 import TablasEnTarjetas from '../components/TablasEnTarjetas';
 
 export const metadata = {
+  // Dominio de producción: hace que la imagen y el enlace de la vista previa sean absolutos (WhatsApp/Slack/Telegram lo exigen).
+  metadataBase: new URL('https://disponibilidad-zoom.vercel.app'),
   icons: {
     icon: [
       { url: '/favicon.ico?v=2', sizes: 'any' },
@@ -17,7 +19,22 @@ export const metadata = {
     apple: '/apple-touch-icon.png?v=2'
   },
   title: 'Cronograma ILCE',
-  description: 'Gestión de formaciones, actividades y disponibilidad de salas'
+  description: 'Gestión de formaciones, actividades y disponibilidad de salas',
+  openGraph: {
+    type: 'website',
+    locale: 'es_AR',
+    siteName: 'Instituto ILCE',
+    title: 'Cronograma ILCE',
+    description: 'Gestión de formaciones, actividades y disponibilidad de salas',
+    url: '/',
+    images: [{ url: '/og-image.png?v=1', width: 1200, height: 630, alt: 'Cronograma ILCE — Instituto ILCE' }]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Cronograma ILCE',
+    description: 'Gestión de formaciones, actividades y disponibilidad de salas',
+    images: ['/og-image.png?v=1']
+  }
 };
 
 export default function RootLayout({ children }) {
