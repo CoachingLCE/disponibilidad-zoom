@@ -390,13 +390,34 @@ export default function CronogramaPage() {
         expandidas.push({ ...a, fechaProyectada: fechaN, numeroSesion: n, total: TOTALES[a.curso], pasada: fechaN < hoyISO });
       }
     });
+    // (B) Formaciones SIN filas vivas en Salas Zoom (Coaching Deportivo y similares: salen de un histórico fijo + la fecha de
+    // inicio cargada a mano). `todas` solo trae de ellas las clases que FALTAN: la función que las arma (pensada para "Próximas
+    // clases") parte de la clase `cargadas` y descarta toda fecha pasada. Por eso en la Lista una formación así mostraba solo
+    // un pedazo de su serie, mientras que el Calendario la proyecta entera, hacia atrás y hacia adelante. Acá se arma la serie
+    // COMPLETA (clases 1 a N) con la MISMA función — así sigue respetando los recesos y los períodos de Docentes C.O. — y se
+    // suma lo que `todas` todavía no tiene (el id es el mismo, así que lo futuro no se duplica), con los mismos filtros.
+    const idsYa = new Set(expandidas.map((a) => a.id));
+    formacionesCalc
+      .filter((f) => f.sinRepresentacionViva && f.estado === 'En proceso')
+      .forEach((f) => {
+        entradasFuturasFormacionSinLive({ ...f, cargadas: 1 }, '0000-01-01', asignacionesCODisponibles).forEach((a) => {
+          if (idsYa.has(a.id)) return;
+          if (filtroTipo && filtroTipo !== 'Formación') return;
+          if (filtroCurso && a.curso !== filtroCurso) return;
+          if (filtroSala && a.sala !== filtroSala) return;
+          if (filtroDia && a.dia !== filtroDia) return;
+          if (filtroRango && !dentroDeRango(a.fecha, filtroRango)) return;
+          idsYa.add(a.id);
+          expandidas.push({ ...a, tipo: 'Formación', pasada: a.fecha < hoyISO });
+        });
+      });
     const clave = (a) => a.fecha || a.fechaProyectada || a.fechaInicioEdicion || '';
     const hora = (a) => a.horaMin || 0;
     const proximas = expandidas.filter((a) => clave(a) && clave(a) >= hoyISO).sort((a, b) => clave(a).localeCompare(clave(b)) || hora(a) - hora(b));
     const pasadas = expandidas.filter((a) => clave(a) && clave(a) < hoyISO).sort((a, b) => clave(b).localeCompare(clave(a)) || hora(b) - hora(a));
     const sinFecha = expandidas.filter((a) => !clave(a));
     return proximas.concat(pasadas, sinFecha);
-  }, [todas, filtroRango, hoyISO]);
+  }, [todas, filtroRango, hoyISO, formacionesCalc, asignacionesCODisponibles, filtroTipo, filtroCurso, filtroSala, filtroDia]);
 
   // Si se elige un rango puntual (Hoy / Esta semana / Próxima semana), la vista Calendario
   // salta sola a la semana que corresponde — antes el filtro no tenía ningún efecto visible
