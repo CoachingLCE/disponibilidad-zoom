@@ -118,7 +118,7 @@ export default function MasterclassesPage() {
         {cargandoDatos ? (
           <p className="text-textSec text-sm">Cargando…</p>
         ) : filtradas.length === 0 ? (
-          <p className="text-textSec text-sm">No hay masterclasses que coincidan con la búsqueda.</p>
+          <p className="vacio">No hay masterclasses que coincidan con la búsqueda.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">

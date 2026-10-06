@@ -603,7 +603,7 @@ export default function InicioPage() {
             </h2>
             <p className="text-xs text-textMuted mb-3">{formatFechaCorta(hoyISO)}</p>
             {agendaHoy.length === 0 ? (
-              <p className="text-textSec text-sm py-2">Sin actividades cargadas para hoy.</p>
+              <p className="vacio">Sin actividades cargadas para hoy.</p>
             ) : (
               // Pedido de Diego ("achicar el ancho a la cantidad de clases del día"): con
               // `1fr` cada tarjeta se estiraba para ocupar TODO el ancho disponible aunque
@@ -627,7 +627,7 @@ export default function InicioPage() {
                             con su propio cartel en vez de los de arriba (no hay clase real
                             todavía como para decir "EN VIVO"/"PRÓXIMAMENTE"). */}
                         {a.sinCrear ? (
-                          <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-dangerBg text-dangerText">FALTA CARGAR</span>
+                          <span className="etiqueta text-[12px] shrink-0 bg-dangerBg text-dangerText">FALTA CARGAR</span>
                         ) : estadoAgenda === 'en-vivo' ? (
                           <span className="text-[12px] font-bold px-2 py-0.5 rounded-full shrink-0 en-vivo-badge">🔴 EN VIVO</span>
                         ) : estadoAgenda === 'proximamente' ? (
@@ -778,7 +778,7 @@ export default function InicioPage() {
           <div className={sectionCls}>
             <h2 className="text-sm font-semibold mb-2">Próximas clases</h2>
             {proximas.length === 0 ? (
-              <p className="text-textSec text-sm py-1">No hay próximas actividades cargadas.</p>
+              <p className="vacio">No hay próximas actividades cargadas.</p>
             ) : (
               <TablaProximas items={proximas} onClick={setSeleccionado} asignacionesCO={asignacionesCODisponibles} />
             )}
@@ -1215,7 +1215,7 @@ function TarjetaPendientesSala({ pendientes, puedeAsignar, fetchAutenticado, onA
     <div className={`${sectionCls} border-warningText/40`}>
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold"> Pendientes de asignar sala</h2>
-        <span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-warningBg text-warningText">{pendientes.length}</span>
+        <span className="etiqueta text-[12px] bg-warningBg text-warningText">{pendientes.length}</span>
       </div>
       <p className="text-xs text-textMuted mb-3">Se guardaron sin elegir sala todavía — {puedeAsignar ? 'completala acá.' : 'alguien con permiso tiene que completarles la sala.'}</p>
       <div className="flex flex-col gap-2">

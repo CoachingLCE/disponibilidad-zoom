@@ -225,9 +225,9 @@ export default function IncidenciasPage() {
           </div>
         )}
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : feriados.length === 0 ? (
-          <p className="text-textSec text-sm">No hay feriados cargados.</p>
+          <p className="vacio">No hay feriados cargados.</p>
         ) : feriadosVisibles.length === 0 ? (
-          <p className="text-textSec text-sm">No hay feriados próximos — mirá "Todas" para ver los que ya pasaron.</p>
+          <p className="vacio">No hay feriados próximos — mirá "Todas" para ver los que ya pasaron.</p>
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
@@ -244,8 +244,8 @@ export default function IncidenciasPage() {
                 <tr key={f.id} className={`border-b border-border border-l-2 ${f.bloquea ? 'border-l-dangerText' : 'border-l-infoText'} ${f.fecha < hoyISO ? 'opacity-50' : ''}`}>
                   <td className="p-1.5 whitespace-nowrap">
                     {formatFechaCorta(f.fecha)}
-                    {esHoy && <span className="ml-2 text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-successBg text-successText whitespace-nowrap">Hoy</span>}
-                    {esProximo && <span className="ml-2 text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-warningBg text-warningText whitespace-nowrap">Próximamente</span>}
+                    {esHoy && <span className="etiqueta ml-2 text-[12px] bg-successBg text-successText whitespace-nowrap">Hoy</span>}
+                    {esProximo && <span className="etiqueta ml-2 text-[12px] bg-warningBg text-warningText whitespace-nowrap">Próximamente</span>}
                   </td>
                   <td className="p-1.5">{f.motivo}</td>
                   <td className="p-1.5">
@@ -265,7 +265,7 @@ export default function IncidenciasPage() {
 
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">Clases postergadas</h2>
-        {postergaciones.length === 0 ? <p className="text-textSec text-sm">Todavía no se postergó ninguna clase.</p> : (
+        {postergaciones.length === 0 ? <p className="vacio">Todavía no se postergó ninguna clase.</p> : (
           <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>

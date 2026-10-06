@@ -273,7 +273,7 @@ function SalasZoomPageInterna() {
 function VistaGrilla({ vista, diaHoy, onClick, sesionPorId = {} }) {
   const horas = [...new Set(vista.map((c) => c.horaMin))].sort((a, b) => a - b);
   const diasUsados = DIAS.filter((d) => vista.some((c) => c.dia === d));
-  if (horas.length === 0) return <p className="text-textSec text-sm">No hay clases cargadas.</p>;
+  if (horas.length === 0) return <p className="vacio">No hay clases cargadas.</p>;
 
   return (
     <div className="overflow-x-auto">

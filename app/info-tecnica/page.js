@@ -71,7 +71,7 @@ export default function InfoTecnicaPage() {
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">Registros ({ordenados.length})</h2>
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : ordenados.length === 0 ? (
-          <p className="text-textSec text-sm">Todavía no hay nada cargado.</p>
+          <p className="vacio">Todavía no hay nada cargado.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {ordenados.map((it) => (

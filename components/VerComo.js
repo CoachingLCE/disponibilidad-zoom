@@ -98,7 +98,7 @@ export default function VerComo() {
           {cargando ? (
             <p className="px-3 py-2 text-xs text-textMuted">Cargando…</p>
           ) : personasFiltradas.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-textMuted">Sin resultados.</p>
+            <p className="vacio vacio-chico">Sin resultados.</p>
           ) : (
             personasFiltradas.map((p) => (
               <button

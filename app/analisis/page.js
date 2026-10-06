@@ -569,7 +569,7 @@ export default function AnalisisPage() {
                 <StatCard n={kpis.salaMenos ? kpis.salaMenos[0] : '—'} l={`Menos usada (${kpis.salaMenos ? kpis.salaMenos[1].toFixed(1) : 0}hs/sem)`} chico />
               </div>
               {ocupacionSalas.every((s) => s.cantidad === 0) ? (
-                <p className="text-textSec text-sm">No hay clases cargadas para calcular ocupación con estos filtros.</p>
+                <p className="vacio">No hay clases cargadas para calcular ocupación con estos filtros.</p>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {ocupacionSalas.map((s, i) => (
@@ -599,7 +599,7 @@ export default function AnalisisPage() {
             </div>
 
             {porDia.length === 0 ? (
-              <p className="text-textSec text-sm">No hay clases cargadas con estos filtros.</p>
+              <p className="vacio">No hay clases cargadas con estos filtros.</p>
             ) : (
               <>
                 <p className="text-xs font-semibold text-textSec mb-2">Distribución semanal</p>
@@ -656,7 +656,7 @@ export default function AnalisisPage() {
             <div className={`${boxCls} mb-0`}>
               <ModuloHeader icono="" titulo="Formaciones" subtitulo="Horario vigente + postergaciones del período." />
               {porFormacion.length === 0 ? (
-                <p className="text-textSec text-sm">No hay clases cargadas con estos filtros.</p>
+                <p className="vacio">No hay clases cargadas con estos filtros.</p>
               ) : (
                 <div className="flex flex-col gap-2">
                   {porFormacion.map((f, i) => {
@@ -699,7 +699,7 @@ export default function AnalisisPage() {
             <div className={`${boxCls} mb-0`}>
               <ModuloHeader icono="" titulo="Actividad docente" subtitulo="Horario semanal vigente." />
               {porDocente.length === 0 ? (
-                <p className="text-textSec text-sm">No hay docentes cargados con estos filtros.</p>
+                <p className="vacio">No hay docentes cargados con estos filtros.</p>
               ) : (
                 <div className="flex flex-col gap-2">
                   {porDocente.map((d, i) => (
@@ -720,7 +720,7 @@ export default function AnalisisPage() {
             <h2 className="text-sm font-semibold mb-3">Historial reciente</h2>
             {!puedeVerDetalleCompleto ? (
               <p className="text-textMuted text-sm py-2"> El detalle completo del historial de acciones es visible solo para Admin/SuperAdmin. Podés verlo completo (con filtros y exportación) en <Link href="/auditoria" className="underline">Auditoría</Link> si tenés acceso.</p>
-            ) : historial.length === 0 ? <p className="text-textSec text-sm">Todavía no hay movimientos registrados.</p> : (
+            ) : historial.length === 0 ? <p className="vacio">Todavía no hay movimientos registrados.</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">
                   <thead><tr className="border-b border-border text-textSec text-left"><th className="p-1.5">Cuándo</th><th className="p-1.5">Quién</th><th className="p-1.5">Acción</th><th className="p-1.5">Detalle</th></tr></thead>
@@ -793,7 +793,7 @@ function RangoBadge({ i }) {
 
 /** Barras horizontales simples para una serie mensual [ [mes, cantidad], ... ]. */
 function BarrasHorizontalesTiempo({ datos }) {
-  if (!datos || datos.length === 0) return <p className="text-textMuted text-xs">Sin datos.</p>;
+  if (!datos || datos.length === 0) return <p className="vacio vacio-chico">Sin datos.</p>;
   const max = Math.max(...datos.map(([, v]) => v), 1);
   return (
     <div className="flex flex-col gap-1">
@@ -825,7 +825,7 @@ function MiniLista({ titulo, items }) {
   return (
     <div>
       <p className="text-xs font-semibold text-textSec mb-2">{titulo}</p>
-      {items.length === 0 ? <p className="text-textMuted text-xs">Sin datos.</p> : (
+      {items.length === 0 ? <p className="vacio vacio-chico">Sin datos.</p> : (
         <div className="flex flex-col gap-1">
           {items.slice(0, 6).map(([k, v]) => (
             <div key={k} className="flex items-center justify-between text-xs">

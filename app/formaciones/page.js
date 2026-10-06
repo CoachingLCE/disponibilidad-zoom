@@ -140,7 +140,7 @@ export default function FormacionesPage() {
       {cargandoDatos ? (
         <p className="text-textSec text-sm">Cargando…</p>
       ) : filtradas.length === 0 ? (
-        <p className="text-textSec text-sm">No hay formaciones que coincidan con este filtro.</p>
+        <p className="vacio">No hay formaciones que coincidan con este filtro.</p>
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px,100%),1fr))' }}>
           {filtradas.map((f) => {
@@ -196,7 +196,7 @@ export default function FormacionesPage() {
                     )}
                   </>
                 ) : (
-                  <p className="text-xs text-textMuted mb-3">Sin datos de progreso</p>
+                  <p className="vacio vacio-chico mb-3">Sin datos de progreso</p>
                 )}
 
                 <div className="text-xs text-textSec space-y-0.5">

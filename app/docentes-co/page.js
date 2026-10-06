@@ -215,7 +215,7 @@ export default function DocentesCOPage() {
           </div>
         </div>
         {cargandoDatos ? <p className="text-textSec text-sm">Cargando…</p> : vigentesFiltradas.length === 0 ? (
-          <p className="text-textSec text-sm">No hay ediciones en este filtro.</p>
+          <p className="vacio">No hay ediciones en este filtro.</p>
         ) : (
           <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,100%),1fr))' }}>
             {vigentesFiltradas.map((a) => (

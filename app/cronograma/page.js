@@ -520,7 +520,7 @@ export default function CronogramaPage() {
               <button className={btnSecCls} onClick={() => setSemanaOffset((s) => s + 1)}>Semana siguiente →</button>
             </div>
             {horasSemana.length === 0 ? (
-              <p className="text-textSec text-sm py-4">No hay actividades cargadas esta semana.</p>
+              <p className="vacio">No hay actividades cargadas esta semana.</p>
             ) : (
               <>
               {/* Pantallas medianas y grandes: la grilla semanal de siempre */}
@@ -623,7 +623,7 @@ export default function CronogramaPage() {
                       })}
                     </div>
                     {delDia.length === 0 ? (
-                      <p className="text-textSec text-sm py-4">No hay actividades este día.</p>
+                      <p className="vacio">No hay actividades este día.</p>
                     ) : (
                       <div className="grid gap-2">
                         {delDia.map((a, k) => {
@@ -671,7 +671,7 @@ export default function CronogramaPage() {
         ) : vista === 'mes' ? (
           <VistaMes todas={todas} onClick={(a) => setSeleccionado(a)} colorPor={colorPor} />
         ) : todas.length === 0 ? (
-          <p className="text-textSec text-sm">No hay actividades que coincidan.</p>
+          <p className="vacio">No hay actividades que coincidan.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-xs border-collapse">

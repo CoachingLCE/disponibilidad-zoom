@@ -577,7 +577,7 @@ export default function CronogramaCMPage() {
         )}
 
         {enlacesFiltrados.length === 0 ? (
-          <p className="text-textSec text-sm">Ningún recurso coincide con la búsqueda.</p>
+          <p className="vacio">Ningún recurso coincide con la búsqueda.</p>
         ) : (
           <>
             {/* Arrastrar para reordenar solo tiene sentido viendo la lista completa sin
