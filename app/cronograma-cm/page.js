@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../lib/useSession';
 import { TIPOS_CM, colorCM } from '../../lib/coloresCM';
+import { fechasRepeticion, MAX_ACTIVIDADES_POR_CARGA } from '../../lib/repeticionCM';
 import { CAMPANAS_DEFAULT, ENLACES_DEFAULT, CATEGORIAS_RECURSOS, normalizarCategoria, labelCategoria } from '../../lib/cmDefaults';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
@@ -53,6 +54,8 @@ export default function CronogramaCMPage() {
   const [tipo, setTipo] = useState(TIPOS_CM[0].id);
   const [detalle, setDetalle] = useState('');
   const [repetirSemanas, setRepetirSemanas] = useState(1);
+  // Días a repetir (pedido de Diego: "todos los lunes, todos los martes…"). Vacío = el comportamiento de siempre: el mismo día de la semana de la fecha.
+  const [diasRepetir, setDiasRepetir] = useState([]);
   const [msg, setMsg] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [seleccionada, setSeleccionada] = useState(null);
@@ -304,13 +307,14 @@ export default function CronogramaCMPage() {
       const dia = diaDesdeFecha(fecha);
       const res = await fetchAutenticado('/api/cronograma-cm', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, dia, horaMin: hora * 60, tipo, detalle, repetirSemanas })
+        body: JSON.stringify({ fecha, dia, horaMin: hora * 60, tipo, detalle, repetirSemanas, dias: diasRepetir })
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ tipo: 'error', texto: data.error }); return; }
-      setMsg({ tipo: 'ok', texto: repetirSemanas > 1 ? `Agregado en ${repetirSemanas} semanas seguidas.` : 'Agregado.' });
+      setMsg({ tipo: 'ok', texto: (data.cantidad || 1) > 1 ? `Se agregaron ${data.cantidad} actividades.` : 'Agregado.' });
       setDetalle('');
       setRepetirSemanas(1);
+      setDiasRepetir([]);
       cargar();
     } catch (err) {
       setMsg({ tipo: 'error', texto: 'Error de conexión: ' + (err.message || 'no se pudo contactar al servidor.') });
@@ -381,12 +385,30 @@ export default function CronogramaCMPage() {
               />
             </div>
           </div>
-          {repetirSemanas > 1 && (
-            <p className="text-[12px] text-textSec mb-2.5">
-              Se va a cargar el {diaDesdeFecha(fecha || toISO(new Date())).charAt(0) + diaDesdeFecha(fecha || toISO(new Date())).slice(1).toLowerCase()} de esta semana y de las {repetirSemanas - 1} semanas siguientes, {repetirSemanas} en total.
-            </p>
-          )}
-          <button className={btnCls} disabled={guardando} onClick={agregar}>{guardando ? 'Guardando…' : repetirSemanas > 1 ? `Agregar (${repetirSemanas} semanas)` : 'Agregar'}</button>
+          <div className="mb-2.5">
+            <label className={labelCls} title="Si no elegís ninguno, se repite el mismo día de la semana de la fecha">Repetir en estos días (opcional)</label>
+            <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Días de la semana en los que repetir">
+              {DIAS_SEMANA.map((d, i) => (
+                <button key={d} type="button" className={chipToggleCls(diasRepetir.includes(d))} aria-pressed={diasRepetir.includes(d)}
+                  onClick={() => setDiasRepetir((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))}>{DIAS_LABEL[i]}</button>
+              ))}
+              {diasRepetir.length > 0 && <button type="button" className="text-[12px] text-textMuted underline" onClick={() => setDiasRepetir([])}>Quitar</button>}
+            </div>
+          </div>
+          {(repetirSemanas > 1 || diasRepetir.length > 0) && (() => {
+            const fechasRep = fechasRepeticion({ fecha: fecha || toISO(new Date()), dias: diasRepetir, semanas: repetirSemanas });
+            const demasiadas = fechasRep.length > MAX_ACTIVIDADES_POR_CARGA;
+            const etiquetaDia = (d) => { const i = DIAS_SEMANA.indexOf(d); return i >= 0 ? DIAS_LABEL[i] : d.charAt(0) + d.slice(1).toLowerCase(); }; // con tilde (Miércoles)
+            const nombresDias = (diasRepetir.length ? DIAS_SEMANA.filter((d) => diasRepetir.includes(d)) : [diaDesdeFecha(fecha || toISO(new Date()))]).map(etiquetaDia);
+            return (
+              <p className={`text-[12px] mb-2.5 ${demasiadas ? 'text-dangerText' : 'text-textSec'}`}>
+                {demasiadas
+                  ? `Son ${fechasRep.length} actividades: el máximo por carga es ${MAX_ACTIVIDADES_POR_CARGA}. Probá con menos semanas o menos días.`
+                  : `Se van a cargar ${fechasRep.length} actividad${fechasRep.length === 1 ? '' : 'es'}: ${nombresDias.join(', ')} durante ${repetirSemanas} semana${repetirSemanas === 1 ? '' : 's'}${fechasRep.length ? `, del ${fechasRep[0].fecha.split('-').reverse().join('/')} al ${fechasRep[fechasRep.length - 1].fecha.split('-').reverse().join('/')}` : ''}.`}
+              </p>
+            );
+          })()}
+          <button className={btnCls} disabled={guardando || fechasRepeticion({ fecha: fecha || toISO(new Date()), dias: diasRepetir, semanas: repetirSemanas }).length > MAX_ACTIVIDADES_POR_CARGA} onClick={agregar}>{guardando ? 'Guardando…' : (repetirSemanas > 1 || diasRepetir.length > 0) ? `Agregar (${fechasRepeticion({ fecha: fecha || toISO(new Date()), dias: diasRepetir, semanas: repetirSemanas }).length})` : 'Agregar'}</button>
           {msg && <p className={`text-xs mt-2.5 ${msg.tipo === 'error' ? 'text-dangerText' : 'text-successText'}`}>{msg.texto}</p>}
         </div>
       )}
