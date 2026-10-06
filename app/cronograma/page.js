@@ -356,6 +356,48 @@ export default function CronogramaPage() {
     return datados.concat(recurrentesProyectadas, formacionesProyectadas);
   }, [todas, formacionesCalc, fechasSemana, filtroRango, asignacionesCODisponibles, hoyISO]);
 
+  // --- Vista LISTA (pedido de Diego, 06/10/2026) ---------------------------------------------------
+  // Dos problemas que tenía la lista y que el Calendario no tiene:
+  //  1) Se ordenaba de la fecha MÁS LEJANA a la más cercana, así que arriba aparecía lo de 2028 en vez de lo próximo.
+  //     Ahora: primero lo que viene (de hoy en adelante, de la más cercana a la más lejana), después lo que ya pasó
+  //     (lo más reciente primero) y al final lo que no tiene ninguna fecha.
+  //  2) Las formaciones de horario semanal fijo (sin clases puntuales cargadas en Salas Zoom) aparecían con UNA sola fila,
+  //     la de la fecha de inicio ("clase 1"), mientras que el Calendario las proyecta semana a semana. Ahora la lista las
+  //     desarma en todas sus clases (fecha de la clase n con fechaDeClaseNumero: respeta los recesos de C.O.).
+  // Esto vive en un memo aparte A PROPÓSITO: `todas` lo usan también el Calendario y "Ver mes completo", que ya proyectan las
+  // recurrentes por su cuenta — si se las expandiera ahí se duplicarían.
+  const listaOrdenada = useMemo(() => {
+    const lunesDe = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return toISO(d); };
+    // Semanas (por edición) en las que YA hay una clase real con fecha: ahí no se proyecta nada (si la clase se
+    // reprogramó, vale la real — mismo criterio que el Calendario: "si la tiene, se usa esa").
+    const semanasConClaseReal = new Set(
+      todas.filter((a) => a.fecha).map((a) => `${a.curso}|${a.edicion}|${lunesDe(a.fecha)}`)
+    );
+    const expandidas = [];
+    todas.forEach((a) => {
+      if (!a.recurrente || a.fecha || !a.fechaInicioEdicion || !a.dia || !TOTALES[a.curso]) { expandidas.push(a); return; }
+      const idx = DIAS_SEMANA.indexOf(a.dia);
+      if (idx === -1) { expandidas.push(a); return; }
+      // Primera clase: el primer día de semana igual a `dia` desde la fecha de inicio (normalmente es el mismo día).
+      const ini = new Date(a.fechaInicioEdicion + 'T00:00:00');
+      ini.setDate(ini.getDate() + ((idx + 1 - ini.getDay() + 7) % 7));
+      const base = toISO(ini);
+      for (let n = 1; n <= TOTALES[a.curso]; n++) {
+        const fechaN = fechaDeClaseNumero(a.curso, base, n);
+        if (!fechaN) continue;
+        if (semanasConClaseReal.has(`${a.curso}|${a.edicion}|${lunesDe(fechaN)}`)) continue;
+        if (filtroRango && !dentroDeRango(fechaN, filtroRango)) continue;
+        expandidas.push({ ...a, fechaProyectada: fechaN, numeroSesion: n, total: TOTALES[a.curso], pasada: fechaN < hoyISO });
+      }
+    });
+    const clave = (a) => a.fecha || a.fechaProyectada || a.fechaInicioEdicion || '';
+    const hora = (a) => a.horaMin || 0;
+    const proximas = expandidas.filter((a) => clave(a) && clave(a) >= hoyISO).sort((a, b) => clave(a).localeCompare(clave(b)) || hora(a) - hora(b));
+    const pasadas = expandidas.filter((a) => clave(a) && clave(a) < hoyISO).sort((a, b) => clave(b).localeCompare(clave(a)) || hora(b) - hora(a));
+    const sinFecha = expandidas.filter((a) => !clave(a));
+    return proximas.concat(pasadas, sinFecha);
+  }, [todas, filtroRango, hoyISO]);
+
   // Si se elige un rango puntual (Hoy / Esta semana / Próxima semana), la vista Calendario
   // salta sola a la semana que corresponde — antes el filtro no tenía ningún efecto visible
   // acá porque el Calendario siempre mostraba la semana en la que ya se estaba parado.
@@ -641,13 +683,13 @@ export default function CronogramaPage() {
                 </tr>
               </thead>
               <tbody>
-                {todas.map((a, i) => {
+                {listaOrdenada.map((a, i) => {
                   const color = colorDe(a);
                   const dia = a.dia || (a.fecha ? fechaToDia(a.fecha) : '');
                   return (
-                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha || a.fechaInicioEdicion)]} ${esMesActual(a.fecha) ? 'bg-warningBg/10' : ''}`}>
+                    <tr key={i} onClick={() => setSeleccionado(a)} className={`border-b border-border cursor-pointer hover:bg-bg ${CLASE_ANTIGUEDAD[antiguedad(a.fecha || a.fechaProyectada || a.fechaInicioEdicion)]} ${esMesActual(a.fecha || a.fechaProyectada) ? 'bg-warningBg/10' : ''}`}>
                       <td className="p-1.5">
-                        {a.fecha ? formatFechaCorta(a.fecha) : a.fechaInicioEdicion ? (
+                        {a.fecha ? formatFechaCorta(a.fecha) : a.fechaProyectada ? formatFechaCorta(a.fechaProyectada) : a.fechaInicioEdicion ? (
                           <span title="Fecha de inicio de la edición (horario semanal fijo, sin clase puntual todavía)">
                             {formatFechaCorta(a.fechaInicioEdicion)} <span className="text-textMuted text-[12px]">(inicio)</span>
                           </span>
