@@ -20,8 +20,8 @@ import { useDialogos } from '../components/Dialogos';
 // el ancho mínimo bastante más del 20-30% pedido, sin quedar apretado.
 const metricaCls = 'bg-surface2 border border-border rounded-lg px-2.5 py-2';
 const sectionCls = 'bg-surface2 border border-border rounded-xl p-5 mb-4';
-const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
-const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-2.5 py-1.5 text-xs';
+const btnCls = 'boton boton-solido bg-gradient-to-r from-accentPurple to-accentMagenta text-white disabled:opacity-40';
+const btnSecCls = 'boton boton-chico bg-transparent text-textSec border border-border';
 
 // buscarPeriodoCO (Para Coaching Ontológico, el docente/staff no vive en la clase en sí —
 // se carga aparte, por período, en Docentes C.O.) ahora vive en lib/salasLogic.js para

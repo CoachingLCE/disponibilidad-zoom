@@ -14,8 +14,8 @@ import { tienePermisoEditarDocentesCO, tienePermisoEliminarEventos } from '../..
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
 const labelCls = 'text-xs text-textSec block mb-1 font-semibold';
-const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
-const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
+const btnCls = 'boton boton-solido bg-gradient-to-r from-accentPurple to-accentMagenta text-white disabled:opacity-40';
+const btnSecCls = 'boton boton-chico bg-transparent text-textSec border border-border';
 const tabCls = (activo) => `rounded-lg px-3.5 py-1.5 text-xs font-semibold border ${activo ? 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white border-transparent' : 'bg-transparent text-textSec border-border'}`;
 
 // Estilos propios del panel "Agregar al cronograma" — un poco más "dashboard" que el resto
@@ -28,7 +28,7 @@ const tabCls = (activo) => `rounded-lg px-3.5 py-1.5 text-xs font-semibold borde
 const panelCls = 'bg-surface2 border border-border/70 rounded-2xl p-4 sm:p-5 mb-4';
 const campoCls = 'w-full h-9 bg-surface2 border border-border rounded-lg px-2.5 text-sm';
 const campoLabelCls = 'text-[12px] text-textSec block mb-1 font-medium';
-const btnPrimaryCls = 'inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40 shrink-0 h-9';
+const btnPrimaryCls = 'boton boton-solido inline-flex items-center gap-2 bg-gradient-to-r from-accentPurple to-accentMagenta text-white disabled:opacity-40 shrink-0 h-9';
 // 2ª vuelta de UX/UI (pedido de Diego, 02/10/2026): "sigue sintiéndose como un formulario
 // gigante dentro de una tarjeta gigante" — se saca el fondo+borde propio de cada subsección
 // (seccionCls) y se reemplaza por un título chico + una línea divisoria fina entre secciones
@@ -1346,7 +1346,7 @@ function ModalAccion({ clase, onCerrar, fetchAutenticado, onCambio, puedeEditarC
             <p className="text-sm mb-3">¿Seguro que querés cancelar esta clase? No se puede deshacer.</p>
             <div className="flex gap-2">
               <button className={btnSecCls} onClick={() => setPaso('menu')}>Volver</button>
-              <button className="bg-dangerText text-white rounded-lg px-4 py-2 text-sm font-semibold" onClick={cancelar}>Sí, cancelar</button>
+              <button className="boton boton-solido bg-dangerText text-white" onClick={cancelar}>Sí, cancelar</button>
             </div>
           </div>
         )}

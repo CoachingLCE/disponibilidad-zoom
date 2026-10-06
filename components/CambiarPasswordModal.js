@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useSession } from '../lib/useSession';
 
 const inputCls = 'w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-sm';
-const btnCls = 'bg-gradient-to-r from-accentPurple to-accentMagenta text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40';
-const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
+const btnCls = 'boton boton-solido bg-gradient-to-r from-accentPurple to-accentMagenta text-white disabled:opacity-40';
+const btnSecCls = 'boton boton-chico bg-transparent text-textSec border border-border';
 
 // Pedido de Diego ("AGREGAR LOS OJITOS"): botón de mostrar/ocultar para cada campo de
 // contraseña, igual al ícono de ojo que ya se usa en la mayoría de los formularios de

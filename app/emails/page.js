@@ -8,7 +8,7 @@ import { DESTINATARIOS_AVISO_ACTIVIDADES } from '../../lib/destinatariosAvisoAct
 import { DESTINATARIOS_AVISO_SALA_PENDIENTE } from '../../lib/destinatariosAvisoSalaPendiente';
 
 const boxCls = 'bg-surface2 border border-border rounded-2xl p-5 mb-4';
-const btnSecCls = 'bg-transparent text-textSec border border-border rounded-lg px-3 py-1.5 text-xs';
+const btnSecCls = 'boton boton-chico bg-transparent text-textSec border border-border';
 
 // Mismo color por tipo de movimiento que usa el mail real (app/api/cron/resumen-semanal),
 // para que la vista previa de acá coincida exactamente con lo que se termina mandando.
