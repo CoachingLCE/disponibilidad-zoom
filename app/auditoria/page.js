@@ -175,7 +175,7 @@ export default function AuditoriaPage() {
               <p className="vacio">Sin registros para este filtro.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm tabla tabla-tarjetas">
                   <thead>
                     <tr className="text-textSec text-left border-b border-border">
                       <th className="py-2 pr-3">Fecha</th><th className="pr-3">Usuario</th><th className="pr-3">Acción</th><th>Detalle</th>
@@ -184,18 +184,18 @@ export default function AuditoriaPage() {
                   <tbody>
                     {registrosPagina.map((r, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
-                        <td className="py-2 pr-3 whitespace-nowrap text-textMuted text-xs">{new Date(r.fecha).toLocaleString('es-AR', { hour12: false })}</td>
-                        <td className="pr-3 whitespace-nowrap">
+                        <td data-label="Fecha" className="py-2 pr-3 whitespace-nowrap text-textMuted text-xs">{new Date(r.fecha).toLocaleString('es-AR', { hour12: false })}</td>
+                        <td data-label="Usuario" className="pr-3 whitespace-nowrap">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorPorUsuario(r.usuario).bg} ${colorPorUsuario(r.usuario).text}`}>
                             {r.usuario || '—'}
                           </span>
                         </td>
-                        <td className="pr-3 whitespace-nowrap">
+                        <td data-label="Acción" className="pr-3 whitespace-nowrap">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorPorAccion(r.accion).bg} ${colorPorAccion(r.accion).text}`}>
                             {r.accion}
                           </span>
                         </td>
-                        <td className="text-textSec">{r.detalle}</td>
+                        <td data-label="Detalle" className="text-textSec">{r.detalle}</td>
                       </tr>
                     ))}
                   </tbody>

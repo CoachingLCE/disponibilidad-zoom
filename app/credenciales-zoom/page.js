@@ -51,7 +51,7 @@ export default function CredencialesZoomPage() {
       ) : (
         <div className={boxCls}>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full text-sm border-collapse tabla tabla-tarjetas">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
                   <th className="p-2">Sala</th><th className="p-2">Usuario</th><th className="p-2">Contraseña</th><th className="p-2">ID de reunión</th><th className="p-2"></th>
@@ -60,16 +60,16 @@ export default function CredencialesZoomPage() {
               <tbody>
                 {combinadas.map((c) => (
                   <tr key={c.sala} className="border-b border-border">
-                    <td className="p-2 font-semibold">
+                    <td data-label="Sala" className="p-2 font-semibold">
                       <span className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${colorPorSala(c.sala).dot} shrink-0`} />
                         <span className={colorPorSala(c.sala).text}>{c.sala}</span>
                       </span>
                     </td>
-                    <td className="p-2">{c.usuario}</td>
-                    <td className="p-2 font-mono">{c.contrasena}</td>
-                    <td className="p-2 font-mono">{c.idReunion || '—'}</td>
-                    <td className="p-2">
+                    <td data-label="Usuario" className="p-2">{c.usuario}</td>
+                    <td data-label="Contraseña" className="p-2 font-mono">{c.contrasena}</td>
+                    <td data-label="ID de reunión" className="p-2 font-mono">{c.idReunion || '—'}</td>
+                    <td data-label="" className="p-2">
                       <a href="https://zoom.us/signin" target="_blank" rel="noopener noreferrer"
                         className="boton boton-chico inline-block bg-accentTeal/10 text-accentTeal hover:bg-accentTeal/20 whitespace-nowrap">
                         Abrir ↗

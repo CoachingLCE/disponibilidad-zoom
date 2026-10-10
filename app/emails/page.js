@@ -237,7 +237,7 @@ export default function EmailsPage() {
       <div className={boxCls}>
         <h2 className="text-sm font-semibold mb-3">Mails automáticos que genera el sistema</h2>
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse tabla tabla-tarjetas">
             <thead>
               <tr className="border-b border-border text-textSec text-left">
                 <th className="p-1.5">Cuándo se envía</th>
@@ -251,16 +251,16 @@ export default function EmailsPage() {
             <tbody>
               {EMAILS_AUTOMATIZADOS.map((m) => (
                 <tr key={m.id} className="border-b border-border align-top">
-                  <td className="p-1.5 max-w-[180px]">{m.cuando}</td>
-                  <td className="p-1.5 max-w-[220px]">{nombresJoin(m.destinatarios)}</td>
-                  <td className="p-1.5 whitespace-nowrap text-textSec">Cronograma ILCE</td>
-                  <td className="p-1.5 max-w-[260px]">{m.asunto}</td>
-                  <td className="p-1.5">
+                  <td data-label="Cuándo se envía" className="p-1.5 max-w-[180px]">{m.cuando}</td>
+                  <td data-label="A quién" className="p-1.5 max-w-[220px]">{nombresJoin(m.destinatarios)}</td>
+                  <td data-label="De / CC" className="p-1.5 whitespace-nowrap text-textSec">Cronograma ILCE</td>
+                  <td data-label="Asunto" className="p-1.5 max-w-[260px]">{m.asunto}</td>
+                  <td data-label="Tipo" className="p-1.5">
                     <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[m.tipo] || 'bg-surface2 text-textMuted'}`}>
                       {m.tipo}
                     </span>
                   </td>
-                  <td className="p-1.5">
+                  <td data-label="Ver mail" className="p-1.5">
                     <button className="text-infoText underline whitespace-nowrap" onClick={() => setPrevia(m)}>Ver mail →</button>
                   </td>
                 </tr>
@@ -292,7 +292,7 @@ export default function EmailsPage() {
           <p className="text-textSec text-sm">{envios.length === 0 ? 'Todavía no se mandó ningún mail automático.' : 'No hay envíos que coincidan con la búsqueda.'}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
+            <table className="w-full text-xs border-collapse tabla tabla-tarjetas">
               <thead>
                 <tr className="border-b border-border text-textSec text-left">
                   <th className="p-1.5">Fecha</th><th className="p-1.5">Tipo</th><th className="p-1.5">Asunto</th>
@@ -302,15 +302,15 @@ export default function EmailsPage() {
               <tbody>
                 {enviosFiltrados.map((e, i) => (
                   <tr key={i} className="border-b border-border">
-                    <td className="p-1.5 whitespace-nowrap">{new Date(e.fecha).toLocaleString('es-AR')}</td>
-                    <td className="p-1.5">
+                    <td data-label="Fecha" className="p-1.5 whitespace-nowrap">{new Date(e.fecha).toLocaleString('es-AR')}</td>
+                    <td data-label="Tipo" className="p-1.5">
                       <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${TIPO_COLOR[e.tipo] || 'bg-surface2 text-textMuted'}`}>
                         {e.tipo}
                       </span>
                     </td>
-                    <td className="p-1.5">{e.asunto}</td>
-                    <td className="p-1.5 text-textSec">{e.destinatarios}</td>
-                    <td className="p-1.5">{e.cantidad ?? '—'}</td>
+                    <td data-label="Asunto" className="p-1.5">{e.asunto}</td>
+                    <td data-label="Destinatarios" className="p-1.5 text-textSec">{e.destinatarios}</td>
+                    <td data-label="Cantidad" className="p-1.5">{e.cantidad ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
