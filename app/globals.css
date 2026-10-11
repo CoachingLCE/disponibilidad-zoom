@@ -236,3 +236,15 @@ table.tabla-fija thead th{position:sticky;top:0;z-index:2}
   table.tabla-tarjetas tbody td[data-label=""]{justify-content:flex-end}
   table.tabla-tarjetas tbody tr:hover td{background:transparent}
 }
+
+/* Puntos de estado (Lote 5 de la auditoría): los círculos de color 🟢🔴🟡🟠🔵🟣🟤⚫⚪ que se usan como indicadores de estado se veían distinto según el
+   dispositivo (cada sistema tiene su propio emoji, con otros colores y tamaños). Esta fuente propia, de menos de 1 KB, los dibuja igual en todos: un círculo
+   con borde, en colores parejos que se leen bien en tema claro y oscuro. Se declara con el MISMO nombre de las fuentes de la app, UNA VEZ POR CADA PESO que la app ya
+   usa (el navegador solo combina reglas con el mismo peso) y con "unicode-range" limitado a esos 9 símbolos: no cambia ningún otro carácter ni hace falta tocar el código
+   de ninguna pantalla. (Los correos no la usan: ahí queda el emoji.) */
+@font-face{font-family:'Dosis';src:url('/fonts/puntos.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;unicode-range:U+26AA-26AB,U+1F534-1F535,U+1F7E0-1F7E4}
+@font-face{font-family:'Dosis';src:url('/fonts/puntos.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap;unicode-range:U+26AA-26AB,U+1F534-1F535,U+1F7E0-1F7E4}
+@font-face{font-family:'Dosis';src:url('/fonts/puntos.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap;unicode-range:U+26AA-26AB,U+1F534-1F535,U+1F7E0-1F7E4}
+@font-face{font-family:'Dosis';src:url('/fonts/puntos.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;unicode-range:U+26AA-26AB,U+1F534-1F535,U+1F7E0-1F7E4}
+@font-face{font-family:'TeX Gyre Adventor';src:url('/fonts/puntos.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;unicode-range:U+26AA-26AB,U+1F534-1F535,U+1F7E0-1F7E4}
+@font-face{font-family:'TeX Gyre Adventor';src:url('/fonts/puntos.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;unicode-range:U+26AA-26AB,U+1F534-1F535,U+1F7E0-1F7E4}
